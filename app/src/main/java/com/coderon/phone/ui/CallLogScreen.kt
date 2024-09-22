@@ -1,5 +1,6 @@
 package com.coderon.phone.ui
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,10 +46,19 @@ import com.coderon.phone.viewmodel.CallLogViewModel
 @Composable
 fun CallLogScreen(viewModel: CallLogViewModel = viewModel()) {
     val callLogs = viewModel.callLogs.collectAsState()
+    var searchText by remember { mutableStateOf("") }
 
-    LazyColumn {
-        items(callLogs.value) { log ->
-            CallLogItem(log)
+    Column {
+        SearchBar(searchText = searchText) {
+            searchText = it
+        }
+        val filteredContacts =
+            viewModel.filteredCallLogs(searchText).collectAsState(initial = listOf()).value
+        LazyColumn {
+
+            items(filteredContacts) { contact ->
+                CallLogItem(contact)
+            }
         }
     }
 }
@@ -70,7 +84,7 @@ fun CallLogItem(log: CallLog) {
             horizontalAlignment = Alignment.Start
         ) {
             Text(
-                log.contact?.name ?: log.phoneNumber, fontSize = 18.sp
+                text = log.contact?.name ?: log.phoneNumber, fontSize = 18.sp
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -78,17 +92,13 @@ fun CallLogItem(log: CallLog) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
-                    modifier = Modifier.size(14.dp), painter = painterResource(
-                        id = when (log.callType) {
-                            CallType.INCOMING -> R.drawable.inoming_call
-                            CallType.OUTGOING -> R.drawable.outgoing_call
-                            CallType.MISSED -> R.drawable.missed_call
-                        }
-                    ), contentDescription = ""
+                    modifier = Modifier.size(14.dp),
+                    painter = painterResource(id = CallTypeIcon.valueOf(log.callType.name).iconRes),
+                    contentDescription = log.callType.name.lowercase() // e.g., "incoming"
                 )
-                Text(log.callDuration.toLong().formatDuration(),fontSize = 14.sp)
+                Text(log.callDuration.toLong().formatDuration(), fontSize = 14.sp)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(log.callTime.formatTime(),fontSize = 14.sp)
+                Text(log.callTime.formatTime(), fontSize = 14.sp)
             }
         }
         FilledTonalIconButton(
@@ -104,6 +114,10 @@ fun CallLogItem(log: CallLog) {
             )
         }
     }
+}
+
+enum class CallTypeIcon(@DrawableRes val iconRes: Int) {
+    INCOMING(R.drawable.inoming_call), OUTGOING(R.drawable.outgoing_call), MISSED(R.drawable.missed_call)
 }
 
 @Preview(showBackground = true)

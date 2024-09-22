@@ -5,28 +5,39 @@ import androidx.lifecycle.viewModelScope
 import com.coderon.phone.data.modal.CallLog
 import com.coderon.phone.domain.GetCallLogsUseCase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class CallLogViewModel(private val getCallLogsUseCase: GetCallLogsUseCase) : ViewModel() {
-    // Using StateFlow for better state management
     private val _callLogs = MutableStateFlow<List<CallLog>>(emptyList())
-    val callLogs: StateFlow<List<CallLog>> = _callLogs
+    val callLogs: StateFlow<List<CallLog>> = _callLogs.asStateFlow()
+
 
     init {
         fetchCallLogs()
     }
 
     private fun fetchCallLogs() {
-        // Ensure data fetching is done asynchronously
         viewModelScope.launch(Dispatchers.IO) {
-            val contacts = getCallLogsUseCase()
-            withContext(Dispatchers.Main) {
-                _callLogs.value = contacts
+            try {
+                val callLogs = getCallLogsUseCase()
+                _callLogs.value = callLogs
+            } catch (e: Exception) {
+                // Handle error, e.g., update state with an error message
             }
         }
+    }
 
+    fun filteredCallLogs(searchText: String): Flow<List<CallLog>> = callLogs.map { logs ->
+        logs.filter { log ->
+            (log.contact?.name?.contains(
+                searchText,
+                ignoreCase = true
+            ) == true) || log.phoneNumber.contains(searchText)
+        }
     }
 }

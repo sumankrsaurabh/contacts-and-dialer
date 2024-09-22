@@ -2,25 +2,27 @@
 accompanistPermissions = "0.32.0"
 agp = "8.5.2"
 coilCompose = "2.7.0"
+collectionKtx = "1.4.4"
 koinAndroidxComposeVersion = "3.5.6"
+koinCore = "4.0.0"
 kotlin = "1.9.23"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.5"
+lifecycleRuntimeKtx = "2.8.6"
 activityCompose = "1.9.2"
-composeBom = "2024.09.01"
-materialIconsExtended = "1.7.1"
-navigationCompose = "2.8.0"
-renderscriptToolkit = "1.0.0"
+composeBom = "2024.09.02"
+materialIconsExtended = "1.7.2"
+navigationCompose = "2.8.1"
+toolsCore = "1.0.0-alpha09"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
+androidx-collection-ktx = { module = "androidx.collection:collection-ktx", version.ref = "collectionKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
-androidx-renderscript-toolkit = { module = "androidx.renderscript:renderscript-toolkit", version.ref = "renderscriptToolkit" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 insert-koin-koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koinAndroidxComposeVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -36,6 +38,9 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-tools-core = { group = "androidx.privacysandbox.tools", name = "tools-core", version.ref = "toolsCore" }
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koinAndroidxComposeVersion" }
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koinCore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
