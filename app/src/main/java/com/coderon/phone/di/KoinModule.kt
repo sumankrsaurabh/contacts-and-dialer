@@ -1,12 +1,14 @@
 package com.coderon.phone.di
 
 import android.content.ContentResolver
-import com.coderon.phone.data.CallLogRepositoryImpl
-import com.coderon.phone.data.ContactRepositoryImpl
-import com.coderon.phone.domain.CallLogRepository
-import com.coderon.phone.domain.ContactRepository
+import com.coderon.phone.data.repository.CallLogRepositoryImpl
+import com.coderon.phone.data.repository.CallRepositoryImpl
+import com.coderon.phone.data.repository.ContactRepositoryImpl
 import com.coderon.phone.domain.GetCallLogsUseCase
 import com.coderon.phone.domain.GetContactsUseCase
+import com.coderon.phone.domain.repository.CallLogRepository
+import com.coderon.phone.domain.repository.CallRepository
+import com.coderon.phone.domain.repository.ContactRepository
 import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.CallViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
@@ -29,5 +31,6 @@ val appModule = module {
     // ViewModel injections
     viewModel { ContactViewModel(get()) }
     viewModel { CallLogViewModel(get()) }
-    viewModel { CallViewModel() }
+    single<CallRepository> { CallRepositoryImpl(androidContext()) }
+    viewModel { CallViewModel(get()) }
 }

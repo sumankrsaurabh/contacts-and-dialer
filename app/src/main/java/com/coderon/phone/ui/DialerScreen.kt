@@ -1,10 +1,5 @@
 package com.coderon.phone.ui
 
-import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,15 +30,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
 import com.coderon.phone.R
 
 @Composable
-fun DialerScreen() {
+fun DialerScreen(
+    onCallButtonClick: (String) -> Unit,
+    onVideoCallButtonClick: () -> Unit,
+) {
     var phoneNumber by remember { mutableStateOf("") }
     val maxLength = 15
 
@@ -79,10 +76,9 @@ fun DialerScreen() {
                 )
             }
 
-            val context = LocalContext.current
             FilledIconButton(
                 onClick = {
-                    initiateCall(phoneNumber, context)
+                    onCallButtonClick(phoneNumber)
                 },
                 modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
@@ -113,20 +109,6 @@ fun DialerScreen() {
     }
 }
 
-fun initiateCall(phoneNumber: String, context: Context) {
-    if (ActivityCompat.checkSelfPermission(
-            context, Manifest.permission.CALL_PHONE
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    ) {
-        val uri = Uri.fromParts("tel", phoneNumber, null)
-        val intent = Intent(Intent.ACTION_CALL, uri)
-        context.startActivity(intent)
-    } else {
-        // Request permission or show a message to the user
-        Toast.makeText(context, "Permission to make calls is required", Toast.LENGTH_SHORT).show()
-    }
-}
-
 
 @Composable
 fun DialPad(onDigitPress: (String) -> Unit) {
@@ -140,12 +122,13 @@ fun DialPad(onDigitPress: (String) -> Unit) {
             ) {
                 // Loop through each digit in the row
                 row.forEach { digit ->
-                    Column(modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .clickable { onDigitPress(digit.toString()) }
-                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)),
+                    Column(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .clickable { onDigitPress(digit.toString()) }
+                            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(digit.toString(), fontSize = 26.sp)
@@ -154,4 +137,11 @@ fun DialPad(onDigitPress: (String) -> Unit) {
             }
         }
     }
+}
+
+
+@Preview
+@Composable
+private fun Preview() {
+    DialerScreen({}) { }
 }

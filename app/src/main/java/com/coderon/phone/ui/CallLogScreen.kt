@@ -22,40 +22,41 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coderon.phone.R
 import com.coderon.phone.data.helpers.formatDuration
 import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.modal.CallLog
 import com.coderon.phone.data.modal.CallType
 import com.coderon.phone.data.modal.Contact
-import com.coderon.phone.viewmodel.CallLogViewModel
+import kotlinx.coroutines.flow.Flow
 
 @Composable
-fun CallLogScreen(viewModel: CallLogViewModel = viewModel()) {
-    val callLogs = viewModel.callLogs.collectAsState()
+fun CallLogScreen(
+    callLog: List<CallLog>, filteredCallLogs: (String) -> Flow<List<CallLog>>
+) {
     var searchText by remember { mutableStateOf("") }
 
     Column {
         SearchBar(searchText = searchText) {
             searchText = it
         }
-        val filteredContacts =
-            viewModel.filteredCallLogs(searchText).collectAsState(initial = listOf()).value
+        val filteredContacts = filteredCallLogs(searchText).collectAsStateWithLifecycle(
+            initialValue = callLog
+        ).value
         LazyColumn {
-
             items(filteredContacts) { contact ->
                 CallLogItem(contact)
             }
@@ -68,7 +69,10 @@ fun CallLogItem(log: CallLog) {
     Row(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+
+
+
     ) {
         Image(
             modifier = Modifier
@@ -92,10 +96,10 @@ fun CallLogItem(log: CallLog) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(14.dp).alpha(0.8f),
                     painter = painterResource(id = CallTypeIcon.valueOf(log.callType.name).iconRes),
                     contentDescription = log.callType.name.lowercase() // e.g., "incoming"
-                )
+                    )
                 Text(log.callDuration.toLong().formatDuration(), fontSize = 14.sp)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(log.callTime.formatTime(), fontSize = 14.sp)
@@ -127,7 +131,7 @@ private fun CallLogUI() {
         log = CallLog(
             id = 0L,
             callDuration = 30.toString(),
-            contact = Contact(0L, "Suman Kumar Saurabh", "780840285"),
+            contact = Contact("", "Suman Kumar Saurabh", "780840285"),
             callTime = 12,
             callType = CallType.INCOMING,
             phoneNumber = "7808140285"

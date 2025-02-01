@@ -1,4 +1,4 @@
-package com.coderon.phone.domain
+package com.coderon.phone.domain.repository
 
 import com.coderon.phone.data.modal.CallLog
 import com.coderon.phone.data.modal.CallType

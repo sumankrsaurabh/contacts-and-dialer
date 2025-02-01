@@ -10,5 +10,5 @@ data class CallLog(
 )
 
 enum class CallType {
-    INCOMING, OUTGOING, MISSED,REJECTED,UNKNOWN
+    INCOMING, OUTGOING, MISSED, REJECTED, UNKNOWN
 }

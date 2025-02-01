@@ -1,4 +1,4 @@
-package com.coderon.phone.data
+package com.coderon.phone.data.repository
 
 import android.content.ContentResolver
 import android.content.ContentValues
@@ -8,7 +8,7 @@ import android.telephony.PhoneNumberUtils
 import android.util.Log
 import com.coderon.phone.data.modal.CallType
 import com.coderon.phone.data.modal.Contact
-import com.coderon.phone.domain.CallLogRepository
+import com.coderon.phone.domain.repository.CallLogRepository
 import com.coderon.phone.data.modal.CallLog as CallLogData
 
 class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : CallLogRepository {
@@ -118,7 +118,7 @@ class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : Call
                 val photoUri = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.PHOTO_URI))
 
                 return Contact(
-                    id = 0L,  // ID can be fetched if needed
+                    id = "",  // ID can be fetched if needed
                     name = name,
                     profilePictureUrl = photoUri,
                     phoneNumber = phoneNumber

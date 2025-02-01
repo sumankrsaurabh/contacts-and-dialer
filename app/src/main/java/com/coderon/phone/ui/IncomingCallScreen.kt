@@ -1,6 +1,5 @@
 package com.coderon.phone.ui
 
-import android.telecom.Call
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +18,7 @@ import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,13 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.R
 
 @Composable
 fun IncomingCallScreen(
-    call: Call,
+    phoneNumber: String = "Unknown Caller",
     onAnswer: () -> Unit,
     onDecline: () -> Unit
 ) {
@@ -42,7 +43,6 @@ fun IncomingCallScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Centered Column for incoming call details
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -50,9 +50,9 @@ fun IncomingCallScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Profile Image
+            // Caller Image
             Image(
-                painter = painterResource(id = R.drawable.user),
+                painter = painterResource(id = R.drawable.profile_picture_call),
                 contentDescription = "Caller Profile Picture",
                 modifier = Modifier
                     .size(120.dp)
@@ -61,22 +61,16 @@ fun IncomingCallScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Caller name and phone number
+            // Caller Name or Number
             Text(
-                text = call.details.handle.schemeSpecificPart,
+                text = phoneNumber,
                 fontSize = 24.sp,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "callerPhoneNumber",
-                fontSize = 18.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-            // Buttons for Answer and Decline
+            // reminder and Message button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -84,7 +78,7 @@ fun IncomingCallScreen(
                 FilledIconButton(
                     onClick = onDecline,
                     modifier = Modifier.size(64.dp),
-                    colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                    colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = Color.Red
                     )
                 ) {
@@ -98,7 +92,39 @@ fun IncomingCallScreen(
                 FilledIconButton(
                     onClick = onAnswer,
                     modifier = Modifier.size(64.dp),
-                    colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Green
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Call,
+                        contentDescription = "Answer Call",
+                        tint = Color.White
+                    )
+                }
+            } // Answer & Decline Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                FilledIconButton(
+                    onClick = onDecline,
+                    modifier = Modifier.size(64.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Red
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CallEnd,
+                        contentDescription = "Decline Call",
+                        tint = Color.White
+                    )
+                }
+
+                FilledIconButton(
+                    onClick = onAnswer,
+                    modifier = Modifier.size(64.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = Color.Green
                     )
                 ) {
@@ -112,3 +138,14 @@ fun IncomingCallScreen(
         }
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewIncomingCallScreen() {
+    IncomingCallScreen(
+        phoneNumber = "+1 234 567 8900",
+        onAnswer = {},
+        onDecline = {}
+    )
+}
+

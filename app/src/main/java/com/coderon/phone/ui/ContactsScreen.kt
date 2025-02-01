@@ -29,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,7 +46,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.coderon.phone.R
 import com.coderon.phone.data.modal.Contact
@@ -55,12 +53,13 @@ import com.coderon.phone.viewmodel.ContactViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun ContactsScreen(viewModel: ContactViewModel = viewModel()) {
+fun ContactsScreen(
+    contacts: List<Contact>,
+    scrollToLetter: suspend (Char, LazyListState) -> Unit
+) {
     var searchText by remember { mutableStateOf("") }
-    val contacts = viewModel.contacts.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-
     // State for overlaying letter
     var showLetter by remember { mutableStateOf(false) }
     var selectedLetter by remember { mutableStateOf<Char?>(null) }
@@ -78,7 +77,7 @@ fun ContactsScreen(viewModel: ContactViewModel = viewModel()) {
                     LazyColumn(
                         modifier = Modifier.padding(horizontal = 16.dp), state = listState
                     ) {
-                        val filteredContacts = contacts.value.filter {
+                        val filteredContacts = contacts.filter {
                             it.name.contains(
                                 searchText, ignoreCase = true
                             ) || it.phoneNumber.contains(searchText)
@@ -103,7 +102,7 @@ fun ContactsScreen(viewModel: ContactViewModel = viewModel()) {
                             )
                         }
                         coroutineScope.launch {
-                            viewModel.scrollToLetter(letter, listState)
+                            scrollToLetter(letter, listState)
                         }
                     }, onDragEnd = {
                         coroutineScope.launch {
@@ -204,8 +203,7 @@ fun SlidingAlphabetScrollBar(
             .padding(end = 8.dp)
             .pointerInput(Unit) {
                 detectVerticalDragGestures(onDragStart = { offset ->
-                    val letterIndex = (offset.y / (size.height / letters.size))
-                        .toInt()
+                    val letterIndex = (offset.y / (size.height / letters.size)).toInt()
                         .coerceIn(0, letters.size - 1)
                     draggedLetter = letters[letterIndex]
                     onLetterSelected(letters[letterIndex])
@@ -213,9 +211,8 @@ fun SlidingAlphabetScrollBar(
                     if (change.positionChange() != Offset.Zero) change.consume()
 
                     val letterHeight = size.height / letters.size
-                    val draggedIndex = (change.position.y / letterHeight)
-                        .toInt()
-                        .coerceIn(0, letters.size - 1)
+                    val draggedIndex =
+                        (change.position.y / letterHeight).toInt().coerceIn(0, letters.size - 1)
                     draggedLetter = letters[draggedIndex]
                     onLetterSelected(letters[draggedIndex])
                 }, onDragEnd = {
@@ -224,7 +221,8 @@ fun SlidingAlphabetScrollBar(
             }, contentAlignment = Alignment.CenterEnd
     ) {
         Column(
-            modifier = Modifier.fillMaxHeight()
+            modifier = Modifier
+                .fillMaxHeight()
                 .width(8.dp),
             verticalArrangement = Arrangement.SpaceEvenly,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -252,7 +250,7 @@ suspend fun ContactViewModel.scrollToLetter(letter: Char, listState: LazyListSta
 private fun ContactItemUI() {
     ContactItem(
         contact = Contact(
-            id = 101, phoneNumber = "7808140285", name = "Suman Kumar Saurabh"
+            id = "", phoneNumber = "7808140285", name = "Suman Kumar Saurabh"
         )
     )
 }
