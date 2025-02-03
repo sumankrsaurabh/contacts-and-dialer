@@ -1,256 +1,167 @@
 package com.coderon.phone.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Card
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Transparent
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
-import com.coderon.phone.R
+import coil.request.ImageRequest
 import com.coderon.phone.data.modal.Contact
-import com.coderon.phone.viewmodel.ContactViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun ContactsScreen(
     contacts: List<Contact>,
-    scrollToLetter: suspend (Char, LazyListState) -> Unit
+    onAddContactClick: () -> Unit // Callback for FAB click
 ) {
-    var searchText by remember { mutableStateOf("") }
+    val groupedContacts = remember(contacts) {
+        contacts.groupBy { it.name.first().uppercaseChar() }
+    }
     val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-    // State for overlaying letter
-    var showLetter by remember { mutableStateOf(false) }
-    var selectedLetter by remember { mutableStateOf<Char?>(null) }
-    val overlayAlpha = remember { Animatable(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Search Bar
-            SearchBar(searchText) {
-                searchText = it
-            }
-            Row {
-                Column(modifier = Modifier.weight(1f)) {
-                    // Main Contact List
-                    LazyColumn(
-                        modifier = Modifier.padding(horizontal = 16.dp), state = listState
-                    ) {
-                        val filteredContacts = contacts.filter {
-                            it.name.contains(
-                                searchText, ignoreCase = true
-                            ) || it.phoneNumber.contains(searchText)
-                        }
-
-                        items(filteredContacts) { contact ->
-                            ContactItem(contact)
-                        }
-                    }
-                }
-
-                // Letter Scroll Bar with sliding and animation
-                Column(
-                    modifier = Modifier.width(16.dp)
-                ) {
-                    SlidingAlphabetScrollBar(onLetterSelected = { letter ->
-                        selectedLetter = letter
-                        showLetter = true
-                        coroutineScope.launch {
-                            overlayAlpha.animateTo(
-                                1f, animationSpec = tween(durationMillis = 300)
-                            )
-                        }
-                        coroutineScope.launch {
-                            scrollToLetter(letter, listState)
-                        }
-                    }, onDragEnd = {
-                        coroutineScope.launch {
-                            overlayAlpha.animateTo(
-                                0f, animationSpec = tween(durationMillis = 300)
-                            )
-                            showLetter = false
-                        }
-                    })
+            LazyColumn(state = listState) {
+                groupedContacts.forEach { (letter, contacts) ->
+                    item { LetterHeader(letter) }
+                    items(contacts) { contact -> ContactItem(contact) }
                 }
             }
         }
 
-        AnimatedVisibility(
-            visible = selectedLetter != null && showLetter,
-            enter = fadeIn(animationSpec = tween(durationMillis = 300)),
-            exit = fadeOut(animationSpec = tween(durationMillis = 300))
+        // Floating Action Button (FAB) for Adding Contacts
+        FloatingActionButton(
+            onClick = onAddContactClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primary
         ) {
-            selectedLetter?.let {
-                Box(
-                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.4f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = it.toString(),
-                            fontSize = 64.sp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = overlayAlpha.value)
-                        )
-                    }
-                }
-            }
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Contact")
         }
     }
 }
 
-
 @Composable
-fun SearchBar(searchText: String, onSearchTextChanged: (String) -> Unit) {
-    TextField(
-        value = searchText,
-        onValueChange = onSearchTextChanged,
+fun LetterHeader(letter: Char) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
-        placeholder = { Text("Search contacts") },
-        singleLine = true,
-        shape = CircleShape,
-        colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Transparent,
-            unfocusedIndicatorColor = Transparent,
-            disabledIndicatorColor = Transparent
-        )
-    )
+            .padding(vertical = 8.dp, horizontal = 16.dp),
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .padding(vertical = 8.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = letter.toString(),
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+    }
 }
 
 @Composable
 fun ContactItem(contact: Contact) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)
-    ) {
-        val painterImage = if (contact.profilePictureUrl == null) {
-            painterResource(id = R.drawable.user)
-        } else {
-            rememberAsyncImagePainter(model = contact.profilePictureUrl)
-        }
-        Image(
-            painter = painterImage,
-            contentDescription = "Profile Picture",
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(contact.name, fontSize = 18.sp)
-            Text(contact.phoneNumber, fontSize = 14.sp)
-        }
-    }
-}
-
-@Composable
-fun SlidingAlphabetScrollBar(
-    onLetterSelected: (Char) -> Unit, onDragEnd: () -> Unit
-) {
-    val letters = ('A'..'Z').toList()
-    var draggedLetter by remember { mutableStateOf<Char?>(null) }
-
-    Box(
+    Card(
         modifier = Modifier
-            .fillMaxHeight()
-            .padding(end = 8.dp)
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(onDragStart = { offset ->
-                    val letterIndex = (offset.y / (size.height / letters.size)).toInt()
-                        .coerceIn(0, letters.size - 1)
-                    draggedLetter = letters[letterIndex]
-                    onLetterSelected(letters[letterIndex])
-                }, onVerticalDrag = { change, _ ->
-                    if (change.positionChange() != Offset.Zero) change.consume()
-
-                    val letterHeight = size.height / letters.size
-                    val draggedIndex =
-                        (change.position.y / letterHeight).toInt().coerceIn(0, letters.size - 1)
-                    draggedLetter = letters[draggedIndex]
-                    onLetterSelected(letters[draggedIndex])
-                }, onDragEnd = {
-                    onDragEnd()
-                })
-            }, contentAlignment = Alignment.CenterEnd
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(24.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .fillMaxHeight()
-                .width(8.dp),
-            verticalArrangement = Arrangement.SpaceEvenly,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            letters.forEach { letter ->
+            if (contact.profilePictureUrl != null) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        ImageRequest.Builder(LocalContext.current)
+                            .data(contact.profilePictureUrl)
+                            .crossfade(true)
+                            .build()
+                    ),
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = contact.name.first().toString(),
+                        fontSize = 20.sp,
+                        color = Color.White
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(text = contact.name, fontSize = 16.sp)
                 Text(
-                    text = letter.toString(),
-                    fontSize = 12.sp,
-                    color = if (draggedLetter == letter) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                    text = contact.phoneNumber,
+                    fontSize = 14.sp,
+                    color = Color.Gray
                 )
             }
         }
     }
 }
 
-suspend fun ContactViewModel.scrollToLetter(letter: Char, listState: LazyListState) {
-    val position = contacts.value.indexOfFirst { it.name.startsWith(letter, ignoreCase = true) }
-    if (position != -1) {
-        listState.scrollToItem(position)
-    }
-}
-
-@Preview
+@Preview(showBackground = true)
 @Composable
-private fun ContactItemUI() {
-    ContactItem(
-        contact = Contact(
-            id = "", phoneNumber = "7808140285", name = "Suman Kumar Saurabh"
-        )
+fun PreviewContactsScreen() {
+    val sampleContacts = listOf(
+        Contact("1", "Alice", "1234567890", null),
+        Contact("2", "Aaron", "9876543210", null),
+        Contact("3", "Alex", "1112223333", "https://example.com/profile1.jpg"),
+        Contact("4", "Brian", "4445556666", null),
+        Contact("5", "Bella", "7778889999", "https://example.com/profile2.jpg"),
+        Contact("6", "Charlie", "0001112222", null),
+        Contact("7", "David", "3334445555", "https://example.com/profile3.jpg"),
+        Contact("8", "Emma", "6667778888", null)
     )
+    ContactsScreen(sampleContacts) {}
 }

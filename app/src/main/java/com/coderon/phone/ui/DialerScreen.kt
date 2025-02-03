@@ -35,14 +35,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.R
+import com.coderon.phone.ui.utils.SimSelectionDialog
 
 @Composable
 fun DialerScreen(
-    onCallButtonClick: (String) -> Unit,
-    onVideoCallButtonClick: () -> Unit,
+    startCall: (String, Int) -> Unit,
+    startVideoCall: () -> Unit,
 ) {
-    var phoneNumber by remember { mutableStateOf("") }
-    val maxLength = 15
+    var dialedNumber by remember { mutableStateOf("") }
+    val maxDialedNumberLength = 15
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -50,23 +51,29 @@ fun DialerScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = phoneNumber, fontSize = 32.sp, modifier = Modifier.padding(18.dp)
+            text = dialedNumber, fontSize = 32.sp, modifier = Modifier.padding(18.dp)
         )
 
-        DialPad { digit ->
-            if (phoneNumber.length < maxLength) {
-                phoneNumber += digit
+        DialPad { dialedDigit ->
+            if (dialedNumber.length < maxDialedNumberLength) {
+                dialedNumber += dialedDigit
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         // Call action row with icons for video call, regular call, and delete
+        val showSimSelectionDialog = remember { mutableStateOf(false) }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
+
+            // video call button
+
+            //TODO: should call startVideoCall
             IconButton(onClick = { /*TODO*/ }) {
                 Icon(
                     imageVector = Icons.Filled.VideoCall,
@@ -76,9 +83,12 @@ fun DialerScreen(
                 )
             }
 
+            // call button
+
+
             FilledIconButton(
                 onClick = {
-                    onCallButtonClick(phoneNumber)
+                    showSimSelectionDialog.value = true
                 },
                 modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
@@ -91,10 +101,16 @@ fun DialerScreen(
                     modifier = Modifier.size(32.dp)
                 )
             }
+            if (showSimSelectionDialog.value) {
+                SimSelectionDialog(dialedNumber, startCall) {
+                    showSimSelectionDialog.value = false
+                }
+            }
 
+            // remove digit button
             IconButton(onClick = {
-                if (phoneNumber.isNotEmpty()) {
-                    phoneNumber = phoneNumber.dropLast(1)  // Remove last digit
+                if (dialedNumber.isNotEmpty()) {
+                    dialedNumber = dialedNumber.dropLast(1)  // Remove last digit
                 }
             }) {
                 Icon(
@@ -114,24 +130,24 @@ fun DialerScreen(
 fun DialPad(onDigitPress: (String) -> Unit) {
     Column {
         // Loop through rows of digits for the dialer
-        listOf("123", "456", "789", "*0#").forEach { row ->
+        listOf("123", "456", "789", "*0#").forEach { digitRow ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 // Loop through each digit in the row
-                row.forEach { digit ->
+                digitRow.forEach { dialedDigit ->
                     Column(
                         modifier = Modifier
                             .padding(vertical = 8.dp)
                             .size(64.dp)
                             .clip(CircleShape)
-                            .clickable { onDigitPress(digit.toString()) }
+                            .clickable { onDigitPress(dialedDigit.toString()) }
                             .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(digit.toString(), fontSize = 26.sp)
+                        Text(dialedDigit.toString(), fontSize = 26.sp)
                     }
                 }
             }
@@ -143,5 +159,5 @@ fun DialPad(onDigitPress: (String) -> Unit) {
 @Preview
 @Composable
 private fun Preview() {
-    DialerScreen({}) { }
+//    DialerScreen(startCall = {""}) { }
 }
