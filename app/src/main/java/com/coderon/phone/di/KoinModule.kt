@@ -4,8 +4,6 @@ import android.content.ContentResolver
 import com.coderon.phone.data.repository.CallLogRepositoryImpl
 import com.coderon.phone.data.repository.CallRepositoryImpl
 import com.coderon.phone.data.repository.ContactRepositoryImpl
-import com.coderon.phone.domain.GetCallLogsUseCase
-import com.coderon.phone.domain.GetContactsUseCase
 import com.coderon.phone.domain.repository.CallLogRepository
 import com.coderon.phone.domain.repository.CallRepository
 import com.coderon.phone.domain.repository.ContactRepository
@@ -23,10 +21,6 @@ val appModule = module {
     // Repository injections
     single<ContactRepository> { ContactRepositoryImpl(get()) } // pass ContentResolver
     single<CallLogRepository> { CallLogRepositoryImpl(get()) } // pass ContentResolver
-
-    // Use case injections
-    factory { GetContactsUseCase(get()) }
-    factory { GetCallLogsUseCase(get()) }
 
     // ViewModel injections
     viewModel { ContactViewModel(get()) }
