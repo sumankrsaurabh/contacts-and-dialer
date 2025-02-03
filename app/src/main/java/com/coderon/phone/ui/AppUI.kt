@@ -34,7 +34,9 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun MyApp() {
     val navController = rememberNavController()
-
+    val contactViewModel: ContactViewModel = koinViewModel()
+    val callLogViewModel: CallLogViewModel = koinViewModel()
+    val callViewModel: CallViewModel = koinViewModel()
     Scaffold(bottomBar = {
         BottomNavigationBar(navController = navController)
     }) { innerPadding ->
@@ -65,21 +67,35 @@ fun MyApp() {
 
         ) {
             composable("keypad") {
-                val callLogViewModel = koinViewModel<CallViewModel>()
-                DialerScreen(callLogViewModel::makeCall,{})
+                DialerScreen(callViewModel::makeCall) {}
             }
             composable("recent") {
-                val callLogViewModel: CallLogViewModel = koinViewModel()
                 CallLogScreen(
                     callLog = callLogViewModel.callLogs.collectAsStateWithLifecycle().value,
-                    filteredCallLogs = callLogViewModel::filteredCallLogs
+                    filteredCallLogs = callLogViewModel::filteredCallLogs,
+                    navController = navController
                 )
             }
             composable("contacts") {
-                val contactViewModel: ContactViewModel = koinViewModel()
                 ContactsScreen(
                     contacts = contactViewModel.contacts.collectAsStateWithLifecycle().value,
-                    scrollToLetter = contactViewModel::scrollToLetter
+                    onAddContactClick = { navController.navigate("add_contact") }
+                )
+            }
+            composable("add_contact") {
+                AddContactScreen(
+                    onSaveContact = contactViewModel::saveContact
+                )
+            }
+            composable("contact_details/{phoneNumber}") {
+                val phoneNumber = it.arguments?.getString("phoneNumber")
+                CallLogDetailsScreen(
+                    phoneNumber = phoneNumber,
+                    getContact = contactViewModel::getContact,
+                    getCallLogForPhoneNumber = callLogViewModel::getCallLogsForNumber,
+                    onCallClick = {},
+                    onMessageClick = {},
+                    onBlockClick = {}
                 )
             }
         }

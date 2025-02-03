@@ -64,19 +64,6 @@
             </intent-filter>
         </service>
 
-        <!-- InCallService for UI -->
-        <service
-            android:name=".service.CallService"
-            android:exported="false"
-            android:permission="android.permission.BIND_INCALL_SERVICE">
-            <meta-data
-                android:name="android.telecom.IN_CALL_SERVICE_UI"
-                android:value="true" />
-            <intent-filter>
-                <action android:name="android.telecom.InCallService" />
-            </intent-filter>
-        </service>
-
         <!-- Call Blocking & Incoming Call Detection -->
         <receiver android:name=".receiver.CallBlockerReceiver"
             android:exported="false">

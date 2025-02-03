@@ -3,7 +3,7 @@ package com.coderon.phone.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coderon.phone.data.modal.CallLog
-import com.coderon.phone.domain.GetCallLogsUseCase
+import com.coderon.phone.domain.repository.CallLogRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-class CallLogViewModel(private val getCallLogsUseCase: GetCallLogsUseCase) : ViewModel() {
+class CallLogViewModel(private val callLogRepository: CallLogRepository) : ViewModel() {
     private val _callLogs = MutableStateFlow<List<CallLog>>(emptyList())
     val callLogs: StateFlow<List<CallLog>> = _callLogs.asStateFlow()
 
@@ -24,7 +24,7 @@ class CallLogViewModel(private val getCallLogsUseCase: GetCallLogsUseCase) : Vie
     private fun fetchCallLogs() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val callLogs = getCallLogsUseCase()
+                val callLogs = callLogRepository.getCallLogs()
                 _callLogs.value = callLogs
             } catch (e: Exception) {
                 // Handle error, e.g., update state with an error message
@@ -39,5 +39,9 @@ class CallLogViewModel(private val getCallLogsUseCase: GetCallLogsUseCase) : Vie
                 ignoreCase = true
             ) == true) || log.phoneNumber.contains(searchText)
         }
+    }
+
+    fun getCallLogsForNumber(phoneNumber: String): List<CallLog> {
+        return callLogs.value.filter { it.phoneNumber == phoneNumber }
     }
 }

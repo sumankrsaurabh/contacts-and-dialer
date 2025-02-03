@@ -1,9 +1,10 @@
 package com.coderon.phone.ui
 
-import androidx.annotation.DrawableRes
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,13 +15,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,113 +30,157 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.coderon.phone.R
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.coderon.phone.data.helpers.formatDuration
 import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.modal.CallLog
 import com.coderon.phone.data.modal.CallType
 import com.coderon.phone.data.modal.Contact
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 @Composable
 fun CallLogScreen(
-    callLog: List<CallLog>, filteredCallLogs: (String) -> Flow<List<CallLog>>
+    callLog: List<CallLog>,
+    filteredCallLogs: (String) -> Flow<List<CallLog>>,
+    navController: NavController
 ) {
     var searchText by remember { mutableStateOf("") }
 
     Column {
-        SearchBar(searchText = searchText) {
-            searchText = it
-        }
         val filteredContacts = filteredCallLogs(searchText).collectAsStateWithLifecycle(
             initialValue = callLog
         ).value
         LazyColumn {
-            items(filteredContacts) { contact ->
-                CallLogItem(contact)
+            items(filteredContacts) { log -> CallLogItem(log,navController) }
+        }
+    }
+}
+
+@Composable
+fun CallLogItem(log: CallLog,navController: NavController) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ContactProfileImage(log.contact)
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = log.contact?.name ?: log.phoneNumber,
+                    fontSize = 18.sp
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                   if (log.callType == CallType.MISSED){
+                       Text(log.callType.name, fontSize = 14.sp,
+                           color = MaterialTheme.colorScheme.error)
+                   }
+                    Text(log.callDuration.toLong().formatDuration(), fontSize = 14.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(log.callTime.formatTime(), fontSize = 14.sp)
+                }
+            }
+
+            FilledTonalIconButton(
+                onClick = { navController.navigate("contact_details/${log.contact?.phoneNumber}")
+                    Log.d("Contact ID:", log.contact?.id.toString())},
+                modifier = Modifier.size(32.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = "expand"
+                )
             }
         }
     }
 }
 
 @Composable
-fun CallLogItem(log: CallLog) {
-    Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-
-
-
-    ) {
+fun ContactProfileImage(contact: Contact?) {
+    val profilePictureUrl = contact?.profilePictureUrl
+    if (profilePictureUrl != null) {
         Image(
+            painter = rememberAsyncImagePainter(
+                ImageRequest.Builder(LocalContext.current)
+                    .data(profilePictureUrl)
+                    .crossfade(true)
+                    .build()
+            ),
+            contentDescription = "Profile Picture",
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            painter = painterResource(id = R.drawable.user),
-            contentDescription = "Profile image",
+                .background(MaterialTheme.colorScheme.surface)
         )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            horizontalAlignment = Alignment.Start
+    } else {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondary),
+            contentAlignment = Alignment.Center
         ) {
             Text(
-                text = log.contact?.name ?: log.phoneNumber, fontSize = 18.sp
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    modifier = Modifier.size(14.dp).alpha(0.8f),
-                    painter = painterResource(id = CallTypeIcon.valueOf(log.callType.name).iconRes),
-                    contentDescription = log.callType.name.lowercase() // e.g., "incoming"
-                    )
-                Text(log.callDuration.toLong().formatDuration(), fontSize = 14.sp)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(log.callTime.formatTime(), fontSize = 14.sp)
-            }
-        }
-        FilledTonalIconButton(
-            onClick = { /*TODO*/ },
-            modifier = Modifier.size(32.dp),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = "expand"
+                text = contact?.name?.firstOrNull()?.toString() ?: "?",
+                fontSize = 20.sp,
+                color = Color.White
             )
         }
     }
-}
-
-enum class CallTypeIcon(@DrawableRes val iconRes: Int) {
-    INCOMING(R.drawable.inoming_call), OUTGOING(R.drawable.outgoing_call), MISSED(R.drawable.missed_call)
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun CallLogUI() {
-    CallLogItem(
-        log = CallLog(
+fun PreviewCallLogScreen() {
+    val sampleLogs = listOf(
+        CallLog(
             id = 0L,
-            callDuration = 30.toString(),
-            contact = Contact("", "Suman Kumar Saurabh", "780840285"),
+            callDuration = "30",
+            contact = Contact("1", "Suman Kumar Saurabh", "780840285", null),
             callTime = 12,
             callType = CallType.INCOMING,
             phoneNumber = "7808140285"
+        ),
+        CallLog(
+            id = 1L,
+            callDuration = "45",
+            contact = Contact("2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"),
+            callTime = 14,
+            callType = CallType.OUTGOING,
+            phoneNumber = "9998887776"
         )
+    )
+    CallLogScreen(
+        callLog = sampleLogs, navController = rememberNavController(),
+        filteredCallLogs =  { _ -> emptyFlow() }
     )
 }
