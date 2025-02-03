@@ -4,7 +4,8 @@ import com.coderon.phone.data.modal.Contact
 
 interface ContactRepository {
     suspend fun getContacts(): List<Contact>
-    suspend fun addContact(name: String, phoneNumber: String)
+    suspend fun addContact(name: String, phoneNumber: String,profilePictureUri: String?)
+    suspend fun getContact(contactId: String): Contact?
     suspend fun deleteContact(contactId: String)
-    suspend fun updateContact(contactId: String, name: String, phoneNumber: String)
+    suspend fun updateContact(contactId: String, name: String, phoneNumber: String,profilePictureUri: String?)
 }
