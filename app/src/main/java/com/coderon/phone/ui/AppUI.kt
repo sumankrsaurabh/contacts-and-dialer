@@ -1,8 +1,5 @@
 package com.coderon.phone.ui
 
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.AccessTime
@@ -25,8 +22,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
+import com.coderon.phone.ui.screens.AddContactScreen
+import com.coderon.phone.ui.screens.CallLogDetailsScreen
+import com.coderon.phone.ui.screens.CallLogScreen
+import com.coderon.phone.ui.screens.ContactsScreen
+import com.coderon.phone.ui.screens.DialerScreen
+import com.coderon.phone.ui.screens.IncomingCallScreen
+import com.coderon.phone.ui.screens.OutgoingCallScreen
 import com.coderon.phone.viewmodel.CallLogViewModel
-import com.coderon.phone.viewmodel.CallViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -36,7 +39,6 @@ fun MyApp() {
     val navController = rememberNavController()
     val contactViewModel: ContactViewModel = koinViewModel()
     val callLogViewModel: CallLogViewModel = koinViewModel()
-    val callViewModel: CallViewModel = koinViewModel()
     Scaffold(bottomBar = {
         BottomNavigationBar(navController = navController)
     }) { innerPadding ->
@@ -44,42 +46,23 @@ fun MyApp() {
             navController = navController,
             startDestination = "keypad",
             Modifier.padding(innerPadding),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it }, animationSpec = tween(300)
-                )
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it }, animationSpec = tween(300)
-                )
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it }, animationSpec = tween(300)
-                )
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it }, animationSpec = tween(300)
-                )
-            }
-
         ) {
             composable("keypad") {
-                DialerScreen(callViewModel::makeCall) {}
+                DialerScreen({ _, _ -> }) {}
             }
             composable("recent") {
                 CallLogScreen(
                     callLog = callLogViewModel.callLogs.collectAsStateWithLifecycle().value,
                     filteredCallLogs = callLogViewModel::filteredCallLogs,
-                    navController = navController
+                    navController = navController,
+                    onSearchContact = callLogViewModel::filteredCallLogs
                 )
             }
             composable("contacts") {
                 ContactsScreen(
                     contacts = contactViewModel.contacts.collectAsStateWithLifecycle().value,
-                    onAddContactClick = { navController.navigate("add_contact") }
+                    onAddContactClick = { navController.navigate("add_contact") },
+                    onSearchContact = contactViewModel::filteredContacts
                 )
             }
             composable("add_contact") {
@@ -95,7 +78,23 @@ fun MyApp() {
                     getCallLogForPhoneNumber = callLogViewModel::getCallLogsForNumber,
                     onCallClick = {},
                     onMessageClick = {},
-                    onBlockClick = {}
+                    onBlockClick = {},
+                    navController = navController
+                )
+            }
+
+            composable("incoming_call") {
+                IncomingCallScreen(
+                    onAnswer = {},
+                    onDecline = {}
+                )
+            }
+            composable("outgoing_call/{phoneNumber}") {
+                val phoneNumber = it.arguments?.getString("phoneNumber")
+                OutgoingCallScreen(
+                    contactName = phoneNumber ?: "",
+                    contactPhoneNumber = phoneNumber ?: "",
+                    onEndCall = {}
                 )
             }
         }
@@ -128,11 +127,8 @@ fun BottomNavigationBar(navController: NavController) {
 }
 
 enum class BottomNavigationItems(val route: String, val label: String, val icon: ImageVector) {
-    Keypad("keypad", "Keypad", Icons.TwoTone.KeyboardCommandKey), Recent(
-        "recent",
-        "Recent",
-        Icons.TwoTone.AccessTime
-    ),
+    Keypad("keypad", "Keypad", Icons.TwoTone.KeyboardCommandKey),
+    Recent("recent", "Recent", Icons.TwoTone.AccessTime),
     Contacts("contacts", "Contacts", Icons.TwoTone.Contacts)
 }
 

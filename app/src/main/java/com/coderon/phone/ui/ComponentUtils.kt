@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,7 +25,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.coderon.phone.R
-import kotlin.random.Random
 
 @Composable
 fun MainButton(
@@ -36,13 +36,18 @@ fun MainButton(
 ) {
 
     FilledTonalIconButton(
-        onClick = onClick, enabled = enabled, modifier = Modifier.size(64.dp)
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.size(64.dp),
+        colors = IconButtonDefaults.filledIconButtonColors(
+            containerColor = if (toggled) Color.White else Color.White.copy(.5f)
+        )
     ) {
         Icon(
             imageVector = imageVector,
             contentDescription = contentDescription.takeIf { it.isNotBlank() }
                 ?: "Main Button Icon",
-        modifier = Modifier.size(32.dp))
+            modifier = Modifier.size(32.dp))
     }
 }
 
@@ -98,29 +103,4 @@ fun Text(
         style = style,
         onTextLayout = onTextLayout
     )
-}
-
-
-@Composable
-fun dynamicGradientBackground(): List<Color> {
-    // Generate random colors every recomposition
-    return generateRandomGradientColors()
-}
-
-// Function to generate random gradient colors
-private fun generateRandomGradientColors(): List<Color> {
-    return List(3) { // Generate 3 random colors
-        Color(
-            red = Random.nextFloat(),
-            green = Random.nextFloat(),
-            blue = Random.nextFloat(),
-            alpha = 1f
-        )
-    }
-}
-
-@Preview
-@Composable
-fun PreviewDynamicGradientBackground() {
-    dynamicGradientBackground()
 }

@@ -1,4 +1,4 @@
-package com.coderon.phone.ui
+package com.coderon.phone.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,46 +28,61 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.data.helpers.formatDuration
 import com.coderon.phone.data.helpers.formatTime
-import com.coderon.phone.data.modal.CallLog
-import com.coderon.phone.data.modal.CallType
-import com.coderon.phone.data.modal.Contact
+import com.coderon.phone.data.model.CallLog
+import com.coderon.phone.data.model.CallType
+import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.Text
+import kotlinx.coroutines.launch
 
 @Composable
 fun CallLogDetailsScreen(
     phoneNumber: String?,
-    getContact:suspend (String) -> Contact?,
-    getCallLogForPhoneNumber: (String) -> List<CallLog>,
+    getContact: suspend (String) -> Contact?,
+    getCallLogForPhoneNumber: suspend (String) -> List<CallLog>,
     onCallClick: () -> Unit,
     onMessageClick: () -> Unit,
-    onBlockClick: () -> Unit
+    onBlockClick: () -> Unit,
+    navController: NavController
 ) {
-    val  contact = remember { mutableStateOf<Contact?>(null) }
-    val  callLogs = remember { mutableStateOf<List<CallLog>>(emptyList()) }
+    val coroutineScope = rememberCoroutineScope()
+    var contact by remember { mutableStateOf<Contact?>(null) }
+    var callLogs by remember { mutableStateOf<List<CallLog>>(emptyList()) }
+    if (phoneNumber == null) {
+        navController.navigateUp()
+    }
     LaunchedEffect(phoneNumber) {
         if (phoneNumber != null) {
-            contact.value = getContact(phoneNumber)
-            callLogs.value = getCallLogForPhoneNumber(phoneNumber)
+            coroutineScope.launch {
+                contact = getContact(phoneNumber)
+                callLogs = getCallLogForPhoneNumber(phoneNumber)
+            }
         }
-
     }
+
     Column(modifier = Modifier.fillMaxSize()) {
-        contact.value?.let { ContactDetails(it, onCallClick, onMessageClick, onBlockClick) }
-        CallLogList(callLogs.value)
+        contact?.let { ContactDetails(it, onCallClick, onMessageClick, onBlockClick) }
+        CallLogList(callLogs)
     }
 }
 
@@ -150,37 +165,48 @@ fun CallLogList(callLogs: List<CallLog>) {
     }
 }
 
-
 @Composable
 fun CallLogItemDetails(log: CallLog) {
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.primaryContainer,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(vertical = 12.dp, horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Box(modifier = Modifier.weight(1f)) { Text(text = log.callType.name, fontSize = 16.sp) }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = log.callTime.formatTime(), fontSize = 16.sp
-            )
-        }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            Text(
-                text = log.callDuration.toLong().formatDuration(),
-                fontSize = 16.sp,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = log.callType.name,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Start
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = log.callTime.formatTime(),
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = log.callDuration.toLong().formatDuration(),
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
@@ -218,5 +244,15 @@ fun PreviewCallLogDetailsScreen() {
             callDuration = "0",
             callTime = 1700010000
         )
+    )
+
+    CallLogDetailsScreen(
+        phoneNumber = "+1234567890",
+        getContact = { contact },
+        getCallLogForPhoneNumber = { callLogs },
+        onCallClick = {},
+        onMessageClick = {},
+        onBlockClick = {},
+        rememberNavController()
     )
 }

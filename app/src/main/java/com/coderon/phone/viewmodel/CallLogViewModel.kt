@@ -2,7 +2,7 @@ package com.coderon.phone.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.coderon.phone.data.modal.CallLog
+import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.domain.repository.CallLogRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -16,7 +16,6 @@ class CallLogViewModel(private val callLogRepository: CallLogRepository) : ViewM
     private val _callLogs = MutableStateFlow<List<CallLog>>(emptyList())
     val callLogs: StateFlow<List<CallLog>> = _callLogs.asStateFlow()
 
-
     init {
         fetchCallLogs()
     }
@@ -27,7 +26,7 @@ class CallLogViewModel(private val callLogRepository: CallLogRepository) : ViewM
                 val callLogs = callLogRepository.getCallLogs()
                 _callLogs.value = callLogs
             } catch (e: Exception) {
-                // Handle error, e.g., update state with an error message
+                e.printStackTrace()
             }
         }
     }

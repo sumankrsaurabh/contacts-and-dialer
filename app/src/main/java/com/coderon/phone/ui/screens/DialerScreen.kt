@@ -1,4 +1,4 @@
-package com.coderon.phone.ui
+package com.coderon.phone.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,7 +62,6 @@ fun DialerScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Call action row with icons for video call, regular call, and delete
         val showSimSelectionDialog = remember { mutableStateOf(false) }
 
         Row(
@@ -70,11 +69,7 @@ fun DialerScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-
-            // video call button
-
-            //TODO: should call startVideoCall
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = { startVideoCall.invoke() }) {
                 Icon(
                     imageVector = Icons.Filled.VideoCall,
                     contentDescription = "video call",
@@ -82,10 +77,6 @@ fun DialerScreen(
                     modifier = Modifier.size(32.dp)
                 )
             }
-
-            // call button
-
-
             FilledIconButton(
                 onClick = {
                     showSimSelectionDialog.value = true
@@ -156,8 +147,8 @@ fun DialPad(onDigitPress: (String) -> Unit) {
 }
 
 
-@Preview
+@Preview(showBackground = true)
 @Composable
 private fun Preview() {
-//    DialerScreen(startCall = {""}) { }
+    DialerScreen(startCall = { _, _ -> }) { }
 }

@@ -1,7 +1,7 @@
 package com.coderon.phone.domain.repository
 
-import com.coderon.phone.data.modal.CallLog
-import com.coderon.phone.data.modal.CallType
+import com.coderon.phone.data.model.CallLog
+import com.coderon.phone.data.model.CallType
 
 interface CallLogRepository {
     suspend fun getCallLogs(): List<CallLog>

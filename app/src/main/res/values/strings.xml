@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Phone</string>
+    <string name="speaker">speaker</string>
+    <string name="audio_route_earpiece">audio_route_earpiece\n</string>
+    <string name="audio_route_bluetooth">audio_route_bluetooth</string>
+    <string name="audio_route_wired_headset">audio_route_wired_headset</string>
+    <string name="audio_route_wired_or_earpiece">audio_route_wired_or_earpiece</string>
+    <string name="default_dialer_package_name">com.coderon.phone\n</string>
 </resources>

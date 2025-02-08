@@ -1,4 +1,4 @@
-package com.coderon.phone.ui
+package com.coderon.phone.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,13 +31,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.R
+import com.coderon.phone.ui.MainButton
+import com.coderon.phone.ui.Text
 
 
 @Composable
@@ -47,8 +49,14 @@ fun OutgoingCallScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    listOf(
+                        Color.Cyan, Color.Blue
+                    )
+                )
+            )
             .padding(vertical = 48.dp, horizontal = 24.dp)
-//            .background(brush = Brush.linearGradient(dynamicGradientBackground()))
     ) {
         Column(
             modifier = Modifier
@@ -134,7 +142,8 @@ fun OutgoingCallScreen(
                         contentDescription = "Record call"
                     )
                     FilledTonalIconButton(
-                        onClick = { }, modifier = Modifier.size(64.dp),
+                        onClick = { },
+                        modifier = Modifier.size(64.dp),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = Color.Red.copy(.8f)
                         )
@@ -157,8 +166,6 @@ fun OutgoingCallScreen(
 }
 
 @Preview(showBackground = true)
-//@PreviewScreenSizes
-@PreviewLightDark
 @Composable
 fun OutgoingCallScreenPreview() {
     OutgoingCallScreen(

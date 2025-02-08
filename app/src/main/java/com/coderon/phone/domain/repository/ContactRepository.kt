@@ -1,6 +1,6 @@
 package com.coderon.phone.domain.repository
 
-import com.coderon.phone.data.modal.Contact
+import com.coderon.phone.data.model.Contact
 
 interface ContactRepository {
     suspend fun getContacts(): List<Contact>

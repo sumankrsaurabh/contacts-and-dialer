@@ -6,10 +6,10 @@ import android.provider.CallLog
 import android.provider.ContactsContract
 import android.telephony.PhoneNumberUtils
 import android.util.Log
-import com.coderon.phone.data.modal.CallType
-import com.coderon.phone.data.modal.Contact
+import com.coderon.phone.data.model.CallType
+import com.coderon.phone.data.model.Contact
 import com.coderon.phone.domain.repository.CallLogRepository
-import com.coderon.phone.data.modal.CallLog as CallLogData
+import com.coderon.phone.data.model.CallLog as CallLogData
 
 class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : CallLogRepository {
 

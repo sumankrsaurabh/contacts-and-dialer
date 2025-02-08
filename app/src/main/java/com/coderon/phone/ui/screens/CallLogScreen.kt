@@ -1,4 +1,4 @@
-package com.coderon.phone.ui
+package com.coderon.phone.ui.screens
 
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -43,9 +43,11 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.data.helpers.formatDuration
 import com.coderon.phone.data.helpers.formatTime
-import com.coderon.phone.data.modal.CallLog
-import com.coderon.phone.data.modal.CallType
-import com.coderon.phone.data.modal.Contact
+import com.coderon.phone.data.model.CallLog
+import com.coderon.phone.data.model.CallType
+import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.utils.SearchScreen
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -53,7 +55,8 @@ import kotlinx.coroutines.flow.emptyFlow
 fun CallLogScreen(
     callLog: List<CallLog>,
     filteredCallLogs: (String) -> Flow<List<CallLog>>,
-    navController: NavController
+    navController: NavController,
+    onSearchContact: (String) -> Unit
 ) {
     var searchText by remember { mutableStateOf("") }
 
@@ -61,14 +64,17 @@ fun CallLogScreen(
         val filteredContacts = filteredCallLogs(searchText).collectAsStateWithLifecycle(
             initialValue = callLog
         ).value
+        SearchScreen(query = searchText, onQueryChange = { searchText = it }, onSearch = {
+            onSearchContact(searchText)
+        })
         LazyColumn {
-            items(filteredContacts) { log -> CallLogItem(log,navController) }
+            items(filteredContacts) { log -> CallLogItem(log, navController) }
         }
     }
 }
 
 @Composable
-fun CallLogItem(log: CallLog,navController: NavController) {
+fun CallLogItem(log: CallLog, navController: NavController) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,10 +103,12 @@ fun CallLogItem(log: CallLog,navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                   if (log.callType == CallType.MISSED){
-                       Text(log.callType.name, fontSize = 14.sp,
-                           color = MaterialTheme.colorScheme.error)
-                   }
+                    if (log.callType == CallType.MISSED) {
+                        Text(
+                            log.callType.name, fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     Text(log.callDuration.toLong().formatDuration(), fontSize = 14.sp)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(log.callTime.formatTime(), fontSize = 14.sp)
@@ -108,8 +116,10 @@ fun CallLogItem(log: CallLog,navController: NavController) {
             }
 
             FilledTonalIconButton(
-                onClick = { navController.navigate("contact_details/${log.contact?.phoneNumber}")
-                    Log.d("Contact ID:", log.contact?.id.toString())},
+                onClick = {
+                    navController.navigate("contact_details/${log.contact?.phoneNumber}")
+                    Log.d("Contact ID:", log.contact?.id.toString())
+                },
                 modifier = Modifier.size(32.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -173,7 +183,12 @@ fun PreviewCallLogScreen() {
         CallLog(
             id = 1L,
             callDuration = "45",
-            contact = Contact("2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"),
+            contact = Contact(
+                "2",
+                "Aarav Sharma",
+                "9998887776",
+                "https://example.com/profile1.jpg"
+            ),
             callTime = 14,
             callType = CallType.OUTGOING,
             phoneNumber = "9998887776"
@@ -181,6 +196,7 @@ fun PreviewCallLogScreen() {
     )
     CallLogScreen(
         callLog = sampleLogs, navController = rememberNavController(),
-        filteredCallLogs =  { _ -> emptyFlow() }
+        filteredCallLogs = { _ -> emptyFlow() },
+        onSearchContact = {}
     )
 }

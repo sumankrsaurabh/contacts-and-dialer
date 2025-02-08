@@ -1,4 +1,4 @@
-package com.coderon.phone.data.modal
+package com.coderon.phone.data.model
 
 data class CallLog(
     val id: Long,

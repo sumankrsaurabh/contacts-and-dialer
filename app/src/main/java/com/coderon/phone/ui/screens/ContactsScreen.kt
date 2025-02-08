@@ -1,4 +1,4 @@
-package com.coderon.phone.ui
+package com.coderon.phone.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,40 +23,59 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import com.coderon.phone.data.modal.Contact
+import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.utils.SearchScreen
 
 @Composable
 fun ContactsScreen(
     contacts: List<Contact>,
-    onAddContactClick: () -> Unit // Callback for FAB click
+    onAddContactClick: () -> Unit,
+    onSearchContact: (String) -> Unit
 ) {
-    val groupedContacts = remember(contacts) {
-        contacts.groupBy { it.name.first().uppercaseChar() }
+    var searchText by remember { mutableStateOf("") }
+    val filteredContacts = remember(searchText, contacts) {
+        contacts.filter { it.name.contains(searchText, ignoreCase = true) }
+    }
+    val groupedContacts = remember(filteredContacts) {
+        filteredContacts.groupBy { it.name.first().uppercaseChar() }
     }
     val listState = rememberLazyListState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(state = listState) {
-                groupedContacts.forEach { (letter, contacts) ->
-                    item { LetterHeader(letter) }
-                    items(contacts) { contact -> ContactItem(contact) }
+            SearchScreen(
+                query = searchText,
+                onQueryChange = { searchText = it },
+                onSearch = { onSearchContact(searchText) }
+            )
+            if (filteredContacts.isEmpty()) {
+                NoContactsFound()
+            } else {
+                LazyColumn(state = listState) {
+                    groupedContacts.forEach { (letter, contacts) ->
+                        item { LetterHeader(letter) }
+                        items(contacts) { contact -> ContactItem(contact) }
+                    }
                 }
             }
         }
 
-        // Floating Action Button (FAB) for Adding Contacts
         FloatingActionButton(
             onClick = onAddContactClick,
             modifier = Modifier
@@ -108,7 +127,7 @@ fun ContactItem(contact: Contact) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (contact.profilePictureUrl != null) {
+            if (!contact.profilePictureUrl.isNullOrEmpty()) {
                 Image(
                     painter = rememberAsyncImagePainter(
                         ImageRequest.Builder(LocalContext.current)
@@ -150,6 +169,23 @@ fun ContactItem(contact: Contact) {
     }
 }
 
+@Composable
+fun NoContactsFound() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 100.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "No contacts found",
+            fontSize = 18.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewContactsScreen() {
@@ -163,5 +199,5 @@ fun PreviewContactsScreen() {
         Contact("7", "David", "3334445555", "https://example.com/profile3.jpg"),
         Contact("8", "Emma", "6667778888", null)
     )
-    ContactsScreen(sampleContacts) {}
+    ContactsScreen(sampleContacts, {}, {})
 }

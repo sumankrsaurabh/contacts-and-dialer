@@ -1,29 +1,34 @@
 [versions]
 accompanistPermissions = "0.32.0"
-agp = "8.7.2"
+agp = "8.8.0"
 coilCompose = "2.7.0"
-collectionKtx = "1.4.4"
+collectionKtx = "1.4.5"
+coreTelecom = "1.0.0-beta01"
 koinAndroidxComposeVersion = "3.5.6"
 koinCore = "4.0.0"
-kotlin = "1.9.23"
-coreKtx = "1.13.1"
+kotlin = "2.1.0"
+coreKtx = "1.15.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.6"
-activityCompose = "1.9.2"
-composeBom = "2024.09.02"
-materialIconsExtended = "1.7.2"
-navigationCompose = "2.8.1"
-toolsCore = "1.0.0-alpha09"
+lifecycleRuntimeKtx = "2.8.7"
+activityCompose = "1.10.0"
+composeBom = "2025.01.01"
+materialIconsExtended = "1.7.7"
+navigationCompose = "2.8.6"
+roomRuntime = "2.6.1"
+toolsCore = "1.0.0-alpha11"
 
 [libraries]
 accompanist-navigation-animation = { module = "com.google.accompanist:accompanist-navigation-animation", version.ref = "accompanistPermissions" }
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
 androidx-collection-ktx = { module = "androidx.collection:collection-ktx", version.ref = "collectionKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-core-telecom = { module = "androidx.core:core-telecom", version.ref = "coreTelecom" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 insert-koin-koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koinAndroidxComposeVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -46,4 +51,5 @@ koin-core = { module = "io.insert-koin:koin-core", version.ref = "koinCore" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 

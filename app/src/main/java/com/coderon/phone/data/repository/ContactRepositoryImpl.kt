@@ -3,7 +3,7 @@ package com.coderon.phone.data.repository
 import android.content.ContentProviderOperation
 import android.content.ContentResolver
 import android.provider.ContactsContract
-import com.coderon.phone.data.modal.Contact
+import com.coderon.phone.data.model.Contact
 import com.coderon.phone.domain.repository.ContactRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,15 +14,12 @@ class ContactRepositoryImpl(private val contentResolver: ContentResolver) : Cont
         return withContext(Dispatchers.IO) {
             val contacts = mutableListOf<Contact>()
             val cursor = contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                arrayOf(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI, arrayOf(
                     ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
                     ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
                     ContactsContract.CommonDataKinds.Phone.NUMBER,
                     ContactsContract.CommonDataKinds.Photo.PHOTO_URI
-                ),
-                null, null,
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+                ), null, null, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
             )
 
             val seenContacts = mutableSetOf<String>() // Prevent duplicate contacts
@@ -69,8 +66,7 @@ class ContactRepositoryImpl(private val contentResolver: ContentResolver) : Cont
                         id = contactId,
                         name = name,
                         phoneNumber = phoneNumber,
-                        profilePictureUrl = profilePictureUri.ifEmpty { null }
-                    )
+                        profilePictureUrl = profilePictureUri.ifEmpty { null })
                 }
             }
             contact
@@ -88,27 +84,31 @@ class ContactRepositoryImpl(private val contentResolver: ContentResolver) : Cont
                 operations.add(
                     ContentProviderOperation.newInsert(rawContactUri)
                         .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
-                        .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
-                        .build()
+                        .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null).build()
                 )
 
                 // Insert Name
                 operations.add(
                     ContentProviderOperation.newInsert(dataUri)
-                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-                        .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name)
-                        .build()
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0).withValue(
+                            ContactsContract.Data.MIMETYPE,
+                            ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
+                        ).withValue(
+                            ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name
+                        ).build()
                 )
 
                 // Insert Phone Number
                 operations.add(
                     ContentProviderOperation.newInsert(dataUri)
-                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                        .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
-                        .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
-                        .build()
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0).withValue(
+                            ContactsContract.Data.MIMETYPE,
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE
+                        ).withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
+                        .withValue(
+                            ContactsContract.CommonDataKinds.Phone.TYPE,
+                            ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE
+                        ).build()
                 )
 
                 // Insert Profile Picture (only if available)
@@ -116,8 +116,10 @@ class ContactRepositoryImpl(private val contentResolver: ContentResolver) : Cont
                     operations.add(
                         ContentProviderOperation.newInsert(dataUri)
                             .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                            .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO_URI, it)
+                            .withValue(
+                                ContactsContract.Data.MIMETYPE,
+                                ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
+                            ).withValue(ContactsContract.CommonDataKinds.Photo.PHOTO_URI, it)
                             .build()
                     )
                 }
@@ -130,7 +132,9 @@ class ContactRepositoryImpl(private val contentResolver: ContentResolver) : Cont
         }
     }
 
-    override suspend fun updateContact(contactId: String, name: String, phoneNumber: String, profilePictureUri: String?) {
+    override suspend fun updateContact(
+        contactId: String, name: String, phoneNumber: String, profilePictureUri: String?
+    ) {
         withContext(Dispatchers.IO) {
             try {
                 val operations = ArrayList<ContentProviderOperation>()
@@ -138,35 +142,38 @@ class ContactRepositoryImpl(private val contentResolver: ContentResolver) : Cont
 
                 // Update Name
                 operations.add(
-                    ContentProviderOperation.newUpdate(dataUri)
-                        .withSelection(
+                    ContentProviderOperation.newUpdate(dataUri).withSelection(
                             "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
-                            arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-                        )
-                        .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name)
-                        .build()
+                            arrayOf(
+                                contactId,
+                                ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
+                            )
+                        ).withValue(
+                            ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name
+                        ).build()
                 )
 
                 // Update Phone Number
                 operations.add(
-                    ContentProviderOperation.newUpdate(dataUri)
-                        .withSelection(
+                    ContentProviderOperation.newUpdate(dataUri).withSelection(
                             "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
-                            arrayOf(contactId, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                        )
-                        .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
+                            arrayOf(
+                                contactId, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE
+                            )
+                        ).withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
                         .build()
                 )
 
                 // Update Profile Picture (if available)
                 profilePictureUri?.takeIf { it.isNotEmpty() }?.let {
                     operations.add(
-                        ContentProviderOperation.newUpdate(dataUri)
-                            .withSelection(
+                        ContentProviderOperation.newUpdate(dataUri).withSelection(
                                 "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
-                                arrayOf(contactId, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                            )
-                            .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO_URI, it)
+                                arrayOf(
+                                    contactId,
+                                    ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
+                                )
+                            ).withValue(ContactsContract.CommonDataKinds.Photo.PHOTO_URI, it)
                             .build()
                     )
                 }
@@ -182,7 +189,9 @@ class ContactRepositoryImpl(private val contentResolver: ContentResolver) : Cont
     override suspend fun deleteContact(contactId: String) {
         withContext(Dispatchers.IO) {
             val uri = ContactsContract.RawContacts.CONTENT_URI
-            contentResolver.delete(uri, "${ContactsContract.RawContacts.CONTACT_ID}=?", arrayOf(contactId))
+            contentResolver.delete(
+                uri, "${ContactsContract.RawContacts.CONTACT_ID}=?", arrayOf(contactId)
+            )
         }
     }
 }
