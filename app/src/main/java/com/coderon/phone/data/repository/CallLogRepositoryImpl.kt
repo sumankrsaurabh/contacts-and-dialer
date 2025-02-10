@@ -76,16 +76,16 @@ class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : Call
         return callLogs
     }
 
-    override suspend fun saveCallLog(phoneNumber: String, callType: CallType, duration: Long) {
+    override suspend fun addCallLog(callLog: CallLogData) {
         val values = ContentValues().apply {
-            put(CallLog.Calls.NUMBER, phoneNumber)
-            put(CallLog.Calls.TYPE, callType.ordinal)
-            put(CallLog.Calls.DURATION, duration)
+            put(CallLog.Calls.NUMBER, callLog.phoneNumber)
+            put(CallLog.Calls.TYPE, callLog.callType.ordinal)
+            put(CallLog.Calls.DURATION, callLog.callDuration)
             put(CallLog.Calls.DATE, System.currentTimeMillis())
         }
 
         contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
-        Log.d(TAG, "Saved call log for number: $phoneNumber")
+        Log.d(TAG, "Saved call log for number: ${callLog.phoneNumber}")
     }
 
     // Cache handling with expiration logic

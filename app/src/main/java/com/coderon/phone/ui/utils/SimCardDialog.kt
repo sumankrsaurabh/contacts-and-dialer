@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -31,7 +32,8 @@ import com.coderon.phone.ui.Text
 
 @RequiresPermission(allOf = [Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_PHONE_NUMBERS])
 fun getSimInfo(context: Context): List<SubscriptionInfo> {
-    val subscriptionManager = ContextCompat.getSystemService(context, SubscriptionManager::class.java)
+    val subscriptionManager =
+        ContextCompat.getSystemService(context, SubscriptionManager::class.java)
     return subscriptionManager?.activeSubscriptionInfoList ?: emptyList()
 }
 
@@ -51,18 +53,24 @@ fun SimSelectionDialog(
         return
     }
 
-    Dialog(onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .safeContentPadding()
                 .padding(24.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(24.dp))
+                    .background(
+                        MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(24.dp)
+                    )
                     .padding(16.dp)
             ) {
                 simList.forEach { simInfo ->

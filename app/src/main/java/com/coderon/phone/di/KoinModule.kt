@@ -10,6 +10,7 @@ import com.coderon.phone.domain.repository.CallLogRepository
 import com.coderon.phone.domain.repository.ContactRepository
 import com.coderon.phone.utils.VoicemailRecorder
 import com.coderon.phone.viewmodel.CallLogViewModel
+import com.coderon.phone.viewmodel.CallViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -32,10 +33,12 @@ val appModule = module {
             blockedNumberRepository = get(),
             voicemailRepository = get(),
             voicemailRecorder = get(),
-            context = androidContext()
+            context = androidContext(),
+            callLogRepository = get()
         )
     }
     // ViewModel injections
     viewModel { ContactViewModel(contactRepository = get()) }
     viewModel { CallLogViewModel(callLogRepository = get()) }
+    viewModel { CallViewModel(get()) }
 }

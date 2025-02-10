@@ -1,43 +1,34 @@
-package com.coderon.phone.services
+package com.coderon.phone.call.services
 
-import android.telecom.Call
 import android.telecom.Connection
 import android.telecom.ConnectionRequest
 import android.telecom.ConnectionService
 import android.telecom.PhoneAccountHandle
-import com.coderon.phone.notifications.CallNotificationService.showIncomingCallScreen
+import android.util.Log
 
 class MyConnectionService : ConnectionService() {
-
-    companion object {
-        private val activeCalls = mutableMapOf<String, Call>()
-
-        fun getCallByHandle(callId: String?): Call? {
-            return activeCalls[callId]
-        }
-    }
 
     override fun onCreateIncomingConnection(
         phoneAccount: PhoneAccountHandle?,
         request: ConnectionRequest?
     ): Connection {
+        Log.d("MyConnectionService", "Incoming call received")
         val connection = MyConnection()
-        connection.setRinging()
-
-        // Show the lock screen call UI
-        showIncomingCallScreen(applicationContext, "Incoming Call")
-
+        connection.setConnectionCapabilities(Connection.CAPABILITY_SUPPORT_HOLD or Connection.CAPABILITY_MUTE)
+        connection.setAudioModeIsVoip(true)
+        connection.setActive()
         return connection
     }
-
 
     override fun onCreateOutgoingConnection(
         phoneAccount: PhoneAccountHandle?,
         request: ConnectionRequest?
     ): Connection {
+        Log.d("MyConnectionService", "Outgoing call created")
         val connection = MyConnection()
+        connection.setConnectionCapabilities(Connection.CAPABILITY_SUPPORT_HOLD or Connection.CAPABILITY_MUTE)
+        connection.setAudioModeIsVoip(true)
         connection.setDialing()
-        connection.setActive()
         return connection
     }
 
@@ -45,15 +36,13 @@ class MyConnectionService : ConnectionService() {
         phoneAccount: PhoneAccountHandle?,
         request: ConnectionRequest?
     ) {
-        super.onCreateIncomingConnectionFailed(phoneAccount, request)
+        Log.e("MyConnectionService", "Incoming call failed")
     }
 
     override fun onCreateOutgoingConnectionFailed(
         phoneAccount: PhoneAccountHandle?,
         request: ConnectionRequest?
     ) {
-        super.onCreateOutgoingConnectionFailed(phoneAccount, request)
+        Log.e("MyConnectionService", "Outgoing call failed")
     }
-
-
 }

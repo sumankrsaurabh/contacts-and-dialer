@@ -1,46 +1,33 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Required Features -->
     <uses-feature
         android:name="android.hardware.telephony"
-        android:required="true"
-        tools:ignore="UnnecessaryRequiredFeature" />
+        android:required="false" />
 
-    <!-- Required Permissions -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32"
-        tools:ignore="ScopedStorage" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+        android:name="android.permission.CALL_PRIVILEGED"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
-    <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
-    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
 
-    <!-- Special Permissions -->
     <uses-permission
-        android:name="android.permission.BIND_CALL_REDIRECTION_SERVICE"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission
-        android:name="android.permission.BIND_CONNECTION_SERVICE"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission
-        android:name="android.permission.BIND_INCALL_SERVICE"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission
-        android:name="android.permission.BIND_SCREENING_SERVICE"
-        tools:ignore="ProtectedPermissions" />
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <application
         android:name=".App"
@@ -52,15 +39,19 @@
         android:theme="@style/Theme.Phone"
         tools:targetApi="31">
 
-        <!-- Main Dialer Activity -->
+        <!-- Main Activity (Single Activity Architecture) -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop">
+
+            <!-- Main Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Dialer & Call Handling -->
             <intent-filter>
                 <action android:name="android.intent.action.DIAL" />
                 <action android:name="android.intent.action.CALL" />
@@ -68,46 +59,68 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="tel" />
             </intent-filter>
+
+            <!-- Outgoing Call Handling -->
             <intent-filter>
                 <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Incoming Call UI (Handled in MainActivity) -->
+            <intent-filter>
+                <action android:name="android.intent.action.ANSWER" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
             <meta-data
                 android:name="android.telephony.ui.DEFAULT_DIALER_PACKAGE_NAME"
                 android:resource="@string/default_dialer_package_name" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.DIAL" />
+                <action android:name="android.intent.action.CALL" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="tel" />
+                <data android:scheme="sip" />
+            </intent-filter>
         </activity>
 
         <!-- Connection Service for Call Handling -->
         <service
-            android:name=".services.MyConnectionService"
-            android:exported="false"
-            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
+            android:name=".call.services.MyConnectionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_INCALL_SERVICE">
             <intent-filter>
-                <action android:name="android.telecom.ConnectionService" />
+                <action android:name="android.telecom.InCallService" />
             </intent-filter>
         </service>
 
         <!-- Call Receiver for Handling Incoming Calls -->
-        <receiver android:name=".receiver.CallReceiver" />
-
-        <!-- Full-Screen Incoming Call UI -->
-        <activity
-            android:name=".ui.IncomingCallActivity"
-            android:excludeFromRecents="true"
-            android:exported="false"
-            android:launchMode="singleTask"
-            android:showWhenLocked="true"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
-            android:turnScreenOn="true">
+        <receiver
+            android:name=".receiver.CallReceiver"
+            android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.ANSWER" />
-                <category android:name="android.intent.category.DEFAULT" />
+                <action android:name="android.intent.action.PHONE_STATE" />
+                <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
+                <action android:name="ACCEPT_CALL" />
+                <action android:name="REJECT_CALL" />
             </intent-filter>
-            <meta-data
-                android:name="android.app.default_notification_channel_id"
-                android:value="call_notifications_channel" />
-        </activity>
+        </receiver>
+
+
+        <!-- Call Screening Service -->
+        <service
+            android:name=".call.services.MyCallScreeningService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
 
     </application>
 </manifest>

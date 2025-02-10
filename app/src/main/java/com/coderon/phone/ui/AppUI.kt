@@ -1,15 +1,16 @@
 package com.coderon.phone.ui
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Contacts
-import androidx.compose.material.icons.twotone.KeyboardCommandKey
+import androidx.compose.material.icons.twotone.Dialpad
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -20,6 +21,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
 import com.coderon.phone.ui.screens.AddContactScreen
@@ -33,102 +35,129 @@ import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
 import org.koin.androidx.compose.koinViewModel
 
+sealed class Screen(val route: String) {
+    object Keypad : Screen("keypad")
+    object Recent : Screen("recent")
+    object Contacts : Screen("contacts")
+    object AddContact : Screen("add_contact")
+    object CallDetails : Screen("contact_details/{phoneNumber}") {
+        fun createRoute(phoneNumber: String) = "contact_details/$phoneNumber"
+    }
 
+    object IncomingCall : Screen("incoming_call")
+    object OutgoingCall : Screen("outgoing_call/{phoneNumber}") {
+        fun createRoute(phoneNumber: String) = "outgoing_call/$phoneNumber"
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MyApp() {
     val navController = rememberNavController()
     val contactViewModel: ContactViewModel = koinViewModel()
     val callLogViewModel: CallLogViewModel = koinViewModel()
-    Scaffold(bottomBar = {
-        BottomNavigationBar(navController = navController)
-    }) { innerPadding ->
+    Scaffold(
+        bottomBar = { BottomNavigationBar(navController) }
+    ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = "keypad",
+            startDestination = Screen.Keypad.route,
             Modifier.padding(innerPadding),
         ) {
-            composable("keypad") {
-                DialerScreen({ _, _ -> }) {}
+            composable(Screen.Keypad.route) {
+                DialerScreen(
+                    startCall = { number, isVideo ->
+                        /*if (isVideo) {
+                            callManager.startVideoCall(number)
+                        } else {
+                            callManager.startVoiceCall(number)
+                        }*/
+                    },
+                    startVideoCall = { /*number ->*/
+//                        callManager.startVideoCall(number)
+
+                    }
+                )
             }
-            composable("recent") {
+            composable(Screen.Recent.route) {
+                val callLogs = callLogViewModel.callLogs.collectAsStateWithLifecycle().value
                 CallLogScreen(
-                    callLog = callLogViewModel.callLogs.collectAsStateWithLifecycle().value,
+                    callLog = callLogs,
                     filteredCallLogs = callLogViewModel::filteredCallLogs,
                     navController = navController,
                     onSearchContact = callLogViewModel::filteredCallLogs
                 )
             }
-            composable("contacts") {
+            composable(Screen.Contacts.route) {
+                val contacts = contactViewModel.contacts.collectAsStateWithLifecycle().value
                 ContactsScreen(
-                    contacts = contactViewModel.contacts.collectAsStateWithLifecycle().value,
-                    onAddContactClick = { navController.navigate("add_contact") },
+                    contacts = contacts,
+                    onAddContactClick = { navController.navigate(Screen.AddContact.route) },
                     onSearchContact = contactViewModel::filteredContacts
                 )
             }
-            composable("add_contact") {
+            composable(Screen.AddContact.route) {
                 AddContactScreen(
                     onSaveContact = contactViewModel::saveContact
                 )
             }
-            composable("contact_details/{phoneNumber}") {
-                val phoneNumber = it.arguments?.getString("phoneNumber")
+            composable(Screen.CallDetails.route) { backStackEntry ->
+                val phoneNumber = backStackEntry.arguments?.getString("phoneNumber") ?: ""
                 CallLogDetailsScreen(
                     phoneNumber = phoneNumber,
                     getContact = contactViewModel::getContact,
                     getCallLogForPhoneNumber = callLogViewModel::getCallLogsForNumber,
                     onCallClick = {},
-                    onMessageClick = {},
-                    onBlockClick = {},
+                    onMessageClick = { /* Handle messaging */ },
+                    onBlockClick = { /* Handle blocking */ },
                     navController = navController
                 )
             }
-
-            composable("incoming_call") {
+            composable(Screen.IncomingCall.route) {
                 IncomingCallScreen(
-                    onAnswer = {},
-                    onDecline = {}
+                    onAnswer = {  },
+                    onDecline = { }
                 )
             }
-            composable("outgoing_call/{phoneNumber}") {
-                val phoneNumber = it.arguments?.getString("phoneNumber")
+            composable(Screen.OutgoingCall.route) { backStackEntry ->
+                val phoneNumber = backStackEntry.arguments?.getString("phoneNumber") ?: ""
                 OutgoingCallScreen(
-                    contactName = phoneNumber ?: "",
-                    contactPhoneNumber = phoneNumber ?: "",
-                    onEndCall = {}
+                    contactName = phoneNumber,
+                    contactPhoneNumber = phoneNumber,
+                    onEndCall = { }
                 )
             }
         }
     }
 }
 
-
 @Composable
 fun BottomNavigationBar(navController: NavController) {
+    val navBackStackEntry = navController.currentBackStackEntryAsState().value
+    val currentRoute = navBackStackEntry?.destination?.route
+    val fontFamily = FontFamily(Font(R.font.regular))
+
     NavigationBar {
-        val currentRoute = navController.currentDestination?.route
-        val fontFamily = FontFamily(Font(R.font.regular))
-        BottomNavigationItems.entries.forEach { item ->
+        bottomNavigationItems.forEach { item ->
             NavigationBarItem(
                 label = { Text(text = item.label, fontFamily = fontFamily) },
-                selected = currentRoute == item.route,
+                selected = currentRoute == item.label,
                 onClick = {
-                    navController.navigate(route = item.route) {
+                    navController.navigate(item.label) {
                         popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
                         launchSingleTop = true
                     }
                 },
-                icon = {
-                    Icon(
-                        imageVector = item.icon, contentDescription = item.label
-                    )
-                })
+                icon = { Icon(imageVector = item.icon, contentDescription = item.label) }
+            )
         }
     }
 }
 
-enum class BottomNavigationItems(val route: String, val label: String, val icon: ImageVector) {
-    Keypad("keypad", "Keypad", Icons.TwoTone.KeyboardCommandKey),
-    Recent("recent", "Recent", Icons.TwoTone.AccessTime),
-    Contacts("contacts", "Contacts", Icons.TwoTone.Contacts)
-}
+val bottomNavigationItems = listOf(
+    BottomNavigationItem(Screen.Keypad, "Keypad", Icons.TwoTone.Dialpad),
+    BottomNavigationItem(Screen.Recent, "Recent", Icons.TwoTone.AccessTime),
+    BottomNavigationItem(Screen.Contacts, "Contacts", Icons.TwoTone.Contacts)
+)
 
+data class BottomNavigationItem(val screen: Screen, val label: String, val icon: ImageVector)
