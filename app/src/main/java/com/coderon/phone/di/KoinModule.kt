@@ -30,11 +30,6 @@ val appModule = module {
 
     single {
         CallManager(
-            blockedNumberRepository = get(),
-            voicemailRepository = get(),
-            voicemailRecorder = get(),
-            context = androidContext(),
-            callLogRepository = get()
         )
     }
     // ViewModel injections

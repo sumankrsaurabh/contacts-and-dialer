@@ -2,33 +2,42 @@ package com.coderon.phone.call.services
 
 import android.telecom.Call
 import android.telecom.CallScreeningService
-import android.util.Log
 
-class MyCallScreeningService : CallScreeningService() {
+class SimpleCallScreeningService : CallScreeningService() {
+
     override fun onScreenCall(callDetails: Call.Details) {
-        val phoneNumber = callDetails.handle?.schemeSpecificPart ?: "Unknown"
+        val number = callDetails.handle?.schemeSpecificPart
+        when {
+            /*number != null && isNumberBlocked(number.normalizePhoneNumber()) -> {
+                respondToCall(callDetails, isBlocked = true)
+            }*/
 
-        Log.d("CallScreeningService", "Incoming call from: $phoneNumber")
+            /*number != null && baseConfig.blockUnknownNumbers -> {
+                val simpleContactsHelper = SimpleContactsHelper(this)
+                val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
+                simpleContactsHelper.exists(number, privateCursor) { exists ->
+                    respondToCall(callDetails, isBlocked = !exists)
+                }
+            }*/
 
-        if (isSpam(phoneNumber)) {
-            Log.d("CallScreeningService", "Blocking spam call: $phoneNumber")
-            val response = CallResponse.Builder()
-                .setDisallowCall(true)
-                .setRejectCall(true)
-                .setSkipCallLog(true)
-                .setSkipNotification(true)
-                .build()
+            /*number == null && baseConfig.blockHiddenNumbers -> {
+                respondToCall(callDetails, isBlocked = true)
+            }*/
 
-            respondToCall(callDetails, response)
-        } else {
-            Log.d("CallScreeningService", "Allowing call: $phoneNumber")
-            val response = CallResponse.Builder().build()
-            respondToCall(callDetails, response)
+            else -> {
+                respondToCall(callDetails, isBlocked = false)
+            }
         }
     }
 
-    private fun isSpam(phoneNumber: String): Boolean {
-        // TODO: Implement spam detection logic (e.g., check against spam database)
-        return phoneNumber.startsWith("800") // Example: Blocking numbers starting with "800"
+    private fun respondToCall(callDetails: Call.Details, isBlocked: Boolean) {
+        val response = CallResponse.Builder()
+            .setDisallowCall(isBlocked)
+            .setRejectCall(isBlocked)
+            .setSkipCallLog(isBlocked)
+            .setSkipNotification(isBlocked)
+            .build()
+
+        respondToCall(callDetails, response)
     }
 }

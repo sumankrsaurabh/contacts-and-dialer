@@ -89,16 +89,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Connection Service for Call Handling -->
-        <service
-            android:name=".call.services.MyConnectionService"
-            android:exported="true"
-            android:permission="android.permission.BIND_INCALL_SERVICE">
-            <intent-filter>
-                <action android:name="android.telecom.InCallService" />
-            </intent-filter>
-        </service>
-
         <!-- Call Receiver for Handling Incoming Calls -->
         <receiver
             android:name=".receiver.CallReceiver"
@@ -111,16 +101,29 @@
             </intent-filter>
         </receiver>
 
-
-        <!-- Call Screening Service -->
         <service
-            android:name=".call.services.MyCallScreeningService"
+            android:name=".call.services.CallService"
+            android:exported="true"
+            android:permission="android.permission.BIND_INCALL_SERVICE">
+            <meta-data
+                android:name="android.telecom.IN_CALL_SERVICE_UI"
+                android:value="true" />
+            <meta-data
+                android:name="android.telecom.IN_CALL_SERVICE_RINGING"
+                android:value="true" />
+
+            <intent-filter>
+                <action android:name="android.telecom.InCallService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".call.services.SimpleCallScreeningService"
             android:exported="true"
             android:permission="android.permission.BIND_SCREENING_SERVICE">
             <intent-filter>
                 <action android:name="android.telecom.CallScreeningService" />
             </intent-filter>
         </service>
-
     </application>
 </manifest>

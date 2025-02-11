@@ -1,156 +1,222 @@
 package com.coderon.phone.call
 
-import android.content.ComponentName
-import android.content.Context
-import android.telecom.PhoneAccount
-import android.telecom.PhoneAccountHandle
-import android.telecom.TelecomManager
-import com.coderon.phone.call.services.MyConnectionService
-import com.coderon.phone.data.model.CallLog
-import com.coderon.phone.data.model.CallType
-import com.coderon.phone.data.repository.BlockedNumberRepository
-import com.coderon.phone.data.repository.VoicemailRepository
-import com.coderon.phone.domain.repository.CallLogRepository
-import com.coderon.phone.utils.VoicemailRecorder
+import android.annotation.SuppressLint
+import android.os.Handler
+import android.telecom.Call
+import android.telecom.CallAudioState
+import android.telecom.InCallService
+import android.telecom.VideoProfile
+import com.coderon.phone.call.extentions.getStateCompat
+import com.coderon.phone.call.extentions.hasCapability
+import com.coderon.phone.call.extentions.isConference
+import com.coderon.phone.data.model.AudioRoute
+import java.util.concurrent.CopyOnWriteArraySet
 
-class CallManager(
-    private val context: Context,
-    private val blockedNumberRepository: BlockedNumberRepository,
-    private val voicemailRepository: VoicemailRepository,
-    private val voicemailRecorder: VoicemailRecorder,
-    private val callLogRepository: CallLogRepository
-) {
+// inspired by https://github.com/Chooloo/call_manage
+class CallManager {
+    companion object {
+        @SuppressLint("StaticFieldLeak")
+        var inCallService: InCallService? = null
+        private var call: Call? = null
+        private val calls = mutableListOf<Call>()
+        private val listeners = CopyOnWriteArraySet<CallManagerListener>()
 
-    private val telecomManager: TelecomManager =
-        context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
+        fun onCallAdded(call: Call) {
+            this.call = call
+            calls.add(call)
+            for (listener in listeners) {
+                listener.onPrimaryCallChanged(call)
+            }
+            call.registerCallback(object : Call.Callback() {
+                override fun onStateChanged(call: Call, state: Int) {
+                    updateState()
+                }
 
-    fun registerPhoneAccount() {
-        val phoneAccountHandle = PhoneAccountHandle(
-            ComponentName(context, MyConnectionService::class.java),
-            "MyPhoneAccount"
-        )
-        val phoneAccount = PhoneAccount.builder(phoneAccountHandle, "My Dialer")
-            .setCapabilities(PhoneAccount.CAPABILITY_CALL_PROVIDER)
-            .build()
+                override fun onDetailsChanged(call: Call, details: Call.Details) {
+                    updateState()
+                }
 
-        telecomManager.registerPhoneAccount(phoneAccount)
-    }
-
-
-    // Handles an incoming call
-    suspend fun handleIncomingCall(phoneNumber: String): Boolean {
-        if (blockedNumberRepository.isBlocked(phoneNumber)) {
-            rejectCall(phoneNumber)
-            return false
+                override fun onConferenceableCallsChanged(call: Call, conferenceableCalls: MutableList<Call>) {
+                    updateState()
+                }
+            })
         }
-        // Show incoming call UI (Handled by TelecomManager or ConnectionService)
-        return true
-    }
 
-    // Rejects a call
-    fun rejectCall(phoneNumber: String) {
-        // Logic to reject call
-        println("Call rejected from: $phoneNumber")
-    }
+        fun onCallRemoved(call: Call) {
+            calls.remove(call)
+            updateState()
+        }
 
-    // Handles missed calls
-    suspend fun handleMissedCall(phoneNumber: String) {
-        callLogRepository.addCallLog(
-            CallLog(
-                phoneNumber = phoneNumber,
-                callType = CallType.MISSED,
-                callDuration = 0.toString(),
-                callTime = System.currentTimeMillis(),
-                contact = null,
-                id = 0
-            )
-        )
-        println("Missed call from: $phoneNumber")
-    }
+        fun onAudioStateChanged(audioState: CallAudioState) {
+            val route = AudioRoute.fromRoute(audioState.route) ?: return
+            for (listener in listeners) {
+                listener.onAudioStateChanged(route)
+            }
+        }
 
-    // Initiates an audio call
-    fun makeAudioCall(phoneNumber: String) {
-        val uri = android.net.Uri.fromParts("tel", phoneNumber, null)
-        val intent = android.content.Intent(android.content.Intent.ACTION_CALL, uri)
-        context.startActivity(intent)
-    }
+        fun getPhoneState(): PhoneState {
+            return when (calls.size) {
+                0 -> NoCall
+                1 -> SingleCall(calls.first())
+                2 -> {
+                   /* val active = calls.find { it.getStateCompat() == Call.STATE_ACTIVE }
+                    val newCall = calls.find { it.getStateCompat() == Call.STATE_CONNECTING || it.getStateCompat() == Call.STATE_DIALING }
+                    val onHold = calls.find { it.getStateCompat() == Call.STATE_HOLDING }
+                    if (active != null && newCall != null) {
+                        TwoCalls(newCall, active)
+                    } else if (newCall != null && onHold != null) {
+                        TwoCalls(newCall, onHold)
+                    } else if (active != null && onHold != null) {
+                        TwoCalls(active, onHold)
+//                    }else {*/
+                        TwoCalls(calls[0], calls[1])
+//                    }
+                }
+                else -> {
+                    val conference = calls.find { it.isConference() } ?: return NoCall
+                    val secondCall = if (conference.children.size + 1 != calls.size) {
+                        calls.filter { !it.isConference() }
+                            .subtract(conference.children.toSet())
+                            .firstOrNull()
+                    } else {
+                        null
+                    }
+                    if (secondCall == null) {
+                        SingleCall(conference)
+                    } else {
+                        val newCallState = secondCall.getStateCompat()
+                        if (newCallState == Call.STATE_ACTIVE || newCallState == Call.STATE_CONNECTING || newCallState == Call.STATE_DIALING) {
+                            TwoCalls(secondCall, conference)
+                        } else {
+                            TwoCalls(conference, secondCall)
+                        }
+                    }
+                }
+            }
+        }
 
-    // Initiates a video call
-    fun makeVideoCall(phoneNumber: String) {
-        val uri = android.net.Uri.fromParts("tel", phoneNumber, null)
-        val intent = android.content.Intent(android.content.Intent.ACTION_CALL, uri)
-        intent.putExtra("android.telecom.extra.START_CALL_WITH_VIDEO_STATE", 1)
-        context.startActivity(intent)
-    }
+        private fun getCallAudioState() = inCallService?.callAudioState
 
-    // Initiates a VoIP call
-    fun makeVoipCall(sipAddress: String) {
-        // Implement SIP/VoIP calling logic here
-        println("Making VoIP call to: $sipAddress")
-    }
+        fun getSupportedAudioRoutes(): Array<AudioRoute> {
+            return AudioRoute.values().filter {
+                val supportedRouteMask = getCallAudioState()?.supportedRouteMask
+                if (supportedRouteMask != null) {
+                    supportedRouteMask and it.route == it.route
+                } else {
+                    false
+                }
+            }.toTypedArray()
+        }
 
-    // Accepts an incoming call
-    fun acceptCall() {
-        // Logic to accept the call
-        println("Call accepted")
-    }
+        fun getCallAudioRoute() = AudioRoute.fromRoute(getCallAudioState()?.route)
 
-    // Ends a call
-    fun endCall() {
-        // Logic to end the call
-        println("Call ended")
-    }
+        fun setAudioRoute(newRoute: Int) {
+            inCallService?.setAudioRoute(newRoute)
+        }
 
-    // Holds a call
-    fun holdCall() {
-        // Logic to hold the call
-        println("Call on hold")
-    }
+        private fun updateState() {
+            val primaryCall = when (val phoneState = getPhoneState()) {
+                is NoCall -> null
+                is SingleCall -> phoneState.call
+                is TwoCalls -> phoneState.active
+            }
+            var notify = true
+            if (primaryCall == null) {
+                call = null
+            } else if (primaryCall != call) {
+                call = primaryCall
+                for (listener in listeners) {
+                    listener.onPrimaryCallChanged(primaryCall)
+                }
+                notify = false
+            }
+            if (notify) {
+                for (listener in listeners) {
+                    listener.onStateChanged()
+                }
+            }
 
-    // Unholds a call
-    fun unholdCall() {
-        // Logic to unhold the call
-        println("Call resumed")
-    }
+            // remove all disconnected calls manually in case they are still here
+            calls.removeAll { it.getStateCompat() == Call.STATE_DISCONNECTED }
+        }
 
-    // Mutes a call
-    fun muteCall() {
-        // Logic to mute the call
-        println("Call muted")
-    }
+        fun getPrimaryCall(): Call? {
+            return call
+        }
 
-    // Unmutes a call
-    fun unmuteCall() {
-        // Logic to unmute the call
-        println("Call unmuted")
-    }
+        fun getConferenceCalls(): List<Call> {
+            return calls.find { it.isConference() }?.children ?: emptyList()
+        }
 
-    // Toggles speakerphone mode
-    fun toggleSpeakerphone() {
-        // Logic to enable/disable speakerphone
-        println("Speakerphone toggled")
-    }
+        fun accept() {
+            call?.answer(VideoProfile.STATE_AUDIO_ONLY)
+        }
 
-    // Starts call recording
-    fun recordCall() {
-//        voicemailRecorder.startRecording()
-        println("Call recording started")
-    }
+        fun reject() {
+            if (call != null) {
+                val state = getState()
+                if (state == Call.STATE_RINGING) {
+                    call!!.reject(false, null)
+                } else if (state != Call.STATE_DISCONNECTED && state != Call.STATE_DISCONNECTING) {
+                    call!!.disconnect()
+                }
+            }
+        }
 
-    // Stops call recording
-    fun stopRecordingCall() {
-        voicemailRecorder.stopRecording()
-        println("Call recording stopped")
-    }
+        fun toggleHold(): Boolean {
+            val isOnHold = getState() == Call.STATE_HOLDING
+            if (isOnHold) {
+                call?.unhold()
+            } else {
+                call?.hold()
+            }
+            return !isOnHold
+        }
 
-    // Adds a call to the call log
-    suspend fun addToCallLog(callLog: CallLog) {
-        callLogRepository.addCallLog(callLog)
-        println("Call log added: $callLog")
-    }
+        fun swap() {
+            if (calls.size > 1) {
+                calls.find { it.getStateCompat() == Call.STATE_HOLDING }?.unhold()
+            }
+        }
 
-    // Retrieves all call logs
-    suspend fun getCallLogs(): List<CallLog> {
-        return callLogRepository.getCallLogs()
+        fun merge() {
+            val conferenceableCalls = call!!.conferenceableCalls
+            if (conferenceableCalls.isNotEmpty()) {
+                call!!.conference(conferenceableCalls.first())
+            } else {
+                if (call!!.hasCapability(Call.Details.CAPABILITY_MERGE_CONFERENCE)) {
+                    call!!.mergeConference()
+                }
+            }
+        }
+
+        fun addListener(listener: CallManagerListener) {
+            listeners.add(listener)
+        }
+
+        fun removeListener(listener: CallManagerListener) {
+            listeners.remove(listener)
+        }
+
+        fun getState() = getPrimaryCall()?.getStateCompat()
+
+        fun keypad(char: Char) {
+            call?.playDtmfTone(char)
+            val DIALPAD_TONE_LENGTH_MS = 150L
+            Handler().postDelayed({
+                call?.stopDtmfTone()
+            }, DIALPAD_TONE_LENGTH_MS)
+        }
     }
 }
+
+interface CallManagerListener {
+    fun onStateChanged()
+    fun onAudioStateChanged(audioState: AudioRoute)
+    fun onPrimaryCallChanged(call: Call)
+}
+
+sealed class PhoneState
+object NoCall : PhoneState()
+class SingleCall(val call: Call) : PhoneState()
+class TwoCalls(val active: Call, val onHold: Call) : PhoneState()

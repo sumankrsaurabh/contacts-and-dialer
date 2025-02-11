@@ -1,5 +1,10 @@
 package com.coderon.phone.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.RemoveCircle
-import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.icons.rounded.VideoCall
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,20 +35,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.R
-import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.InitiateCallScreen
 
+@RequiresApi(Build.VERSION_CODES.Q)
+@RequiresPermission(android.Manifest.permission.READ_PHONE_STATE)
 @Composable
 fun DialerScreen(
-    startCall: (String, Int) -> Unit,
-    startVideoCall: () -> Unit,
+    context: Context = LocalContext.current
 ) {
     var dialedNumber by remember { mutableStateOf("") }
     val maxDialedNumberLength = 15
+    var isCallInitiated by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -54,32 +62,32 @@ fun DialerScreen(
             text = dialedNumber, fontSize = 32.sp, modifier = Modifier.padding(18.dp)
         )
 
-        DialPad { dialedDigit ->
+        DialPad { digit ->
             if (dialedNumber.length < maxDialedNumberLength) {
-                dialedNumber += dialedDigit
+                dialedNumber += digit
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        val showSimSelectionDialog = remember { mutableStateOf(false) }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(onClick = { startVideoCall.invoke() }) {
+            IconButton(onClick = {
+            }) {
                 Icon(
-                    imageVector = Icons.Filled.VideoCall,
-                    contentDescription = "video call",
-                    tint = Color.White,
+                    imageVector = Icons.Rounded.VideoCall,
+                    contentDescription = "Delete last digit",
                     modifier = Modifier.size(32.dp)
                 )
             }
             FilledIconButton(
                 onClick = {
-                    showSimSelectionDialog.value = true
+                    if (dialedNumber.isNotEmpty()) {
+                        isCallInitiated = true
+                    }
                 },
                 modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
@@ -88,31 +96,31 @@ fun DialerScreen(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.call),
-                    contentDescription = "call",
+                    contentDescription = "Call",
                     modifier = Modifier.size(32.dp)
                 )
             }
-            if (showSimSelectionDialog.value) {
-                SimSelectionDialog(dialedNumber, startCall) {
-                    showSimSelectionDialog.value = false
-                }
-            }
 
-            // remove digit button
             IconButton(onClick = {
                 if (dialedNumber.isNotEmpty()) {
-                    dialedNumber = dialedNumber.dropLast(1)  // Remove last digit
+                    dialedNumber = dialedNumber.dropLast(1) // Remove last digit
                 }
             }) {
                 Icon(
                     imageVector = Icons.Default.RemoveCircle,
-                    contentDescription = "delete last digit",
+                    contentDescription = "Delete last digit",
                     modifier = Modifier.size(32.dp)
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Start the call using Compose logic
+        if (isCallInitiated) {
+            InitiateCallScreen(context, dialedNumber)
+            isCallInitiated = false // Reset after initiating call
+        }
     }
 }
 
@@ -147,8 +155,11 @@ fun DialPad(onDigitPress: (String) -> Unit) {
 }
 
 
+@RequiresPermission(Manifest.permission.READ_PHONE_STATE)
+@RequiresApi(Build.VERSION_CODES.Q)
 @Preview(showBackground = true)
 @Composable
 private fun Preview() {
-    DialerScreen(startCall = { _, _ -> }) { }
+    DialerScreen(
+    )
 }

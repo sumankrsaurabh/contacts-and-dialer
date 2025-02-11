@@ -1,11 +1,8 @@
 package com.coderon.phone
 
 import android.Manifest
-import android.app.Activity
-import android.app.role.RoleManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -19,37 +16,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import com.coderon.phone.call.CallManager
 import com.coderon.phone.ui.MyApp
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.utils.isDefaultDialer
-import org.koin.compose.koinInject
+import com.coderon.phone.utils.requestDefaultDialerRole
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!isDefaultDialer(this)) {
+            requestDefaultDialerRole(this)
+        }
         setContent {
             PhoneTheme {
                 MainScreen(this@MainActivity)
             }
         }
-
-        val dialerRoleRequest = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
-        ) {
-            Log.d(
-                "Change Default Dialer Request",
-                "dialerRoleRequest succeeded: ${it.resultCode == Activity.RESULT_OK}"
-            )
-        }
-        val roleManager = getSystemService(RoleManager::class.java)
-
-        if (roleManager.isRoleAvailable(RoleManager.ROLE_DIALER) &&
-            !roleManager.isRoleHeld(RoleManager.ROLE_DIALER)
-        )
-            dialerRoleRequest.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER))
-        else Log.d("Change Default Dialer Request", "dialerRoleRequest failed")
     }
 }
 
@@ -58,7 +41,6 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(activity: MainActivity) {
     val context = LocalContext.current
     var permissionsGranted by remember { mutableStateOf(false) }
-    var isDefaultDialer by remember { mutableStateOf(context.isDefaultDialer()) }
 
     val requiredPermissions = remember {
         mutableListOf(
@@ -80,13 +62,6 @@ fun MainScreen(activity: MainActivity) {
     }
 
     LaunchedEffect(Unit) {
-        // Ensure the app is the default dialer
-        if (!isDefaultDialer) {
-//            activity.launchSetDefaultDialerIntent()
-
-            isDefaultDialer = context.isDefaultDialer()
-        }
-
         // Check and request permissions
         val notGrantedPermissions = requiredPermissions.filter {
             ContextCompat.checkSelfPermission(

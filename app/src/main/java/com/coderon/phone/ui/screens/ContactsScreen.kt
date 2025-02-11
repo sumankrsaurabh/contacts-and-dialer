@@ -12,12 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,13 +66,27 @@ fun ContactsScreen(
                 onQueryChange = { searchText = it },
                 onSearch = { onSearchContact(searchText) }
             )
+
             if (filteredContacts.isEmpty()) {
                 NoContactsFound()
             } else {
-                LazyColumn(state = listState) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.padding(bottom = 80.dp) // Prevent FAB from overlapping
+                ) {
                     groupedContacts.forEach { (letter, contacts) ->
                         item { LetterHeader(letter) }
-                        items(contacts) { contact -> ContactItem(contact) }
+                        itemsIndexed(contacts) { index, contact ->
+                            ContactItem(
+                                contact,
+                                shape = when {
+                                    contacts.size == 1 -> RoundedCornerShape(24.dp) // Single contact
+                                    index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                                    index == contacts.lastIndex -> RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                                    else -> RoundedCornerShape(0.dp)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -114,17 +130,20 @@ fun LetterHeader(letter: Char) {
 }
 
 @Composable
-fun ContactItem(contact: Contact) {
+fun ContactItem(
+    contact: Contact,
+    shape: RoundedCornerShape = RoundedCornerShape(2.dp)
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(24.dp)
+            .padding(horizontal = 16.dp, vertical = 1.dp),
+        shape = shape
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (!contact.profilePictureUrl.isNullOrEmpty()) {
@@ -156,15 +175,28 @@ fun ContactItem(contact: Contact) {
                     )
                 }
             }
+
             Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(text = contact.name, fontSize = 16.sp)
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = contact.name,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Text(
                     text = contact.phoneNumber,
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+
+//            IconButton(onClick = { /* Navigate to contact details */ }) {
+                Icon(Icons.Outlined.Info, contentDescription = "Info")
+//            }
         }
     }
 }
@@ -190,14 +222,14 @@ fun NoContactsFound() {
 @Composable
 fun PreviewContactsScreen() {
     val sampleContacts = listOf(
-        Contact("1", "Alice", "1234567890", null),
-        Contact("2", "Aaron", "9876543210", null),
-        Contact("3", "Alex", "1112223333", "https://example.com/profile1.jpg"),
-        Contact("4", "Brian", "4445556666", null),
-        Contact("5", "Bella", "7778889999", "https://example.com/profile2.jpg"),
-        Contact("6", "Charlie", "0001112222", null),
-        Contact("7", "David", "3334445555", "https://example.com/profile3.jpg"),
-        Contact("8", "Emma", "6667778888", null)
+        Contact("1", "Alice Johnson", "1234567890", null),
+        Contact("2", "Aaron Brown", "9876543210", null),
+        Contact("3", "Alex Carter", "1112223333", "https://example.com/profile1.jpg"),
+        Contact("4", "Brian Lee", "4445556666", null),
+        Contact("5", "Bella Smith", "7778889999", "https://example.com/profile2.jpg"),
+        Contact("6", "Charlie Adams", "0001112222", null),
+        Contact("7", "David White", "3334445555", "https://example.com/profile3.jpg"),
+        Contact("8", "Emma Davis", "6667778888", null)
     )
     ContactsScreen(sampleContacts, {}, {})
 }

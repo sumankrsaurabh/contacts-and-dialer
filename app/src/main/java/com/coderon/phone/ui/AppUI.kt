@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
+import com.coderon.phone.call.CallManager
 import com.coderon.phone.ui.screens.AddContactScreen
 import com.coderon.phone.ui.screens.CallLogDetailsScreen
 import com.coderon.phone.ui.screens.CallLogScreen
@@ -34,6 +35,7 @@ import com.coderon.phone.ui.screens.OutgoingCallScreen
 import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 sealed class Screen(val route: String) {
     object Keypad : Screen("keypad")
@@ -56,6 +58,7 @@ fun MyApp() {
     val navController = rememberNavController()
     val contactViewModel: ContactViewModel = koinViewModel()
     val callLogViewModel: CallLogViewModel = koinViewModel()
+    val callManager: CallManager = koinInject()
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) }
     ) { innerPadding ->
@@ -65,19 +68,7 @@ fun MyApp() {
             Modifier.padding(innerPadding),
         ) {
             composable(Screen.Keypad.route) {
-                DialerScreen(
-                    startCall = { number, isVideo ->
-                        /*if (isVideo) {
-                            callManager.startVideoCall(number)
-                        } else {
-                            callManager.startVoiceCall(number)
-                        }*/
-                    },
-                    startVideoCall = { /*number ->*/
-//                        callManager.startVideoCall(number)
-
-                    }
-                )
+                DialerScreen()
             }
             composable(Screen.Recent.route) {
                 val callLogs = callLogViewModel.callLogs.collectAsStateWithLifecycle().value
@@ -115,7 +106,7 @@ fun MyApp() {
             }
             composable(Screen.IncomingCall.route) {
                 IncomingCallScreen(
-                    onAnswer = {  },
+                    onAnswer = { },
                     onDecline = { }
                 )
             }

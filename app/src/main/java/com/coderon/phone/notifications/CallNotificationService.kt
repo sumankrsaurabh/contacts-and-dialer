@@ -88,7 +88,7 @@ object CallNotificationService {
         NotificationManagerCompat.from(context).notify(ONGOING_CALL_NOTIFICATION_ID, notification)
     }
 
-    fun dismissNotification(context: Context) {
+    fun cancelNotification(context: Context) {
         NotificationManagerCompat.from(context).cancel(INCOMING_CALL_NOTIFICATION_ID)
     }
 
