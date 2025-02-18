@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CallLogViewModel(private val callLogRepository: CallLogRepository) : ViewModel() {
+
     private val _callLogs = MutableStateFlow<List<CallLog>>(emptyList())
     val callLogs: StateFlow<List<CallLog>> = _callLogs.asStateFlow()
 
@@ -24,7 +26,9 @@ class CallLogViewModel(private val callLogRepository: CallLogRepository) : ViewM
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val callLogs = callLogRepository.getCallLogs()
-                _callLogs.value = callLogs
+                withContext(Dispatchers.Main) {
+                    _callLogs.value = callLogs
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }

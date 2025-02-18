@@ -21,14 +21,12 @@ class ContactViewModel(private val contactRepository: ContactRepository) : ViewM
     }
 
     private fun fetchContacts() {
-        // Ensure data fetching is done asynchronously
         viewModelScope.launch(Dispatchers.IO) {
             val contacts = contactRepository.getContacts()
             withContext(Dispatchers.Main) {
                 _contacts.value = contacts
             }
         }
-
     }
 
     fun saveContact(name: String, phoneNumber: String, profilePictureUri: String?) {
@@ -40,7 +38,11 @@ class ContactViewModel(private val contactRepository: ContactRepository) : ViewM
     }
 
     fun getContact(phoneNumber: String): Contact? {
-        return _contacts.value.firstOrNull { it.phoneNumber == phoneNumber }
+        return _contacts.value.firstOrNull {
+            it.phoneNumber.substringAfter("+91") == phoneNumber.substringAfter(
+                "+91"
+            )
+        }
     }
 
     fun filteredContacts(query: String) = _contacts.map {

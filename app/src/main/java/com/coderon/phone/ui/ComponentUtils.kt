@@ -40,7 +40,7 @@ fun MainButton(
         enabled = enabled,
         modifier = Modifier.size(64.dp),
         colors = IconButtonDefaults.filledIconButtonColors(
-            containerColor = if (toggled) Color.White else Color.White.copy(.5f)
+            containerColor = if (toggled) Color.White else Color.Transparent
         )
     ) {
         Icon(

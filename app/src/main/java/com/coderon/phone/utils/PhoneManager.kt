@@ -1,6 +1,5 @@
 package com.coderon.phone.utils
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.role.RoleManager
@@ -8,53 +7,29 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.widget.Toast
-import androidx.annotation.RequiresApi
-import androidx.annotation.RequiresPermission
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.core.app.ActivityCompat
-import com.coderon.phone.ui.utils.SimSelectionDialog
 
 fun isDefaultDialer(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
-        roleManager.isRoleHeld(RoleManager.ROLE_DIALER)
-    } else {
-        val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-        telecomManager.defaultDialerPackage == context.packageName
-    }
+    val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
+    return roleManager.isRoleHeld(RoleManager.ROLE_DIALER)
 }
 
 fun requestDefaultDialerRole(activity: Activity) {
     try {
         Toast.makeText(activity, "Requesting default dialer role", Toast.LENGTH_SHORT).show()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = activity.getSystemService(Context.ROLE_SERVICE) as RoleManager
-            if (roleManager.isRoleAvailable(RoleManager.ROLE_DIALER) && !roleManager.isRoleHeld(
-                    RoleManager.ROLE_DIALER
-                )
-            ) {
-                val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
-                ActivityCompat.startActivityForResult(activity, intent, 100, null)
-                Toast.makeText(activity, "Request sent", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(activity, "Already the default dialer", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            val intent =
-                Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS) // Open Default Apps settings
-            activity.startActivity(intent)
+        val roleManager = activity.getSystemService(Context.ROLE_SERVICE) as RoleManager
+        if (roleManager.isRoleAvailable(RoleManager.ROLE_DIALER) && !roleManager.isRoleHeld(
+                RoleManager.ROLE_DIALER
+            )
+        ) {
+            val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+            ActivityCompat.startActivityForResult(activity, intent, 100, null)
             Toast.makeText(activity, "Request sent", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(activity, "Already the default dialer", Toast.LENGTH_SHORT).show()
         }
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(activity, "Error: Cannot request default dialer role", Toast.LENGTH_SHORT)
@@ -63,36 +38,39 @@ fun requestDefaultDialerRole(activity: Activity) {
 }
 
 
-@RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("MissingPermission")
 fun getHandleToUse(
     context: Context,
     intent: Intent?,
-    phoneNumber: String,
     onHandleSelected: (PhoneAccountHandle?) -> Unit
 ) {
     val telecomManager = context.getSystemService(TelecomManager::class.java)
-    val defaultHandle = telecomManager.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL)
+    val availableAccounts = telecomManager.callCapablePhoneAccounts
 
     when {
+        // If intent contains an explicit phone account, use it
         intent?.hasExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE) == true -> {
             onHandleSelected(intent.getParcelableExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE))
         }
-
-        defaultHandle != null -> {
-            onHandleSelected(defaultHandle)
+        // If there's only one SIM, use it
+        availableAccounts.size == 1 -> {
+            onHandleSelected(availableAccounts.firstOrNull())
         }
-
+        // If multiple SIMs exist, prompt user for selection
+        availableAccounts.size > 1 -> {
+            onHandleSelected(null) // Let the UI handle SIM selection
+        }
+        // No SIMs found
         else -> {
-            onHandleSelected(null) // Let the Composable handle SIM selection
+            onHandleSelected(null)
         }
     }
 }
 
 
-@RequiresApi(Build.VERSION_CODES.Q)
+
 fun initiateCall(context: Context, phoneNumber: String) {
-    getHandleToUse(context, null, phoneNumber) { selectedHandle ->
+    getHandleToUse(context, null) { selectedHandle ->
         if (selectedHandle != null) {
             placeCall(context, phoneNumber, selectedHandle)
         } else {
@@ -107,7 +85,6 @@ fun placeCall(context: Context, phoneNumber: String, handle: PhoneAccountHandle)
     val callIntent = Intent(Intent.ACTION_CALL, uri).apply {
         putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle) // Use the selected SIM
     }
-
     try {
         context.startActivity(callIntent)
     } catch (e: SecurityException) {
@@ -116,41 +93,26 @@ fun placeCall(context: Context, phoneNumber: String, handle: PhoneAccountHandle)
         Toast.makeText(context, "No app found to make call", Toast.LENGTH_SHORT).show()
     }
 }
-@RequiresPermission(Manifest.permission.READ_PHONE_STATE)
-@RequiresApi(Build.VERSION_CODES.Q)
-@Composable
-fun InitiateCallScreen(
-    context: Context,
-    phoneNumber: String
-) {
-    var selectedHandle by remember { mutableStateOf<PhoneAccountHandle?>(null) }
-    var showSimDialog by remember { mutableStateOf(false) }
+/*
 
-    LaunchedEffect(phoneNumber) {
-        getHandleToUse(context, null, phoneNumber) { handle ->
-            if (handle != null) {
-                selectedHandle = handle
-            } else {
-                showSimDialog = true // Show SIM selection if no default handle
+@RequiresPermission(allOf = [
+    Manifest.permission.READ_CALL_LOG,
+    Manifest.permission.READ_PHONE_STATE,
+    Manifest.permission.PROCESS_OUTGOING_CALLS
+])
+fun Intent.phoneCallInformation(): CallStateEnum {
+    val action = action
+    val extras = extras
+    if (extras != null) {
+        if (action.equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
+            // Incoming Call
+            val state = getStringExtra(TelephonyManager.EXTRA_STATE)!!
+            if (hasExtra(TelephonyManager.EXTRA_INCOMING_NUMBER) && state == TelephonyManager.EXTRA_STATE_RINGING) {
+                return CallStateEnum.Incoming
             }
+        } else if (action.equals(Intent.ACTION_NEW_OUTGOING_CALL)) {
+            return CallStateEnum.Ongoing
         }
     }
-
-    if (showSimDialog) {
-        SimSelectionDialog(
-            context = context,
-            phoneNumber = phoneNumber,
-            onDismiss = { showSimDialog = false },
-            onSimSelected = { handle ->
-                selectedHandle = handle
-                showSimDialog = false
-            }
-        )
-    }
-
-    LaunchedEffect(selectedHandle) {
-        selectedHandle?.let {
-            placeCall(context, phoneNumber, it)
-        }
-    }
-}
+    return CallStateEnum.Idle
+}*/

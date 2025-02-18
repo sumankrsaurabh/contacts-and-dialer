@@ -1,7 +1,14 @@
 package com.coderon.phone.ui.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,10 +24,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -33,24 +39,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
-import com.coderon.phone.ui.utils.SearchScreen
+import com.coderon.phone.ui.utils.CoderonTopAppBar
 
 @Composable
 fun ContactsScreen(
     contacts: List<Contact>,
     onAddContactClick: () -> Unit,
-    onSearchContact: (String) -> Unit
+    onSearchContact: (String) -> Unit,
+    navController: NavController
 ) {
     var searchText by remember { mutableStateOf("") }
+    var isSearchExpanded by remember { mutableStateOf(false) }
+
     val filteredContacts = remember(searchText, contacts) {
         contacts.filter { it.name.contains(searchText, ignoreCase = true) }
     }
@@ -59,69 +70,79 @@ fun ContactsScreen(
     }
     val listState = rememberLazyListState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            SearchScreen(
-                query = searchText,
-                onQueryChange = { searchText = it },
-                onSearch = { onSearchContact(searchText) }
+    // Handle back press to close search bar
+    BackHandler(enabled = isSearchExpanded) {
+        isSearchExpanded = false
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .animateContentSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .animateContentSize()
+        ) {
+            // Animated TopAppBar with Search Expansion
+            CoderonTopAppBar(
+                onSearch = { isSearchExpanded = true },
+                onMenu = {},
+                showBackArrow = false,
+                title = "Contacts",
+                isSearchExpanded = isSearchExpanded,
+                searchText = searchText,
+                onSearchTextChanged = { searchText = it },
+                onDismissSearch = { isSearchExpanded = false }
             )
 
             if (filteredContacts.isEmpty()) {
                 NoContactsFound()
             } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.padding(bottom = 80.dp) // Prevent FAB from overlapping
-                ) {
+                LazyColumn(state = listState) {
                     groupedContacts.forEach { (letter, contacts) ->
                         item { LetterHeader(letter) }
                         itemsIndexed(contacts) { index, contact ->
-                            ContactItem(
-                                contact,
-                                shape = when {
-                                    contacts.size == 1 -> RoundedCornerShape(24.dp) // Single contact
-                                    index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                                    index == contacts.lastIndex -> RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                                    else -> RoundedCornerShape(0.dp)
-                                }
-                            )
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }
+                            ) {
+                                ContactItem(
+                                    contact,
+                                    navController
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-
-        FloatingActionButton(
-            onClick = onAddContactClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.primary
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Contact")
-        }
     }
 }
+
 
 @Composable
 fun LetterHeader(letter: Char) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 16.dp),
+            .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent,
+            contentColor = Color.Transparent
+        )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .padding(vertical = 8.dp, horizontal = 16.dp),
+                .padding(vertical = 2.dp, horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             Text(
                 text = letter.toString(),
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.padding(8.dp)
             )
@@ -132,18 +153,24 @@ fun LetterHeader(letter: Char) {
 @Composable
 fun ContactItem(
     contact: Contact,
-    shape: RoundedCornerShape = RoundedCornerShape(2.dp)
+    navController: NavController,
+    shape: RoundedCornerShape = RoundedCornerShape(32.dp)
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 1.dp),
-        shape = shape
+            .padding(vertical = 4.dp)
+            .animateContentSize(), // Smooth resizing
+        shape = shape,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (!contact.profilePictureUrl.isNullOrEmpty()) {
@@ -194,9 +221,14 @@ fun ContactItem(
                 )
             }
 
-//            IconButton(onClick = { /* Navigate to contact details */ }) {
-                Icon(Icons.Outlined.Info, contentDescription = "Info")
-//            }
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "Info",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.CallDetails.createRoute(phoneNumber = contact.phoneNumber))
+                }
+            )
         }
     }
 }
@@ -212,11 +244,11 @@ fun NoContactsFound() {
         Text(
             text = "No contacts found",
             fontSize = 18.sp,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
+            color = Color.Gray
         )
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -231,5 +263,5 @@ fun PreviewContactsScreen() {
         Contact("7", "David White", "3334445555", "https://example.com/profile3.jpg"),
         Contact("8", "Emma Davis", "6667778888", null)
     )
-    ContactsScreen(sampleContacts, {}, {})
+    ContactsScreen(sampleContacts, {}, {}, rememberNavController())
 }

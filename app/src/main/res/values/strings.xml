@@ -6,4 +6,12 @@
     <string name="audio_route_wired_headset">audio_route_wired_headset</string>
     <string name="audio_route_wired_or_earpiece">audio_route_wired_or_earpiece</string>
     <string name="default_dialer_package_name">com.coderon.phone\n</string>
+    <string name="decline_call">end call\n</string>
+    <string name="accept_call">accept call</string>
+    <string name="is_calling">Ringing\n</string>
+    <string name="dialing">Dialing</string>
+    <string name="call_ended">Call ended</string>
+    <string name="call_ending">Call ending</string>
+    <string name="ongoing_call">Outging call</string>
+    <string name="conference">confrence\n</string>
 </resources>

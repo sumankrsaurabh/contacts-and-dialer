@@ -4,19 +4,21 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-02-10T18:25:57.791514400Z">
+        <DropdownSelection timestamp="2025-02-14T10:48:06.398914700Z">
           <Target type="DEFAULT_BOOT">
-            <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=10BE7401C7000T6" />
-            </handle>
+            <template>
+              <DeviceId pluginId="FirebaseDirectAccess" type="TEMPLATE" identifier="model_id=akita/34" />
+            </template>
           </Target>
         </DropdownSelection>
         <DialogSelection>
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="FirebaseDirectAccess" identifier="reservation=projects/expense-2953c/deviceSessions/session-p7dt7hn2x1tba" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=10BE7401C7000T6" />
               </handle>
+            </Target>
+            <Target type="DEFAULT_BOOT">
               <template>
                 <DeviceId pluginId="FirebaseDirectAccess" type="TEMPLATE" identifier="model_id=akita/34" />
               </template>
@@ -29,9 +31,6 @@
           </targets>
         </DialogSelection>
       </SelectionState>
-      <SelectionState runConfigName="CallScreenPreview">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
       <SelectionState runConfigName="UInt">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
@@ -42,6 +41,9 @@
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
       <SelectionState runConfigName="OngoingCallScreenPreview">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="Test">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

@@ -2,8 +2,7 @@ package com.coderon.phone.ui.screens
 
 import android.Manifest
 import android.content.Context
-import android.os.Build
-import androidx.annotation.RequiresApi
+import android.telecom.TelecomManager
 import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,23 +40,47 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.R
-import com.coderon.phone.utils.InitiateCallScreen
+import com.coderon.phone.ui.utils.CoderonTopAppBar
+import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.placeCall
 
-@RequiresApi(Build.VERSION_CODES.Q)
-@RequiresPermission(android.Manifest.permission.READ_PHONE_STATE)
+
+@RequiresPermission(Manifest.permission.READ_PHONE_STATE)
 @Composable
 fun DialerScreen(
     context: Context = LocalContext.current
 ) {
     var dialedNumber by remember { mutableStateOf("") }
     val maxDialedNumberLength = 15
-    var isCallInitiated by remember { mutableStateOf(false) }
+    val showSimSelectDialog = remember { mutableStateOf(false) }
+    var isSearchExpanded by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+    val telecomManager = context.getSystemService(TelecomManager::class.java)
+    val availableAccounts = telecomManager.callCapablePhoneAccounts
+    if (showSimSelectDialog.value) {
+        SimSelectionDialog(
+            availableAccounts = availableAccounts,
+            onDismiss = { showSimSelectDialog.value = false },
+            onSimSelected = {
+                placeCall(context, dialedNumber, it)
+            })
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        CoderonTopAppBar(
+            showBackArrow = false,
+            onSearch = { isSearchExpanded = true },
+            onMenu = {},
+            title = "Dialpad",
+            isSearchExpanded = isSearchExpanded,
+            searchText = searchText,
+            onSearchTextChanged = { searchText = it },
+            onDismissSearch = { isSearchExpanded = false })
+        Spacer(Modifier.weight(1f))
         Text(
             text = dialedNumber, fontSize = 32.sp, modifier = Modifier.padding(18.dp)
         )
@@ -75,8 +98,7 @@ fun DialerScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(onClick = {
-            }) {
+            IconButton(onClick = {}) {
                 Icon(
                     imageVector = Icons.Rounded.VideoCall,
                     contentDescription = "Delete last digit",
@@ -85,9 +107,7 @@ fun DialerScreen(
             }
             FilledIconButton(
                 onClick = {
-                    if (dialedNumber.isNotEmpty()) {
-                        isCallInitiated = true
-                    }
+                    showSimSelectDialog.value = true
                 },
                 modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
@@ -115,12 +135,6 @@ fun DialerScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Start the call using Compose logic
-        if (isCallInitiated) {
-            InitiateCallScreen(context, dialedNumber)
-            isCallInitiated = false // Reset after initiating call
-        }
     }
 }
 
@@ -156,10 +170,8 @@ fun DialPad(onDigitPress: (String) -> Unit) {
 
 
 @RequiresPermission(Manifest.permission.READ_PHONE_STATE)
-@RequiresApi(Build.VERSION_CODES.Q)
 @Preview(showBackground = true)
 @Composable
 private fun Preview() {
-    DialerScreen(
-    )
+    DialerScreen()
 }

@@ -12,34 +12,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.CallMade
-import androidx.compose.material.icons.automirrored.rounded.Message
-import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,120 +37,189 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import com.coderon.phone.R
 import com.coderon.phone.data.helpers.formatDuration
 import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Text
-import kotlinx.coroutines.launch
+import com.coderon.phone.ui.utils.CoderonTopAppBar
 
 @Composable
-fun CallLogDetailsScreen(
-    phoneNumber: String?,
-    getContact: suspend (String) -> Contact?,
-    getCallLogForPhoneNumber: suspend (String) -> List<CallLog>,
+fun ContactDetailsScreen(
+    contact: Contact,
+    callLogs: List<CallLog>,
     onCallClick: () -> Unit,
     onMessageClick: () -> Unit,
     onBlockClick: () -> Unit,
     navController: NavController
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    var contact by remember { mutableStateOf<Contact?>(null) }
-    var callLogs by remember { mutableStateOf<List<CallLog>>(emptyList()) }
-    if (phoneNumber == null) {
-        navController.navigateUp()
-    }
-    LaunchedEffect(phoneNumber) {
-        if (phoneNumber != null) {
-            coroutineScope.launch {
-                contact = getContact(phoneNumber)
-                callLogs = getCallLogForPhoneNumber(phoneNumber)
-            }
+    Scaffold(
+        bottomBar = { ActionButtons() },
+        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(.25f)
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+        ) {
+            ContactDetails(
+                contact, onCallClick, onMessageClick, onBlockClick, navController
+            )
+            CallLogList(callLogs)
         }
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        contact?.let { ContactDetails(it, onCallClick, onMessageClick, onBlockClick) }
-        CallLogList(callLogs)
     }
 }
 
 @Composable
 fun ContactDetails(
-    contact: Contact, onCallClick: () -> Unit, onMessageClick: () -> Unit, onBlockClick: () -> Unit
+    contact: Contact,
+    onCallClick: () -> Unit,
+    onMessageClick: () -> Unit,
+    onBlockClick: () -> Unit,
+    navController: NavController
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    Column(
     ) {
+        CoderonTopAppBar(
+            showBackArrow = true,
+            onBack = { navController.popBackStack() },
+            showActionsButton = false,
+            title = ""
+        )
         Column(
-            modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (contact.profilePictureUrl != null) {
                 Image(
                     painter = rememberAsyncImagePainter(
                         ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
-                            .crossfade(true).build()
+                            .crossfade(true).placeholder(R.drawable.profile_picture_call).build()
                     ),
                     contentDescription = "Profile Picture",
                     modifier = Modifier
                         .size(120.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant)
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(120.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondary),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = contact.name.first().toString(),
-                        fontSize = 28.sp,
+                        text = if (contact.name.isEmpty()) contact.phoneNumber.firstOrNull()
+                            .toString() else contact.name.firstOrNull().toString(),
+                        fontSize = 48.sp,
                         color = Color.White
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(text = contact.name, fontSize = 24.sp)
-            Text(text = contact.phoneNumber, fontSize = 16.sp)
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(24.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                shape = RoundedCornerShape(32.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                ActionButton(Icons.AutoMirrored.Rounded.CallMade, "Call", onCallClick)
-                ActionButton(Icons.AutoMirrored.Rounded.Message, "Message", onMessageClick)
-                ActionButton(Icons.Rounded.Block, "Block", onBlockClick)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = contact.name.ifBlank { contact.phoneNumber }, fontSize = 24.sp)
+                    if (contact.name.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = contact.phoneNumber, fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        IconButton(
+                            onClick = onCallClick, colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Green, contentColor = Color.White
+                            )
+                        ) {
+                            Icon(painter = painterResource(R.drawable.call), "Call")
+                        }
+                        IconButton(
+                            onClick = onCallClick, colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Blue, contentColor = Color.White
+                            )
+                        ) {
+                            Icon(painter = painterResource(R.drawable.message), "Call")
+                        }
+                        IconButton(
+                            onClick = onCallClick, colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Gray, contentColor = Color.White
+                            )
+                        ) {
+                            Icon(painter = painterResource(R.drawable.video_call), "Call")
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun ActionButton(icon: ImageVector, text: String, onClick: () -> Unit) {
-    FilledTonalButton(onClick = onClick, modifier = Modifier.padding(horizontal = 8.dp)) {
-        Icon(imageVector = icon, contentDescription = text, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text)
+fun ActionButtons(onClick: () -> Unit = {}) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconButton(onClick = onClick) {
+                Icon(painter = painterResource(R.drawable.edit), contentDescription = "edit")
+            }
+            Text("Edit", fontSize = 16.sp)
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconButton(onClick = onClick) {
+                Icon(painter = painterResource(R.drawable.delete), contentDescription = "delete")
+            }
+            Text("Delete", fontSize = 16.sp)
+        }
     }
 }
 
 @Composable
 fun CallLogList(callLogs: List<CallLog>) {
-    LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
+
+    LazyColumn() {
+        item {
+            Text(
+                "Recent calls",
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            )
+        }
         items(callLogs) { log ->
             CallLogItemDetails(log)
-            Spacer(modifier = Modifier.padding(bottom = 4.dp))
+        }
+    }
+    if (callLogs.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("No recent calls found")
         }
     }
 }
@@ -171,8 +230,8 @@ fun CallLogItemDetails(log: CallLog) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
@@ -181,32 +240,36 @@ fun CallLogItemDetails(log: CallLog) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = log.callType.name,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Start
-                )
-            }
+            Icon(
+                when (log.callType) {
+                    CallType.INCOMING -> painterResource(R.drawable.incoming_call)
+                    CallType.OUTGOING -> painterResource(R.drawable.outgoing_call)
+                    CallType.MISSED -> painterResource(R.drawable.incoming_call)
+                    else -> painterResource(R.drawable.call)
+                },
+                log.callType.name,
+                tint = if (log.callType == CallType.MISSED) Color.Red else Color.Black
+            )
+
             Column(
-                modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .padding(start = 16.dp)
+                    .weight(1f),
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = log.callTime.formatTime(),
+                    text = log.phoneNumber,
                     fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
                 )
-            }
-            Column(
-                modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End
-            ) {
                 Text(
                     text = log.callDuration.toLong().formatDuration(),
                     fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.primary
                 )
             }
+            Text(
+                text = log.callTime.formatTime(),
+                fontSize = 16.sp,
+            )
         }
     }
 }
@@ -246,10 +309,11 @@ fun PreviewCallLogDetailsScreen() {
         )
     )
 
-    CallLogDetailsScreen(
-        phoneNumber = "+1234567890",
-        getContact = { contact },
-        getCallLogForPhoneNumber = { callLogs },
+    ContactDetailsScreen(
+        contact = Contact(
+            id = "", name = "Saurya", phoneNumber = "7808140285", profilePictureUrl = ""
+        ),
+        callLogs = callLogs,
         onCallClick = {},
         onMessageClick = {},
         onBlockClick = {},
