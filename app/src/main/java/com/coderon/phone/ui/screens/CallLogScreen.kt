@@ -1,8 +1,11 @@
 package com.coderon.phone.ui.screens
 
+import android.content.Context
+import android.telecom.TelecomManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,6 +52,8 @@ import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.utils.CoderonTopAppBar
+import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.placeCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -127,12 +132,25 @@ fun CallLogDateHeader(date: String) {
 fun CallLogItem(
     log: CallLog,
     navController: NavController,
-    shape: RoundedCornerShape = RoundedCornerShape(32.dp)
+    shape: RoundedCornerShape = RoundedCornerShape(32.dp),
+    context: Context =  LocalContext.current
 ) {
+    val telecomManager = context.getSystemService(TelecomManager::class.java)
+    val showSimSelectDialog = remember { mutableStateOf(false) }
+    val availableAccounts = telecomManager.callCapablePhoneAccounts
+    if (showSimSelectDialog.value) {
+        SimSelectionDialog(
+            availableAccounts = availableAccounts,
+            onDismiss = { showSimSelectDialog.value = false },
+            onSimSelected = {
+                placeCall(context, log.phoneNumber, it)
+            })
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .clickable(onClick = { showSimSelectDialog.value = true }),
         shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface, // White in light mode, dark gray in dark mode

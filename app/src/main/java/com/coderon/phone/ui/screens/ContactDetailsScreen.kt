@@ -1,5 +1,7 @@
 package com.coderon.phone.ui.screens
 
+import android.content.Context
+import android.telecom.TelecomManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +26,8 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,12 +49,13 @@ import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.utils.CoderonTopAppBar
+import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.placeCall
 
 @Composable
 fun ContactDetailsScreen(
     contact: Contact,
     callLogs: List<CallLog>,
-    onCallClick: () -> Unit,
     onMessageClick: () -> Unit,
     onBlockClick: () -> Unit,
     navController: NavController
@@ -66,7 +71,7 @@ fun ContactDetailsScreen(
                 .padding(horizontal = 16.dp)
         ) {
             ContactDetails(
-                contact, onCallClick, onMessageClick, onBlockClick, navController
+                contact, onMessageClick, onBlockClick, navController
             )
             CallLogList(callLogs)
         }
@@ -76,13 +81,24 @@ fun ContactDetailsScreen(
 @Composable
 fun ContactDetails(
     contact: Contact,
-    onCallClick: () -> Unit,
     onMessageClick: () -> Unit,
     onBlockClick: () -> Unit,
-    navController: NavController
+    navController: NavController,
+    context: Context = LocalContext.current
 ) {
     Column(
     ) {
+        val telecomManager = context.getSystemService(TelecomManager::class.java)
+        val showSimSelectDialog = remember { mutableStateOf(false) }
+        val availableAccounts = telecomManager.callCapablePhoneAccounts
+        if (showSimSelectDialog.value) {
+            SimSelectionDialog(
+                availableAccounts = availableAccounts,
+                onDismiss = { showSimSelectDialog.value = false },
+                onSimSelected = {
+                    placeCall(context, contact.phoneNumber, it)
+                })
+        }
         CoderonTopAppBar(
             showBackArrow = true,
             onBack = { navController.popBackStack() },
@@ -144,21 +160,23 @@ fun ContactDetails(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         IconButton(
-                            onClick = onCallClick, colors = IconButtonDefaults.iconButtonColors(
+                            onClick = {
+                                showSimSelectDialog.value = true
+                            }, colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Green, contentColor = Color.White
                             )
                         ) {
                             Icon(painter = painterResource(R.drawable.call), "Call")
                         }
                         IconButton(
-                            onClick = onCallClick, colors = IconButtonDefaults.iconButtonColors(
+                            onClick = onMessageClick, colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Blue, contentColor = Color.White
                             )
                         ) {
                             Icon(painter = painterResource(R.drawable.message), "Call")
                         }
                         IconButton(
-                            onClick = onCallClick, colors = IconButtonDefaults.iconButtonColors(
+                            onClick = onBlockClick, colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Gray, contentColor = Color.White
                             )
                         ) {
@@ -314,7 +332,6 @@ fun PreviewCallLogDetailsScreen() {
             id = "", name = "Saurya", phoneNumber = "7808140285", profilePictureUrl = ""
         ),
         callLogs = callLogs,
-        onCallClick = {},
         onMessageClick = {},
         onBlockClick = {},
         rememberNavController()

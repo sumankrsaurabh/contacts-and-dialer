@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,8 +47,8 @@ fun IncomingCallScreen(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
             .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
-                ?: R.drawable.profile_picture_call).placeholder(R.drawable.profile_picture_call)
-            .error(R.drawable.profile_picture_call).crossfade(true).build(),
+                ?: R.drawable.background_incallui).placeholder(R.drawable.background_incallui)
+            .error(R.drawable.background_incallui).crossfade(true).build(),
             contentDescription = "Contact Profile Picture",
             modifier = Modifier
                 .fillMaxSize()
@@ -57,7 +58,7 @@ fun IncomingCallScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(.4f))
+                .background(Color.Black.copy(.5f))
         )
         Column(
             modifier = Modifier
@@ -68,7 +69,10 @@ fun IncomingCallScreen(
         ) {
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = name ?: phoneNumber, fontSize = 24.sp, color = Color.White
+                text = name ?: phoneNumber,
+                fontSize = 24.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(

@@ -10,6 +10,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.coderon.phone.call.services.CallManager
+import com.coderon.phone.call.services.CallManager.sendDtmfTone
+import com.coderon.phone.call.services.CallManager.stopDtmfTone
 import com.coderon.phone.call.services.NoCall
 import com.coderon.phone.call.services.SingleCall
 import com.coderon.phone.call.services.TwoCalls
@@ -18,6 +20,7 @@ import com.coderon.phone.ui.utils.extentions.State
 import com.coderon.phone.ui.utils.extentions.formatCallDuration
 import com.coderon.phone.ui.utils.extentions.getCallerNumber
 import com.coderon.phone.ui.utils.extentions.isBluetoothAvailable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -107,13 +110,20 @@ fun CallScreen(
                         CallManager.toggleHold()
                     },
                     onToggleMute = {
-                        CallManager.toggleMute()
+//                        CallManager.toggleMute()
                     },
                     onToggleBluetooth = {
                         CallManager.switchAudioRoute(
                             if (currentAudioRoute == AudioRoute.BLUETOOTH.value) AudioRoute.EARPIECE
                             else AudioRoute.BLUETOOTH
                         )
+                    },
+                    playDfmTones = {
+                        coroutineScope.launch {
+                            sendDtmfTone(it) // Send DTMF tone
+                            delay(200) // Simulate keypress delay
+                            stopDtmfTone() // Stop DTMF tone
+                        }
                     })
             }
         }

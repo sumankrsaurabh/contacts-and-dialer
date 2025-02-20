@@ -51,10 +51,10 @@ fun DialerScreen(
 ) {
     var dialedNumber by remember { mutableStateOf("") }
     val maxDialedNumberLength = 15
-    val showSimSelectDialog = remember { mutableStateOf(false) }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     val telecomManager = context.getSystemService(TelecomManager::class.java)
+    val showSimSelectDialog = remember { mutableStateOf(false) }
     val availableAccounts = telecomManager.callCapablePhoneAccounts
     if (showSimSelectDialog.value) {
         SimSelectionDialog(

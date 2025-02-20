@@ -1,5 +1,7 @@
 package com.coderon.phone.ui.screens
 
+import android.content.Context
+import android.telecom.TelecomManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -51,6 +53,8 @@ import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.utils.CoderonTopAppBar
+import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.placeCall
 
 @Composable
 fun ContactsScreen(
@@ -94,8 +98,7 @@ fun ContactsScreen(
                 isSearchExpanded = isSearchExpanded,
                 searchText = searchText,
                 onSearchTextChanged = { searchText = it },
-                onDismissSearch = { isSearchExpanded = false }
-            )
+                onDismissSearch = { isSearchExpanded = false })
 
             if (filteredContacts.isEmpty()) {
                 NoContactsFound()
@@ -106,11 +109,9 @@ fun ContactsScreen(
                         itemsIndexed(contacts) { index, contact ->
                             AnimatedVisibility(
                                 visible = true,
-                                enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }
-                            ) {
+                                enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }) {
                                 ContactItem(
-                                    contact,
-                                    navController
+                                    contact, navController
                                 )
                             }
                         }
@@ -130,8 +131,7 @@ fun LetterHeader(letter: Char) {
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent,
-            contentColor = Color.Transparent
+            containerColor = Color.Transparent, contentColor = Color.Transparent
         )
     ) {
         Box(
@@ -154,15 +154,27 @@ fun LetterHeader(letter: Char) {
 fun ContactItem(
     contact: Contact,
     navController: NavController,
-    shape: RoundedCornerShape = RoundedCornerShape(32.dp)
+    shape: RoundedCornerShape = RoundedCornerShape(32.dp),
+    context: Context = LocalContext.current
 ) {
+    val telecomManager = context.getSystemService(TelecomManager::class.java)
+    val showSimSelectDialog = remember { mutableStateOf(false) }
+    val availableAccounts = telecomManager.callCapablePhoneAccounts
+    if (showSimSelectDialog.value) {
+        SimSelectionDialog(
+            availableAccounts = availableAccounts,
+            onDismiss = { showSimSelectDialog.value = false },
+            onSimSelected = {
+                placeCall(context, contact.phoneNumber, it)
+            })
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .animateContentSize(), // Smooth resizing
-        shape = shape,
-        colors = CardDefaults.cardColors(
+            .animateContentSize()
+            .clickable(onClick = { showSimSelectDialog.value = true }), // Smooth resizing
+        shape = shape, colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
@@ -176,10 +188,8 @@ fun ContactItem(
             if (!contact.profilePictureUrl.isNullOrEmpty()) {
                 Image(
                     painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(LocalContext.current)
-                            .data(contact.profilePictureUrl)
-                            .crossfade(true)
-                            .build()
+                        ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
+                            .crossfade(true).build()
                     ),
                     contentDescription = "Profile Picture",
                     modifier = Modifier
@@ -227,8 +237,7 @@ fun ContactItem(
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable {
                     navController.navigate(Screen.CallDetails.createRoute(phoneNumber = contact.phoneNumber))
-                }
-            )
+                })
         }
     }
 }
@@ -238,13 +247,10 @@ fun NoContactsFound() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 100.dp),
-        contentAlignment = Alignment.Center
+            .padding(top = 100.dp), contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "No contacts found",
-            fontSize = 18.sp,
-            color = Color.Gray
+            text = "No contacts found", fontSize = 18.sp, color = Color.Gray
         )
     }
 }

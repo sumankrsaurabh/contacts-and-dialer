@@ -50,7 +50,8 @@ fun Call.getCallerName(): String? {
 }
 
 enum class State() {
-    IDLE, RINGING, CONNECTING, ACTIVE, ENDED, DIALING, DISCONNECTING
+    IDLE, RINGING, CONNECTING, ACTIVE, ENDED, DIALING, DISCONNECTING,
+    HOLD
 }
 
 enum class AudioRoute(val value: Int) {

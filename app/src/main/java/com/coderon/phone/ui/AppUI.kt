@@ -133,7 +133,6 @@ fun MyApp() {
                         profilePictureUrl = null
                     ),
                     callLogs = callLogs,
-                    onCallClick = {},
                     onMessageClick = {},
                     onBlockClick = {},
                     navController = navController

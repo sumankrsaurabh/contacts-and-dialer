@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.coderon.phone.call.services
 
 import android.annotation.SuppressLint
@@ -117,7 +119,6 @@ object CallManager {
         inCallService?.let { service ->
             val availableRoutes = service.callAudioState.supportedRouteMask
             val isEarphoneAvailable = availableRoutes and AudioRoute.WIRED_HEADSET.value != 0
-            val isEarpieceAvailable = availableRoutes and AudioRoute.EARPIECE.value != 0
             val isBluetoothAvailable = availableRoutes and AudioRoute.BLUETOOTH.value != 0
 
             val targetRoute = when (route) {
@@ -201,7 +202,7 @@ object CallManager {
     /** Toggles hold on the active call **/
     fun toggleHold(): Boolean {
         val primaryCall = getPrimaryCall()
-        return if (primaryCall?.state == Call.STATE_HOLDING) {
+        return if (primaryCall?.getCallState() == Call.STATE_HOLDING) {
             Log.d(TAG, "Unholding call: ${primaryCall.details.handle}")
             primaryCall.unhold()
             false
@@ -280,6 +281,7 @@ object CallManager {
             Call.STATE_DIALING -> State.DIALING
             Call.STATE_DISCONNECTING -> State.DISCONNECTING
             Call.STATE_DISCONNECTED -> State.ENDED
+            Call.STATE_HOLDING -> State.HOLD
             else -> State.IDLE
         }
     }
@@ -291,22 +293,44 @@ object CallManager {
 
     /** Starts tracking call duration **/
     fun startCallDurationTracking() {
-        _callDuration.value = 0L // Reset duration
+        val call = getPrimaryCall()
+        val startTime = call?.details?.connectTimeMillis ?: return
+
+        _callDuration.value = (System.currentTimeMillis() - startTime) / 1000 // Initial duration
         callDurationJob?.cancel() // Cancel any existing job
 
         callDurationJob = CoroutineScope(Dispatchers.Default).launch {
-            while (true) {
+            while (call.state == Call.STATE_ACTIVE) {  // Only track while the call is active
                 delay(1000L) // Wait 1 second
-                _callDuration.update { it + 1 } // Increment duration
+                _callDuration.update { (System.currentTimeMillis() - startTime) / 1000 } // Update duration in seconds
             }
         }
     }
+
 
     /** Stops tracking call duration **/
     fun stopCallDurationTracking() {
         callDurationJob?.cancel()
         callDurationJob = null
         _callDuration.value = 0L // Reset duration
+    }
+
+    fun sendDtmfTone(digit: Char) {
+        getPrimaryCall()?.let { call ->
+            if (digit in "0123456789#*") {
+                Log.d(TAG, "Sending DTMF tone: $digit")
+                call.playDtmfTone(digit)
+            } else {
+                Log.e(TAG, "Invalid DTMF digit: $digit")
+            }
+        }
+    }
+
+    fun stopDtmfTone() {
+        getPrimaryCall()?.let { call ->
+            Log.d(TAG, "Stopping DTMF tone")
+            call.stopDtmfTone()
+        }
     }
 
 }
