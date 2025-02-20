@@ -65,6 +65,7 @@ class CallService : InCallService() {
         audioState?.let { CallManager.updateAudioState(it) }
     }
 
+
     override fun onDestroy() {
         super.onDestroy()
         callNotificationManager.cancelNotification()

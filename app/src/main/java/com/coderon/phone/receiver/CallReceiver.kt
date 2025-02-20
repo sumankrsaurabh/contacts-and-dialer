@@ -10,6 +10,9 @@ import com.coderon.phone.MainActivity
 import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.notifications.CallNotificationManager
 import com.coderon.phone.ui.utils.extentions.checkPermissions
+import com.coderon.phone.utils.Constants.ACCEPT_CALL
+import com.coderon.phone.utils.Constants.ACTION_UPDATE_CALL_NOTIFICATION
+import com.coderon.phone.utils.Constants.DECLINE_CALL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,8 +39,8 @@ class CallReceiver : BroadcastReceiver() {
                 }
             }
 
-            ACTION_ACCEPT_CALL -> scope.launch { handleAcceptCall(context) }
-            ACTION_REJECT_CALL -> scope.launch { handleRejectCall(context) }
+            ACCEPT_CALL -> scope.launch { handleAcceptCall(context) }
+            DECLINE_CALL -> scope.launch { handleRejectCall(context) }
             ACTION_UPDATE_CALL_NOTIFICATION -> updateCallNotification(context)
         }
     }
@@ -62,11 +65,5 @@ class CallReceiver : BroadcastReceiver() {
             putExtra("CALL_TYPE", "incoming")
         }
         context.startActivity(intent)
-    }
-
-    companion object {
-        const val ACTION_ACCEPT_CALL = "com.coderon.phone.ACCEPT_CALL"
-        const val ACTION_REJECT_CALL = "com.coderon.phone.REJECT_CALL"
-        const val ACTION_UPDATE_CALL_NOTIFICATION = "com.coderon.phone.UPDATE_CALL_NOTIFICATION"
     }
 }

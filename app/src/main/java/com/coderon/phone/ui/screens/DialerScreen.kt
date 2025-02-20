@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.rounded.VideoCall
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -127,7 +126,7 @@ fun DialerScreen(
                 }
             }) {
                 Icon(
-                    imageVector = Icons.Default.RemoveCircle,
+                    painter = painterResource(R.drawable.backspace),
                     contentDescription = "Delete last digit",
                     modifier = Modifier.size(32.dp)
                 )

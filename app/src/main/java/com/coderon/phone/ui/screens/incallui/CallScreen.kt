@@ -13,9 +13,11 @@ import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.call.services.NoCall
 import com.coderon.phone.call.services.SingleCall
 import com.coderon.phone.call.services.TwoCalls
+import com.coderon.phone.ui.utils.extentions.AudioRoute
 import com.coderon.phone.ui.utils.extentions.State
-import com.coderon.phone.ui.utils.extentions.audioManager
+import com.coderon.phone.ui.utils.extentions.formatCallDuration
 import com.coderon.phone.ui.utils.extentions.getCallerNumber
+import com.coderon.phone.ui.utils.extentions.isBluetoothAvailable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -25,6 +27,9 @@ fun CallScreen(
 ) {
     val callState by CallManager.phoneState.collectAsStateWithLifecycle()
     val currentCallState by CallManager.callState.collectAsStateWithLifecycle()
+    val currentAudioRoute by CallManager.currentAudioRoute.collectAsStateWithLifecycle()
+    val isMuted by CallManager.isMuted.collectAsStateWithLifecycle()
+    val callDuration by CallManager.callDuration.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
     // Log phone state changes
@@ -53,10 +58,12 @@ fun CallScreen(
         is SingleCall -> {
             val phoneNumber = (callState as SingleCall).call.getCallerNumber() ?: "Unknown"
             val contact = CallManager.getContactByPhoneNumber(phoneNumber, context)
+
             when (currentCallState) {
                 State.RINGING -> IncomingCallScreen(
                     name = contact?.name,
                     phoneNumber = phoneNumber,
+                    profilePictureUrl = contact?.profilePictureUrl,
                     onAnswer = {
                         coroutineScope.launch {
                             Log.d("CallScreen", "Answering call")
@@ -79,7 +86,11 @@ fun CallScreen(
                     contactName = contact?.name.orEmpty(),
                     contactPhoneNumber = phoneNumber,
                     state = currentCallState,
+                    currentAudioRoute = currentAudioRoute,
+                    isMuted = isMuted == true,
                     profilePictureUrl = contact?.profilePictureUrl,
+                    callDuration = callDuration.formatCallDuration(),
+                    bluetoothDeviceConnected = isBluetoothAvailable(context),
                     onEndCall = {
                         coroutineScope.launch {
                             Log.d("CallScreen", "Ending active call")
@@ -87,13 +98,22 @@ fun CallScreen(
                         }
                     },
                     onToggleSpeaker = {
-                       toggleSpeakerMode(context)
+                        CallManager.switchAudioRoute(
+                            if (currentAudioRoute == AudioRoute.SPEAKER.value) AudioRoute.EARPIECE
+                            else AudioRoute.SPEAKER
+                        )
                     },
                     onToggleHold = {
                         CallManager.toggleHold()
                     },
                     onToggleMute = {
-                        toggleMute(context)
+                        CallManager.toggleMute()
+                    },
+                    onToggleBluetooth = {
+                        CallManager.switchAudioRoute(
+                            if (currentAudioRoute == AudioRoute.BLUETOOTH.value) AudioRoute.EARPIECE
+                            else AudioRoute.BLUETOOTH
+                        )
                     })
             }
         }
@@ -110,24 +130,4 @@ fun CallScreen(
                 })
         }
     }
-}
-
-/**
- * Toggles the speaker mode during a call.
- */
-private fun toggleSpeakerMode(context: Context) {
-    val audioManager = context.audioManager
-    val isSpeakerOn = audioManager.isSpeakerphoneOn
-    audioManager.isSpeakerphoneOn = !isSpeakerOn
-    Log.d("CallScreen", "Speaker mode toggled: ${!isSpeakerOn}")
-}
-
-/**
- * Toggles the mute state during a call.
- */
-private fun toggleMute(context: Context) {
-    val audioManager = context.audioManager
-    val isMuted = audioManager.isMicrophoneMute
-    audioManager.isMicrophoneMute = !isMuted
-    Log.d("CallScreen", "Mute state toggled: ${!isMuted}")
 }

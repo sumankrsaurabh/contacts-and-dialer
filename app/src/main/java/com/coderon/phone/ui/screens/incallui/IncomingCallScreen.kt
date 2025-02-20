@@ -1,8 +1,8 @@
 package com.coderon.phone.ui.screens.incallui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,14 +18,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.coderon.phone.R
 import com.coderon.phone.ui.Text
 
@@ -33,53 +38,77 @@ import com.coderon.phone.ui.Text
 fun IncomingCallScreen(
     phoneNumber: String = "Unknown Caller",
     name: String?,
+    profilePictureUrl: String? = null,
     onAnswer: () -> Unit,
     onDecline: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 56.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.profile_picture_call),
-            contentDescription = "Caller Profile Picture",
+    Box(modifier = Modifier.fillMaxSize()) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+            .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
+                ?: R.drawable.profile_picture_call).placeholder(R.drawable.profile_picture_call)
+            .error(R.drawable.profile_picture_call).crossfade(true).build(),
+            contentDescription = "Contact Profile Picture",
             modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
+                .fillMaxSize()
                 .background(MaterialTheme.colorScheme.primaryContainer)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = name ?: phoneNumber,
-            fontSize = 24.sp,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = phoneNumber, fontSize = 16.sp
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Row(
+                .blur(2.dp),
+            contentScale = ContentScale.Crop)
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 48.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(Color.Black.copy(.4f))
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 56.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Buttons(
-                icon = painterResource(R.drawable.call),
-                contentDescription = "Answer Call",
-                onClick = onAnswer,
-                color = Color.Green
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = name ?: phoneNumber, fontSize = 24.sp, color = Color.White
             )
-            Buttons(
-                icon = painterResource(R.drawable.end_call),
-                contentDescription = "End Call",
-                onClick = onDecline,
-                color = Color.Red
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = phoneNumber, fontSize = 16.sp, color = Color.White
             )
+            Spacer(modifier = Modifier.height(64.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 48.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Buttons(
+                        icon = painterResource(R.drawable.call),
+                        contentDescription = "Answer Call",
+                        onClick = onAnswer,
+                        color = Color.Green
+                    )
+                    Text(
+                        "Accept", color = Color.White
+                    )
+                }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Buttons(
+                        icon = painterResource(R.drawable.end_call),
+                        contentDescription = "End Call",
+                        onClick = onDecline,
+                        color = Color.Red
+                    )
+                    Text(
+                        "Decline", color = Color.White
+                    )
+                }
+            }
         }
     }
 }
@@ -94,11 +123,7 @@ fun PreviewIncomingCallScreen() {
 
 @Composable
 fun Buttons(
-    icon: Painter,
-    contentDescription: String,
-    onClick: () -> Unit,
-    color: Color,
-    size: Dp = 64.dp
+    icon: Painter, contentDescription: String, onClick: () -> Unit, color: Color, size: Dp = 64.dp
 ) {
     IconButton(
         onClick = onClick, modifier = Modifier

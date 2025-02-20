@@ -1,7 +1,11 @@
 package com.coderon.phone.ui.utils.extentions
 
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.os.Build
 import android.telecom.Call
+import android.telecom.CallAudioState
 import android.util.Log
 
 fun Call?.getCallState(): Int {
@@ -47,4 +51,27 @@ fun Call.getCallerName(): String? {
 
 enum class State() {
     IDLE, RINGING, CONNECTING, ACTIVE, ENDED, DIALING, DISCONNECTING
+}
+
+enum class AudioRoute(val value: Int) {
+    SPEAKER(CallAudioState.ROUTE_SPEAKER),
+    EARPIECE(CallAudioState.ROUTE_EARPIECE),
+    BLUETOOTH(CallAudioState.ROUTE_BLUETOOTH),
+    WIRED_HEADSET(CallAudioState.ROUTE_WIRED_HEADSET)
+}
+
+
+fun isBluetoothAvailable(context: Context): Boolean {
+    val devices = context.audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+
+    return devices.any {
+        it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+    }
+}
+
+/** Formats duration in HH:mm:ss */
+fun Long.formatCallDuration(): String {
+    val minutes = (this % 3600) / 60
+    val sec = this % 60
+    return String.format("%02d:%02d", minutes, sec)
 }

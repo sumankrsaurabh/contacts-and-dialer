@@ -10,14 +10,21 @@ import android.telecom.InCallService
 import android.telecom.VideoProfile
 import android.util.Log
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.utils.extentions.AudioRoute
 import com.coderon.phone.ui.utils.extentions.State
+import com.coderon.phone.ui.utils.extentions.audioManager
 import com.coderon.phone.ui.utils.extentions.getCallState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 @SuppressLint("StaticFieldLeak")
 object CallManager {
@@ -34,10 +41,23 @@ object CallManager {
     private val _callState = MutableStateFlow<State>(State.IDLE)
     val callState: StateFlow<State> = _callState.asStateFlow()
 
+    /** StateFlow for current audio state updates **/
+    private val _currentAudioRoute = MutableStateFlow(CallAudioState.ROUTE_EARPIECE)
+    val currentAudioRoute: StateFlow<Int> = _currentAudioRoute.asStateFlow()
+
 
     /** SharedFlow for one-time call events **/
     private val _callEvents = MutableSharedFlow<String>()
     val callEvents = _callEvents.asSharedFlow()
+
+    private val _isMuted = MutableStateFlow(inCallService?.audioManager?.isMicrophoneMute)
+    val isMuted = _isMuted.asStateFlow()
+
+    fun toggleMute() {
+        val newMuteState = !_isMuted.value!!
+        inCallService?.audioManager?.isMicrophoneMute = newMuteState
+        _isMuted.value = newMuteState  // Update state to trigger UI recomposition
+    }
 
     /** Adds a new call and registers callbacks **/
     fun addCall(call: Call, service: InCallService) {
@@ -53,6 +73,11 @@ object CallManager {
             override fun onStateChanged(call: Call, state: Int) {
                 Log.d(TAG, "Call state changed: ${call.details.handle}, New State: $state")
                 _callState.value = updateCallState(state)
+
+                when (state) {
+                    Call.STATE_ACTIVE -> startCallDurationTracking()  // Start duration tracking
+                    Call.STATE_DISCONNECTED, Call.STATE_DISCONNECTING -> stopCallDurationTracking() // Stop tracking
+                }
             }
 
             override fun onDetailsChanged(call: Call, details: Call.Details) {
@@ -61,8 +86,7 @@ object CallManager {
             }
 
             override fun onConferenceableCallsChanged(
-                call: Call,
-                conferenceableCalls: MutableList<Call>
+                call: Call, conferenceableCalls: MutableList<Call>
             ) {
                 Log.d(
                     TAG,
@@ -81,10 +105,38 @@ object CallManager {
     }
 
     /** Updates the call audio state **/
+
+
     fun updateAudioState(audioState: CallAudioState) {
         Log.d(TAG, "Audio state changed: Route=${audioState.route}, Muted=${audioState.isMuted}")
-
+        _currentAudioRoute.value = audioState.route
     }
+
+    /** Switch between audio routes */
+    fun switchAudioRoute(route: AudioRoute) {
+        inCallService?.let { service ->
+            val availableRoutes = service.callAudioState.supportedRouteMask
+            val isEarphoneAvailable = availableRoutes and AudioRoute.WIRED_HEADSET.value != 0
+            val isEarpieceAvailable = availableRoutes and AudioRoute.EARPIECE.value != 0
+            val isBluetoothAvailable = availableRoutes and AudioRoute.BLUETOOTH.value != 0
+
+            val targetRoute = when (route) {
+                AudioRoute.BLUETOOTH -> if (isBluetoothAvailable) AudioRoute.BLUETOOTH.value else _currentAudioRoute.value
+                AudioRoute.SPEAKER -> AudioRoute.SPEAKER.value
+                AudioRoute.EARPIECE -> if (isEarphoneAvailable) AudioRoute.WIRED_HEADSET.value else AudioRoute.EARPIECE.value
+                AudioRoute.WIRED_HEADSET -> if (isEarphoneAvailable) AudioRoute.WIRED_HEADSET.value else _currentAudioRoute.value
+            }
+
+            if (availableRoutes and targetRoute != 0) {
+                Log.d(TAG, "Switching audio route to: $targetRoute")
+                service.setAudioRoute(targetRoute)
+                _currentAudioRoute.value = targetRoute
+            } else {
+                Log.w(TAG, "Requested audio route $targetRoute is not supported")
+            }
+        } ?: Log.e(TAG, "InCallService is null, cannot switch audio route")
+    }
+
 
     /** Updates the phone state **/
     private fun updateState() {
@@ -107,8 +159,7 @@ object CallManager {
 
                 // Return the state with active and on-hold calls
                 TwoCalls(
-                    active = activeCall ?: calls.first(),
-                    onHold = onHoldCall ?: calls.last()
+                    active = activeCall ?: calls.first(), onHold = onHoldCall ?: calls.last()
                 )
             }
         }
@@ -139,10 +190,7 @@ object CallManager {
             when (call.state) {
                 Call.STATE_RINGING -> call.reject(false, null)
                 in listOf(
-                    Call.STATE_ACTIVE,
-                    Call.STATE_HOLDING,
-                    Call.STATE_DIALING,
-                    Call.STATE_CONNECTING
+                    Call.STATE_ACTIVE, Call.STATE_HOLDING, Call.STATE_DIALING, Call.STATE_CONNECTING
                 ) -> call.disconnect()
             }
             _callEvents.emit("Call Rejected")
@@ -235,6 +283,32 @@ object CallManager {
             else -> State.IDLE
         }
     }
+
+    private val _callDuration = MutableStateFlow(0L) // Duration in seconds
+    val callDuration: StateFlow<Long> = _callDuration.asStateFlow()
+
+    private var callDurationJob: Job? = null
+
+    /** Starts tracking call duration **/
+    fun startCallDurationTracking() {
+        _callDuration.value = 0L // Reset duration
+        callDurationJob?.cancel() // Cancel any existing job
+
+        callDurationJob = CoroutineScope(Dispatchers.Default).launch {
+            while (true) {
+                delay(1000L) // Wait 1 second
+                _callDuration.update { it + 1 } // Increment duration
+            }
+        }
+    }
+
+    /** Stops tracking call duration **/
+    fun stopCallDurationTracking() {
+        callDurationJob?.cancel()
+        callDurationJob = null
+        _callDuration.value = 0L // Reset duration
+    }
+
 }
 
 /** Phone states **/

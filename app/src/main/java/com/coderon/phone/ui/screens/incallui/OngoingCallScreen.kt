@@ -1,8 +1,10 @@
 package com.coderon.phone.ui.screens.incallui
 
+import android.telecom.CallAudioState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -19,8 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,96 +39,206 @@ fun OngoingCallScreen(
     contactName: String,
     contactPhoneNumber: String,
     state: State,
+    currentAudioRoute: Int,
+    isMuted: Boolean,
+    callDuration: String = "00:07:59",
     profilePictureUrl: String? = null,
     onEndCall: () -> Unit,
-    onToggleSpeaker: (String) -> Unit,
+    onToggleSpeaker: () -> Unit,
     onToggleMute: () -> Unit,
     onToggleHold: () -> Unit,
+    onToggleBluetooth: () -> Unit,
+    bluetoothDeviceConnected: Boolean = true
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 56.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Profile Image
+    Box(modifier = Modifier.fillMaxSize()) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
-                    ?: R.drawable.profile_picture_call).placeholder(R.drawable.profile_picture_call)
-                .error(R.drawable.profile_picture_call) // Ensures fallback if loading fails
-                .crossfade(true).build(),
+            .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
+                ?: R.drawable.profile_picture_call).placeholder(R.drawable.profile_picture_call)
+            .error(R.drawable.profile_picture_call).crossfade(true).build(),
             contentDescription = "Contact Profile Picture",
             modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer))
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .blur(2.dp),
+            contentScale = ContentScale.Crop)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(.3f))
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 48.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = contactName, fontSize = 24.sp, color = Color.White
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = contactName, fontSize = 24.sp, color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = contactPhoneNumber,
-            fontSize = 18.sp,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = state.toString(),
-            fontSize = 18.sp,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        AnimatedVisibility(visible = state == State.ACTIVE) {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    IconButton(onClick = { /*TODO*/ }) {
-                        Icon(painterResource(R.drawable.plus), "add call")
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = contactPhoneNumber, fontSize = 18.sp, color = Color.White.copy(.8f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                callDuration, fontSize = 18.sp, color = Color.White.copy(.8f)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+
+            AnimatedVisibility(visible = state == State.ACTIVE) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        IconButtonWithSelection(
+                            onClick = { /*TODO*/ },
+                            isSelected = false,
+                            iconRes = R.drawable.plus,
+                            contentDescription = "Add Call",
+                        )
+                        IconButtonWithSelection(
+                            onClick = { onToggleHold() },
+                            isSelected = false,
+                            iconRes = R.drawable.pause,
+                            contentDescription = "Hold Call",
+                        )
+                        IconButtonWithSelection(
+                            onClick = { /*TODO*/ },
+                            isSelected = false,
+                            iconRes = R.drawable.record,
+                            contentDescription = "Record Call",
+                        )
                     }
-                    IconButton(onClick = { onToggleHold.invoke() }) {
-                        Icon(painterResource(R.drawable.pause), "hold call")
-                    }
-                    IconButton(onClick = { /*TODO*/ }) {
-                        Icon(painterResource(R.drawable.record), "record call")
+
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        // Speaker Button
+                        AudioRouteButton(
+                            route = CallAudioState.ROUTE_SPEAKER,
+                            currentAudioRoute = currentAudioRoute,
+                            iconRes = R.drawable.volume_high,
+                            contentDescription = "Speaker",
+                            onClick = onToggleSpeaker
+                        )
+
+                        // Mute Button
+                        IconButtonWithSelection(
+                            isSelected = isMuted,
+                            iconRes = R.drawable.mute,
+                            contentDescription = "mute",
+                            onClick = { onToggleMute() })
+
+                        // Bluetooth Button
+                        AudioRouteButton(
+                            route = CallAudioState.ROUTE_BLUETOOTH,
+                            currentAudioRoute = currentAudioRoute,
+                            iconRes = R.drawable.bluetooth,
+                            contentDescription = "Bluetooth",
+                            onClick = onToggleBluetooth,
+                            enabled = bluetoothDeviceConnected
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(48.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // End Call Button
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    IconButton(onClick = { onToggleSpeaker.invoke("Speaker") }) {
-                        Icon(painterResource(R.drawable.volume_high), "add call")
+                    IconButton(
+                        onClick = { onEndCall.invoke() },
+                        modifier = Modifier.size(64.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Red, contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.end_call),
+                            contentDescription = "End Call",
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
-                    IconButton(onClick = { onToggleMute.invoke() }) {
-                        Icon(painterResource(R.drawable.mic), "hold call")
-                    }
-                    IconButton(onClick = { /*TODO*/ }) {
-                        Icon(painterResource(R.drawable.keypad_outline), "record call")
-                    }
+                    Text(
+                        "End", color = Color.White
+                    )
                 }
-                Spacer(modifier = Modifier.height(48.dp))
             }
         }
+    }
+}
+
+@Composable
+fun AudioRouteButton(
+    route: Int,
+    currentAudioRoute: Int,
+    iconRes: Int,
+    contentDescription: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val isSelected = route == currentAudioRoute
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         IconButton(
-            onClick = { onEndCall.invoke() },
-            modifier = Modifier.size(64.dp),
-            colors = IconButtonDefaults.iconButtonColors(
-                containerColor = Color.Red, contentColor = Color.White
-            )
+            onClick = { onClick() }, colors = IconButtonDefaults.iconButtonColors(
+                contentColor = if (isSelected) Color.Black else Color.White,
+                containerColor = if (isSelected) Color.White.copy(.9f) else Color.Black.copy(.25f)
+            ), enabled = enabled, modifier = Modifier.size(64.dp)
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.end_call),
-                contentDescription = "End Call",
+                painter = painterResource(id = iconRes),
+                contentDescription = contentDescription,
                 modifier = Modifier.size(32.dp)
             )
         }
+        Text(
+            contentDescription, color = Color.White
+        )
+    }
+}
+
+@Composable
+fun IconButtonWithSelection(
+    isSelected: Boolean,
+    iconRes: Int,
+    contentDescription: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        IconButton(
+            onClick = { onClick() }, colors = IconButtonDefaults.iconButtonColors(
+                contentColor = if (isSelected) Color.Black else Color.White,
+                containerColor = if (isSelected) Color.White.copy(.9f) else Color.Black.copy(.25f)
+            ), enabled = enabled, modifier = Modifier.size(64.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = contentDescription,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+        Text(contentDescription, color = Color.White)
     }
 }
 
@@ -140,6 +252,9 @@ private fun Test() {
         onToggleSpeaker = { /*TODO*/ },
         onToggleMute = { /*TODO*/ },
         onToggleHold = { /*TODO*/ },
-        state = State.IDLE
+        state = State.ACTIVE,
+        currentAudioRoute = CallAudioState.ROUTE_SPEAKER,
+        onToggleBluetooth = {},
+        isMuted = true
     )
 }

@@ -1,90 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/notification_holder"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="16dp"
-    android:background="@color/white">
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:padding="16dp">
 
-    <!-- Caller Name TextView -->
-    <TextView
-        android:id="@+id/notification_caller_name"
-        style="@style/TextAppearance.Compat.Notification.Title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="18sp"
-        android:textColor="@android:color/black"
-        tools:text="Caller name"
-        android:fontFamily="@font/regular"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:layout_alignParentTop="true" />
-
-    <!-- Call Status TextView -->
-    <TextView
-        android:id="@+id/notification_call_status"
-        style="@style/TextAppearance.Compat.Notification.Title"
-        android:layout_width="wrap_content"
-        android:fontFamily="@font/regular"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/notification_caller_name"
-        android:layout_marginTop="4dp"
-        android:textSize="14sp"
-        android:textColor="@android:color/black"
-        android:alpha="0.8"
-        android:maxLines="1"
-        android:ellipsize="end"
-        tools:text="123 456 789" />
-
-    <!-- Thumbnail ImageView -->
-    <ImageView
-        android:id="@+id/notification_thumbnail"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="8dp"
-        android:src="@drawable/profile_picture_call"
-        android:scaleType="centerCrop"
-        android:layout_marginTop="16dp"
-        android:background="@color/purple_200" />
-
-    <!-- Action Buttons (Accept/Decline Call) -->
     <LinearLayout
-        android:id="@+id/notification_actions_holder"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/notification_call_status"
-        android:layout_marginTop="16dp"
         android:orientation="horizontal"
-        android:gravity="center">
+        android:gravity="center_vertical">
 
-        <!-- Decline Call Button -->
-        <ImageView
-            android:id="@+id/notification_decline_call"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_marginEnd="16dp"
-            android:layout_gravity="center"
-            android:src="@drawable/end_call"
-            android:contentDescription="@string/decline_call"
-            android:background="#F44336"
-            android:padding="16dp"
-            android:tint="@android:color/white" />
+        <!-- Caller Info Section -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-        <!-- Accept Call Button -->
-        <ImageView
-            android:id="@+id/notification_accept_call"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="center"
-            android:src="@drawable/call"
-            android:contentDescription="@string/accept_call"
-            android:background="#4CAF50"
-            android:tint="@android:color/white"
-            android:padding="16dp" />
+            <!-- Caller Name -->
+            <TextView
+                android:id="@+id/notification_caller_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/black"
+                android:textSize="18sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Caller Name" />
 
+            <!-- Call Status -->
+            <TextView
+                android:id="@+id/notification_call_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/black"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Ringing..." />
+        </LinearLayout>
+
+        <!-- Use FrameLayout to push buttons to the right -->
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"/>
+
+        <!-- Call Action Buttons -->
+        <LinearLayout
+            android:id="@+id/notification_actions_holder"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+            <!-- Decline Button -->
+            <ImageView
+                android:id="@+id/notification_decline_call"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/circle_red"
+                android:padding="12dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/end_call"
+                android:tint="@android:color/white"
+                android:clickable="true"
+                android:focusable="true"
+                tools:ignore="UseAppTint" />
+
+            <!-- Accept Button -->
+            <ImageView
+                android:id="@+id/notification_accept_call"
+                android:layout_marginStart="12dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/circle_green"
+                android:padding="12dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/call"
+                android:tint="@android:color/white"
+                android:clickable="true"
+                android:focusable="true"
+                tools:ignore="UseAppTint" />
+        </LinearLayout>
     </LinearLayout>
 </RelativeLayout>

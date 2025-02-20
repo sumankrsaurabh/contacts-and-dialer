@@ -16,6 +16,8 @@ import com.coderon.phone.R
 import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.receiver.CallReceiver
 import com.coderon.phone.ui.utils.extentions.getCallState
+import com.coderon.phone.ui.utils.extentions.getCallerName
+import com.coderon.phone.ui.utils.extentions.getCallerNumber
 import com.coderon.phone.ui.utils.extentions.notificationManager
 import com.coderon.phone.utils.Constants.ACCEPT_CALL
 import com.coderon.phone.utils.Constants.DECLINE_CALL
@@ -29,6 +31,9 @@ class CallNotificationManager(private val context: Context) {
     @SuppressLint("NewApi")
     fun setupNotification(forceLowPriority: Boolean = false) {
         val callState = CallManager.getPrimaryCall().getCallState()
+        val nameOrNumber =
+            CallManager.getPrimaryCall()?.getCallerName() ?: CallManager.getPrimaryCall()
+                ?.getCallerNumber()
         val isHighPriority = callState == Call.STATE_RINGING && !forceLowPriority
         val channelId = if (isHighPriority) "call_high_priority" else "call_default"
         val importance =
@@ -73,6 +78,7 @@ class CallNotificationManager(private val context: Context) {
 
         val collapsedView = RemoteViews(context.packageName, R.layout.call_notification).apply {
             setTextViewText(R.id.notification_call_status, context.getString(contentTextId))
+            setTextViewText(R.id.notification_caller_name, nameOrNumber)
             setViewVisibility(
                 R.id.notification_accept_call,
                 if (callState == Call.STATE_RINGING) View.VISIBLE else View.GONE
