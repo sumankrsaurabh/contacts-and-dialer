@@ -90,7 +90,7 @@ fun CallScreen(
                     contactPhoneNumber = phoneNumber,
                     state = currentCallState,
                     currentAudioRoute = currentAudioRoute,
-                    isMuted = isMuted == true,
+                    isMuted = isMuted,
                     profilePictureUrl = contact?.profilePictureUrl,
                     callDuration = callDuration.formatCallDuration(),
                     bluetoothDeviceConnected = isBluetoothAvailable(context),
@@ -110,7 +110,7 @@ fun CallScreen(
                         CallManager.toggleHold()
                     },
                     onToggleMute = {
-//                        CallManager.toggleMute()
+                        CallManager.toggleMute()
                     },
                     onToggleBluetooth = {
                         CallManager.switchAudioRoute(

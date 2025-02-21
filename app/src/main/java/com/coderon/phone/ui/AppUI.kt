@@ -1,6 +1,7 @@
 package com.coderon.phone.ui
 
 import androidx.annotation.RequiresPermission
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -10,7 +11,6 @@ import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Contacts
 import androidx.compose.material.icons.twotone.Dialpad
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -150,7 +150,7 @@ fun MyApp() {
 fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit) {
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(.5f)
+        containerColor = if (isSystemInDarkTheme()) Color.Black.copy(.8f)else Color.White.copy(.8f),
     ) { innerPadding ->
         Box(
             modifier = Modifier

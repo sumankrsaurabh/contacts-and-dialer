@@ -100,8 +100,7 @@ fun OngoingCallScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             AnimatedVisibility(
-                visible = state != State.CONNECTING && state != State.DIALING && isButtonActive
-                        && !isNumpadActive
+                visible = state != State.CONNECTING && state != State.DIALING && isButtonActive && !isNumpadActive
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(
@@ -178,14 +177,16 @@ fun OngoingCallScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    IconButtonWithSelection(
-                        isSelected = isNumpadActive,
-                        iconRes = R.drawable.keypad,
-                        contentDescription = "",
-                        onClick = {
-                            isNumpadActive = !isNumpadActive
-                            isButtonActive = !isNumpadActive
-                        })
+                    AnimatedVisibility(state != State.CONNECTING && state != State.DIALING) {
+                        IconButtonWithSelection(
+                            isSelected = isNumpadActive,
+                            iconRes = R.drawable.keypad,
+                            contentDescription = "",
+                            onClick = {
+                                isNumpadActive = !isNumpadActive
+                                isButtonActive = !isNumpadActive
+                            })
+                    }
                     IconButton(
                         onClick = { onEndCall.invoke() },
                         modifier = Modifier.size(64.dp),
@@ -201,14 +202,17 @@ fun OngoingCallScreen(
                     }/* Text(
                          "End", color = Color.White
                      )*/
-                    IconButtonWithSelection(
-                        isSelected = false,
-                        iconRes = if (!isButtonActive) R.drawable.arrow_up else R.drawable.arrow_down,
-                        contentDescription = "",
-                        onClick = {
-                            isButtonActive = !isButtonActive
-                            isNumpadActive = !isButtonActive
-                        })
+                    AnimatedVisibility(state != State.CONNECTING && state != State.DIALING) {
+                        IconButtonWithSelection(
+                            isSelected = false,
+                            iconRes = if (!isButtonActive) R.drawable.arrow_up else R.drawable.arrow_down,
+                            contentDescription = "",
+                            onClick = {
+                                isButtonActive = !isButtonActive
+                                isNumpadActive = !isButtonActive
+                            }
+                        )
+                    }
                 }
             }
         }

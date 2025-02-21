@@ -14,7 +14,6 @@ import android.util.Log
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.utils.extentions.AudioRoute
 import com.coderon.phone.ui.utils.extentions.State
-import com.coderon.phone.ui.utils.extentions.audioManager
 import com.coderon.phone.ui.utils.extentions.getCallState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,13 +51,13 @@ object CallManager {
     private val _callEvents = MutableSharedFlow<String>()
     val callEvents = _callEvents.asSharedFlow()
 
-    private val _isMuted = MutableStateFlow(inCallService?.audioManager?.isMicrophoneMute)
+    private val _isMuted = MutableStateFlow(
+        inCallService?.callAudioState?.isMuted == true
+    )
     val isMuted = _isMuted.asStateFlow()
 
     fun toggleMute() {
-        val newMuteState = !_isMuted.value!!
-        inCallService?.audioManager?.isMicrophoneMute = newMuteState
-        _isMuted.value = newMuteState  // Update state to trigger UI recomposition
+        inCallService?.setMuted(_isMuted.value)
     }
 
     /** Adds a new call and registers callbacks **/
@@ -112,6 +111,7 @@ object CallManager {
     fun updateAudioState(audioState: CallAudioState) {
         Log.d(TAG, "Audio state changed: Route=${audioState.route}, Muted=${audioState.isMuted}")
         _currentAudioRoute.value = audioState.route
+        _isMuted.value = audioState.isMuted
     }
 
     /** Switch between audio routes */

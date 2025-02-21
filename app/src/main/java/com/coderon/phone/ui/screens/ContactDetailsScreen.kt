@@ -1,5 +1,6 @@
 package com.coderon.phone.ui.screens
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.telecom.TelecomManager
 import androidx.compose.foundation.Image
@@ -78,6 +79,7 @@ fun ContactDetailsScreen(
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
 fun ContactDetails(
     contact: Contact,

@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.telecom.TelecomManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -51,17 +50,6 @@ class MainActivity : ComponentActivity() {
         when (requestCode) {
             REQUEST_CODE_SET_DEFAULT_DIALER -> checkSetDefaultDialerResult(resultCode)
         }
-    }
-
-    private fun checkDefaultDialer() {
-
-        val telecomManager = getSystemService(TELECOM_SERVICE) as TelecomManager
-        val isAlreadyDefaultDialer = packageName == telecomManager.defaultDialerPackage
-        if (isAlreadyDefaultDialer) return
-
-        val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
-            .putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
-        startActivityForResult(intent, REQUEST_CODE_SET_DEFAULT_DIALER)
     }
 
     private fun checkSetDefaultDialerResult(resultCode: Int) {
