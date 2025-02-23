@@ -1,5 +1,6 @@
 package com.coderon.phone.ui.screens
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.telecom.TelecomManager
 import androidx.activity.compose.BackHandler
@@ -59,8 +60,8 @@ import kotlinx.coroutines.flow.emptyFlow
 
 @Composable
 fun CallLogScreen(
-    callLog: List<CallLog>,
-    filteredCallLogs: (String) -> Flow<List<CallLog>>,
+    callLog: Map<String, List<CallLog>>,
+    filteredCallLogs: (String) -> Flow<Map<String, List<CallLog>>>,
     navController: NavController,
     onSearchContact: (String) -> Unit
 ) {
@@ -68,7 +69,6 @@ fun CallLogScreen(
     var isSearchExpanded by remember { mutableStateOf(false) }
     val filteredLogs =
         filteredCallLogs(searchText).collectAsStateWithLifecycle(initialValue = callLog).value
-    val groupedLogs = remember(filteredLogs) { filteredLogs.groupBy { it.callTime.formatDate() } }
     // Handle back press to close search bar
     BackHandler(enabled = isSearchExpanded) {
         isSearchExpanded = false
@@ -90,7 +90,7 @@ fun CallLogScreen(
 
 
         LazyColumn {
-            groupedLogs.forEach { (date, logs) ->
+            filteredLogs.forEach { (date, logs) ->
                 item { CallLogDateHeader(date) }
                 itemsIndexed(logs) { index, log ->
                     CallLogItem(
@@ -128,12 +128,13 @@ fun CallLogDateHeader(date: String) {
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
 fun CallLogItem(
     log: CallLog,
     navController: NavController,
     shape: RoundedCornerShape = RoundedCornerShape(32.dp),
-    context: Context =  LocalContext.current
+    context: Context = LocalContext.current
 ) {
     val telecomManager = context.getSystemService(TelecomManager::class.java)
     val showSimSelectDialog = remember { mutableStateOf(false) }
@@ -249,7 +250,7 @@ fun PreviewCallLogScreen() {
         )
     )
     CallLogScreen(
-        callLog = sampleLogs,
+        callLog = sampleLogs.groupBy { it.callTime.formatDate() },
         navController = rememberNavController(),
         filteredCallLogs = { _ -> emptyFlow() },
         onSearchContact = {})

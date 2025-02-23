@@ -57,7 +57,6 @@ fun SimSelectionDialog(
     }, confirmButton = {})
 }
 
-
 @RequiresPermission(Manifest.permission.READ_PHONE_STATE)
 fun getSimInfo(context: Context, account: PhoneAccountHandle): Pair<String, String> {
     val telecomManager = context.getSystemService(TelecomManager::class.java)
@@ -66,15 +65,18 @@ fun getSimInfo(context: Context, account: PhoneAccountHandle): Pair<String, Stri
     val phoneAccount = telecomManager.getPhoneAccount(account)
     val label = phoneAccount?.label?.toString() ?: "Unknown SIM"
 
-    // Match SIM using subscriptionManager
     val subscriptionInfoList = subscriptionManager.activeSubscriptionInfoList
     val subscriptionInfo: SubscriptionInfo? = subscriptionInfoList?.find { info ->
-        info.carrierName.toString() == label // Matching based on carrier label
+        // Match using the SIM slot ID or subscription ID
+        info.subscriptionId.toString() == account.id ||
+                info.iccId == account.id ||
+                info.simSlotIndex.toString() == account.id
     }
 
-    val phoneNumber = subscriptionInfo?.number ?: ""
+    val phoneNumber = subscriptionInfo?.number ?: "Unknown Number"
 
     return label to phoneNumber
 }
+
 
 

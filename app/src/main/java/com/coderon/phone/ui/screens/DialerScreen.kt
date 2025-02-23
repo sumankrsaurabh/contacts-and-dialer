@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.telecom.TelecomManager
 import androidx.annotation.RequiresPermission
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +42,6 @@ import com.coderon.phone.R
 import com.coderon.phone.ui.utils.CoderonTopAppBar
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.placeCall
-
 
 @RequiresPermission(Manifest.permission.READ_PHONE_STATE)
 @Composable
@@ -155,11 +154,10 @@ fun DialPad(onDigitPress: (String) -> Unit) {
                             .padding(vertical = 8.dp)
                             .size(64.dp)
                             .clip(CircleShape)
-                            .clickable { onDigitPress(dialedDigit.toString()) }
-                            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)),
+                            .clickable { onDigitPress(dialedDigit.toString()) },
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(dialedDigit.toString(), fontSize = 26.sp)
+                        Text(dialedDigit.toString(), fontSize = 32.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

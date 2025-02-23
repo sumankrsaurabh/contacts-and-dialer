@@ -1,5 +1,6 @@
 package com.coderon.phone.ui.screens
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.telecom.TelecomManager
 import androidx.activity.compose.BackHandler
@@ -58,22 +59,12 @@ import com.coderon.phone.utils.placeCall
 
 @Composable
 fun ContactsScreen(
-    contacts: List<Contact>,
-    onAddContactClick: () -> Unit,
-    onSearchContact: (String) -> Unit,
+    contacts: Map<Char, List<Contact>>,
     navController: NavController
 ) {
     var searchText by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
-
-    val filteredContacts = remember(searchText, contacts) {
-        contacts.filter { it.name.contains(searchText, ignoreCase = true) }
-    }
-    val groupedContacts = remember(filteredContacts) {
-        filteredContacts.groupBy { it.name.first().uppercaseChar() }
-    }
     val listState = rememberLazyListState()
-
     // Handle back press to close search bar
     BackHandler(enabled = isSearchExpanded) {
         isSearchExpanded = false
@@ -100,11 +91,11 @@ fun ContactsScreen(
                 onSearchTextChanged = { searchText = it },
                 onDismissSearch = { isSearchExpanded = false })
 
-            if (filteredContacts.isEmpty()) {
+            if (contacts.isEmpty()) {
                 NoContactsFound()
             } else {
                 LazyColumn(state = listState) {
-                    groupedContacts.forEach { (letter, contacts) ->
+                    contacts.forEach { (letter, contacts) ->
                         item { LetterHeader(letter) }
                         itemsIndexed(contacts) { index, contact ->
                             AnimatedVisibility(
@@ -150,6 +141,7 @@ fun LetterHeader(letter: Char) {
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
 fun ContactItem(
     contact: Contact,
@@ -269,5 +261,5 @@ fun PreviewContactsScreen() {
         Contact("7", "David White", "3334445555", "https://example.com/profile3.jpg"),
         Contact("8", "Emma Davis", "6667778888", null)
     )
-    ContactsScreen(sampleContacts, {}, {}, rememberNavController())
+    ContactsScreen(sampleContacts.groupBy { it.name.first() }, rememberNavController())
 }

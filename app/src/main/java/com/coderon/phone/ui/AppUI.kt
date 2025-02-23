@@ -103,8 +103,8 @@ fun MyApp() {
                 ScaffoldScreen(navController) {
                     ContactsScreen(
                         contacts = contacts,
-                        onAddContactClick = { navController.navigate(Screen.AddContact.route) },
-                        onSearchContact = contactViewModel::filteredContacts,
+//                        onAddContactClick = { navController.navigate(Screen.AddContact.route) },
+//                        onSearchContact = contactViewModel::filteredContacts,
                         navController
                     )
                 }
@@ -150,7 +150,7 @@ fun MyApp() {
 fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit) {
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) },
-        containerColor = if (isSystemInDarkTheme()) Color.Black.copy(.8f)else Color.White.copy(.8f),
+        containerColor = if (isSystemInDarkTheme()) Color.Black.copy(.8f)else Color.White.copy(.7f),
     ) { innerPadding ->
         Box(
             modifier = Modifier

@@ -1,58 +1,52 @@
 package com.coderon.phone.utils
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.widget.Toast
-import androidx.core.app.ActivityCompat
+import androidx.core.net.toUri
 
 fun isDefaultDialer(context: Context): Boolean {
     val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
     return roleManager.isRoleHeld(RoleManager.ROLE_DIALER)
 }
 
-fun requestDefaultDialerRole(activity: Activity) {
-    try {
-        Toast.makeText(activity, "Requesting default dialer role", Toast.LENGTH_SHORT).show()
-        val roleManager = activity.getSystemService(Context.ROLE_SERVICE) as RoleManager
-        if (roleManager.isRoleAvailable(RoleManager.ROLE_DIALER) && !roleManager.isRoleHeld(
-                RoleManager.ROLE_DIALER
-            )
-        ) {
-            val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
-            ActivityCompat.startActivityForResult(activity, intent, 100, null)
-            Toast.makeText(activity, "Request sent", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(activity, "Already the default dialer", Toast.LENGTH_SHORT).show()
-        }
-    } catch (e: ActivityNotFoundException) {
-        Toast.makeText(activity, "Error: Cannot request default dialer role", Toast.LENGTH_SHORT)
-            .show()
+fun getDefaultDialerIntent(context: Context): Intent? {
+    val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
+    return if (roleManager.isRoleAvailable(RoleManager.ROLE_DIALER) && !roleManager.isRoleHeld(
+            RoleManager.ROLE_DIALER
+        )
+    ) {
+        roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+    } else {
+        null // Return null if the role is unavailable or already held
     }
 }
 
-
 @SuppressLint("MissingPermission")
 fun getHandleToUse(
-    context: Context,
-    intent: Intent?,
-    onHandleSelected: (PhoneAccountHandle?) -> Unit
+    context: Context, intent: Intent?, onHandleSelected: (PhoneAccountHandle?) -> Unit
 ) {
     val telecomManager = context.getSystemService(TelecomManager::class.java)
     val availableAccounts = telecomManager.callCapablePhoneAccounts
+    val defaultAccount = telecomManager.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL)
 
     when {
-        // If intent contains an explicit phone account, use it
+        // Use the explicit phone account from the intent if provided
         intent?.hasExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE) == true -> {
             onHandleSelected(intent.getParcelableExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE))
         }
-        // If there's only one SIM, use it
+        // If there's a system default phone account, use it
+        defaultAccount != null -> {
+            onHandleSelected(defaultAccount)
+        }
+        // If only one SIM is available, use it
         availableAccounts.size == 1 -> {
             onHandleSelected(availableAccounts.firstOrNull())
         }
@@ -66,7 +60,6 @@ fun getHandleToUse(
         }
     }
 }
-
 
 
 fun initiateCall(context: Context, phoneNumber: String) {
@@ -93,26 +86,15 @@ fun placeCall(context: Context, phoneNumber: String, handle: PhoneAccountHandle)
         Toast.makeText(context, "No app found to make call", Toast.LENGTH_SHORT).show()
     }
 }
-/*
 
-@RequiresPermission(allOf = [
-    Manifest.permission.READ_CALL_LOG,
-    Manifest.permission.READ_PHONE_STATE,
-    Manifest.permission.PROCESS_OUTGOING_CALLS
-])
-fun Intent.phoneCallInformation(): CallStateEnum {
-    val action = action
-    val extras = extras
-    if (extras != null) {
-        if (action.equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
-            // Incoming Call
-            val state = getStringExtra(TelephonyManager.EXTRA_STATE)!!
-            if (hasExtra(TelephonyManager.EXTRA_INCOMING_NUMBER) && state == TelephonyManager.EXTRA_STATE_RINGING) {
-                return CallStateEnum.Incoming
-            }
-        } else if (action.equals(Intent.ACTION_NEW_OUTGOING_CALL)) {
-            return CallStateEnum.Ongoing
-        }
+@SuppressLint("QueryPermissionsNeeded")
+fun openMessagingApp(context: Context, phoneNumber: String) {
+    val intent = Intent(Intent.ACTION_SENDTO).apply {
+        data = "smsto:$phoneNumber".toUri() // Ensures only SMS apps handle this
     }
-    return CallStateEnum.Idle
-}*/
+    if (intent.resolveActivity(context.packageManager) != null) {
+        context.startActivity(intent)
+    } else {
+        Toast.makeText(context, "No messaging app found", Toast.LENGTH_SHORT).show()
+    }
+}
