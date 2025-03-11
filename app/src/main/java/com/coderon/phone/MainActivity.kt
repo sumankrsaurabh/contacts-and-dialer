@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            HideSystemBars()
+//            HideSystemBars()
             PhoneTheme {
                 val isDefaultDialerState = remember { mutableStateOf(isDefaultDialer(this)) }
 

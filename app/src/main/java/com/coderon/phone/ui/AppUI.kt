@@ -5,11 +5,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.twotone.AccessTime
-import androidx.compose.material.icons.twotone.Contacts
-import androidx.compose.material.icons.twotone.Dialpad
+import androidx.compose.material.icons.rounded.AccessTime
+import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -17,11 +16,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -30,7 +26,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.coderon.phone.R
 import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.call.services.NoCall
 import com.coderon.phone.data.model.Contact
@@ -81,7 +76,7 @@ fun MyApp() {
         // Screens inside Scaffold (Keypad, Recent, Contacts)
         composable(Screen.Keypad.route) {
             if (currentCallState == NoCall) {
-                ScaffoldScreen(navController) { DialerScreen() }
+                ScaffoldScreen(navController) { DialerScreen(navController,contactViewModel::filteredContacts) }
             }
         }
         composable(Screen.Recent.route) {
@@ -90,9 +85,7 @@ fun MyApp() {
                 ScaffoldScreen(navController) {
                     CallLogScreen(
                         callLog = callLogs,
-                        filteredCallLogs = callLogViewModel::filteredCallLogs,
-                        navController = navController,
-                        onSearchContact = callLogViewModel::filteredCallLogs
+                        navController = navController
                     )
                 }
             }
@@ -150,14 +143,14 @@ fun MyApp() {
 fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit) {
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) },
-        containerColor = if (isSystemInDarkTheme()) Color.Black.copy(.8f)else Color.White.copy(.7f),
+        containerColor = if (isSystemInDarkTheme()) Color.Black.copy(.8f) else Color.White.copy(.7f),
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(32.dp))
+//                .clip(RoundedCornerShape(32.dp))
         ) {
             content()
         }
@@ -168,12 +161,11 @@ fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit
 fun BottomNavigationBar(navController: NavController) {
     val navBackStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = navBackStackEntry?.destination?.route
-    val fontFamily = FontFamily(Font(R.font.regular))
 
     NavigationBar(containerColor = Color.Transparent) {
         bottomNavigationItems.forEach { item ->
             NavigationBarItem(
-                label = { Text(text = item.label, fontFamily = fontFamily) },
+                label = { Text(text = item.label) },
                 selected = currentRoute == item.screen.route,
                 onClick = {
                     navController.navigate(item.screen.route) {
@@ -187,9 +179,9 @@ fun BottomNavigationBar(navController: NavController) {
 }
 
 val bottomNavigationItems = listOf(
-    BottomNavigationItem(Screen.Keypad, "Keypad", Icons.TwoTone.Dialpad),
-    BottomNavigationItem(Screen.Recent, "Recent", Icons.TwoTone.AccessTime),
-    BottomNavigationItem(Screen.Contacts, "Contacts", Icons.TwoTone.Contacts)
+    BottomNavigationItem(Screen.Keypad, "Keypad", Icons.Rounded.Dialpad),
+    BottomNavigationItem(Screen.Recent, "Recent", Icons.Rounded.AccessTime),
+    BottomNavigationItem(Screen.Contacts, "Contacts", Icons.Rounded.Contacts)
 )
 
 data class BottomNavigationItem(

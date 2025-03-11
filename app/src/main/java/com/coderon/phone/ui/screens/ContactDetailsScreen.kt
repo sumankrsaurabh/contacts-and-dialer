@@ -2,9 +2,9 @@ package com.coderon.phone.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.telecom.TelecomManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,8 +27,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,9 +47,8 @@ import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.CoderonTopAppBar
-import com.coderon.phone.ui.utils.SimSelectionDialog
-import com.coderon.phone.utils.placeCall
 
 @Composable
 fun ContactDetailsScreen(
@@ -90,7 +87,7 @@ fun ContactDetails(
 ) {
     Column(
     ) {
-        val telecomManager = context.getSystemService(TelecomManager::class.java)
+        /*val telecomManager = context.getSystemService(TelecomManager::class.java)
         val showSimSelectDialog = remember { mutableStateOf(false) }
         val availableAccounts = telecomManager.callCapablePhoneAccounts
         if (showSimSelectDialog.value) {
@@ -100,7 +97,7 @@ fun ContactDetails(
                 onSimSelected = {
                     placeCall(context, contact.phoneNumber, it)
                 })
-        }
+        }*/
         CoderonTopAppBar(
             showBackArrow = true,
             onBack = { navController.popBackStack() },
@@ -138,52 +135,57 @@ fun ContactDetails(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                shape = RoundedCornerShape(32.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Text(text = contact.name.ifBlank { contact.phoneNumber }, fontSize = 24.sp)
+                if (contact.name.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = contact.phoneNumber, fontSize = 16.sp)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = contact.name.ifBlank { contact.phoneNumber }, fontSize = 24.sp)
-                    if (contact.name.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = contact.phoneNumber, fontSize = 16.sp)
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        modifier = Modifier.fillMaxWidth()
+                    IconButton(
+                        onClick = {
+//                                showSimSelectDialog.value = true
+                        }, colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier.size(56.dp)
                     ) {
-                        IconButton(
-                            onClick = {
-                                showSimSelectDialog.value = true
-                            }, colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.Green, contentColor = Color.White
-                            )
-                        ) {
-                            Icon(painter = painterResource(R.drawable.call), "Call")
-                        }
-                        IconButton(
-                            onClick = onMessageClick, colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.Blue, contentColor = Color.White
-                            )
-                        ) {
-                            Icon(painter = painterResource(R.drawable.message), "Call")
-                        }
-                        IconButton(
-                            onClick = onBlockClick, colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.Gray, contentColor = Color.White
-                            )
-                        ) {
-                            Icon(painter = painterResource(R.drawable.video_call), "Call")
-                        }
+                        Icon(
+                            painter = painterResource(R.drawable.call),
+                            "Call"
+                        )
+                    }
+                    IconButton(
+                        onClick = onMessageClick, colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary
+                        ),
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.message),
+                            "Call"
+                        )
+                    }
+                    IconButton(
+                        onClick = onBlockClick, colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary,
+                            contentColor = MaterialTheme.colorScheme.onTertiary
+                        ),
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.video_call),
+                            "Call"
+                        )
                     }
                 }
             }
@@ -199,19 +201,23 @@ fun ActionButtons(onClick: () -> Unit = {}) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable(onClick = onClick)
         ) {
-            IconButton(onClick = onClick) {
-                Icon(painter = painterResource(R.drawable.edit), contentDescription = "edit")
-            }
+            Icon(
+                painter = painterResource(R.drawable.edit), contentDescription = "edit",
+                modifier = Modifier.size(32.dp)
+            )
             Text("Edit", fontSize = 16.sp)
         }
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable(onClick = onClick)
         ) {
-            IconButton(onClick = onClick) {
-                Icon(painter = painterResource(R.drawable.delete), contentDescription = "delete")
-            }
+            Icon(
+                painter = painterResource(R.drawable.delete), contentDescription = "delete",
+                modifier = Modifier.size(32.dp)
+            )
             Text("Delete", fontSize = 16.sp)
         }
     }
@@ -223,9 +229,7 @@ fun CallLogList(callLogs: List<CallLog>) {
     LazyColumn() {
         item {
             Text(
-                "Recent calls",
-                fontSize = 16.sp,
-                modifier = Modifier
+                "Recent calls", fontSize = 18.sp, modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
             )
@@ -236,8 +240,7 @@ fun CallLogList(callLogs: List<CallLog>) {
     }
     if (callLogs.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+            modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center
         ) {
             Text("No recent calls found")
         }
@@ -328,14 +331,11 @@ fun PreviewCallLogDetailsScreen() {
             callTime = 1700010000
         )
     )
-
-    ContactDetailsScreen(
-        contact = Contact(
-            id = "", name = "Saurya", phoneNumber = "7808140285", profilePictureUrl = ""
-        ),
-        callLogs = callLogs,
-        onMessageClick = {},
-        onBlockClick = {},
-        rememberNavController()
-    )
+    PhoneTheme {
+        ContactDetailsScreen(
+            contact = Contact(
+                id = "", name = "Saurya", phoneNumber = "7808140285", profilePictureUrl = ""
+            ), callLogs = callLogs, onMessageClick = {}, onBlockClick = {}, rememberNavController()
+        )
+    }
 }

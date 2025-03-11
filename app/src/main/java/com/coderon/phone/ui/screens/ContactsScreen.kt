@@ -2,7 +2,6 @@ package com.coderon.phone.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.telecom.TelecomManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -27,7 +26,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.NavigateNext
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -53,9 +52,8 @@ import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.CoderonTopAppBar
-import com.coderon.phone.ui.utils.SimSelectionDialog
-import com.coderon.phone.utils.placeCall
 
 @Composable
 fun ContactsScreen(
@@ -119,7 +117,7 @@ fun LetterHeader(letter: Char) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 0.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent, contentColor = Color.Transparent
@@ -128,7 +126,7 @@ fun LetterHeader(letter: Char) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 2.dp, horizontal = 16.dp),
+                .padding(vertical = 2.dp, horizontal = 0.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             Text(
@@ -149,7 +147,7 @@ fun ContactItem(
     shape: RoundedCornerShape = RoundedCornerShape(32.dp),
     context: Context = LocalContext.current
 ) {
-    val telecomManager = context.getSystemService(TelecomManager::class.java)
+    /*val telecomManager = context.getSystemService(TelecomManager::class.java)
     val showSimSelectDialog = remember { mutableStateOf(false) }
     val availableAccounts = telecomManager.callCapablePhoneAccounts
     if (showSimSelectDialog.value) {
@@ -159,80 +157,80 @@ fun ContactItem(
             onSimSelected = {
                 placeCall(context, contact.phoneNumber, it)
             })
-    }
-    Card(
+    }*/
+    /*Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .animateContentSize()
-            .clickable(onClick = { showSimSelectDialog.value = true }), // Smooth resizing
+            .clickable(onClick = {*//* showSimSelectDialog.value = true *//*}), // Smooth resizing
         shape = shape, colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
+    ) {*/
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 0.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (!contact.profilePictureUrl.isNullOrEmpty()) {
-                Image(
-                    painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
-                            .crossfade(true).build()
-                    ),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = contact.name.first().toString(),
-                        fontSize = 20.sp,
-                        color = Color.White
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+        if (!contact.profilePictureUrl.isNullOrEmpty()) {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
+                        .crossfade(true).build()
+                ),
+                contentDescription = "Profile Picture",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondary),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = contact.name,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = contact.phoneNumber,
-                    fontSize = 14.sp,
-                    color = Color.Gray,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = contact.name.first().toString(),
+                    fontSize = 20.sp,
+                    color = Color.White
                 )
             }
-
-            Icon(
-                imageVector = Icons.Outlined.Info,
-                contentDescription = "Info",
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.CallDetails.createRoute(phoneNumber = contact.phoneNumber))
-                })
         }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = contact.name,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = contact.phoneNumber,
+                fontSize = 14.sp,
+                color = Color.Gray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Outlined.NavigateNext,
+            contentDescription = "Info",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.clickable {
+                navController.navigate(Screen.CallDetails.createRoute(phoneNumber = contact.phoneNumber))
+            })
     }
 }
+//}
 
 @Composable
 fun NoContactsFound() {
@@ -261,5 +259,7 @@ fun PreviewContactsScreen() {
         Contact("7", "David White", "3334445555", "https://example.com/profile3.jpg"),
         Contact("8", "Emma Davis", "6667778888", null)
     )
-    ContactsScreen(sampleContacts.groupBy { it.name.first() }, rememberNavController())
+    PhoneTheme {
+        ContactsScreen(sampleContacts.groupBy { it.name.first() }, rememberNavController())
+    }
 }

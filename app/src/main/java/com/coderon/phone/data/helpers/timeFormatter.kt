@@ -18,8 +18,8 @@ fun Long.formatDuration(): String {
     val remainingSeconds = this % 60
 
     return when {
-        minutes > 0 -> "$minutes M $remainingSeconds S"
-        else -> "$remainingSeconds S"
+        minutes > 0 -> "${minutes}m ${remainingSeconds}s"
+        else -> "${remainingSeconds}s"
     }
 }
 
