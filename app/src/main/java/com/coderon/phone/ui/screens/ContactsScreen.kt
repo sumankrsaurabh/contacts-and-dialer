@@ -1,8 +1,6 @@
 package com.coderon.phone.ui.screens
 
 import android.annotation.SuppressLint
-import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -10,7 +8,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,25 +19,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.NavigateNext
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -50,59 +43,45 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
-import com.coderon.phone.ui.utils.CoderonTopAppBar
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen(
-    contacts: Map<Char, List<Contact>>,
-    navController: NavController
+    contacts: Map<Char, List<Contact>>, navController: NavController
 ) {
-    var searchText by remember { mutableStateOf("") }
-    var isSearchExpanded by remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
-    // Handle back press to close search bar
-    BackHandler(enabled = isSearchExpanded) {
-        isSearchExpanded = false
-    }
-
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .animateContentSize()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .animateContentSize()
-        ) {
-            // Animated TopAppBar with Search Expansion
-            CoderonTopAppBar(
-                onSearch = { isSearchExpanded = true },
-                onMenu = {},
-                showBackArrow = false,
-                title = "Contacts",
-                isSearchExpanded = isSearchExpanded,
-                searchText = searchText,
-                onSearchTextChanged = { searchText = it },
-                onDismissSearch = { isSearchExpanded = false })
+        CenterAlignedTopAppBar(
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Phone", fontSize = 24.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "${contacts.values.sumOf { it.size }} contacts with phone numbers",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
+            }, expandedHeight = TopAppBarDefaults.LargeAppBarExpandedHeight
+        )
 
-            if (contacts.isEmpty()) {
-                NoContactsFound()
-            } else {
-                LazyColumn(state = listState) {
-                    contacts.forEach { (letter, contacts) ->
-                        item { LetterHeader(letter) }
-                        itemsIndexed(contacts) { index, contact ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }) {
-                                ContactItem(
-                                    contact, navController
-                                )
-                            }
+        if (contacts.isEmpty()) {
+            NoContactsFound()
+        } else {
+            LazyColumn {
+                contacts.forEach { (letter, contacts) ->
+                    item { LetterHeader(letter) }
+                    itemsIndexed(contacts) { index, contact ->
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }) {
+                            ContactItem(
+                                contact, index, contacts.lastIndex
+                            )
                         }
                     }
                 }
@@ -114,28 +93,17 @@ fun ContactsScreen(
 
 @Composable
 fun LetterHeader(letter: Char) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 0.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent, contentColor = Color.Transparent
-        )
+            .padding(vertical = 0.dp, horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp, horizontal = 0.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Text(
-                text = letter.toString(),
-                fontSize = 20.sp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(8.dp)
-            )
-        }
+        Text(
+            text = letter.toString(),
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(8.dp)
+        )
     }
 }
 
@@ -143,94 +111,81 @@ fun LetterHeader(letter: Char) {
 @Composable
 fun ContactItem(
     contact: Contact,
-    navController: NavController,
-    shape: RoundedCornerShape = RoundedCornerShape(32.dp),
-    context: Context = LocalContext.current
+    index: Int,
+    lastIndex: Int,
 ) {
-    /*val telecomManager = context.getSystemService(TelecomManager::class.java)
-    val showSimSelectDialog = remember { mutableStateOf(false) }
-    val availableAccounts = telecomManager.callCapablePhoneAccounts
-    if (showSimSelectDialog.value) {
-        SimSelectionDialog(
-            availableAccounts = availableAccounts,
-            onDismiss = { showSimSelectDialog.value = false },
-            onSimSelected = {
-                placeCall(context, contact.phoneNumber, it)
-            })
-    }*/
-    /*Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .animateContentSize()
-            .clickable(onClick = {*//* showSimSelectDialog.value = true *//*}), // Smooth resizing
-        shape = shape, colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {*/
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 0.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Card(
+        shape = when {
+            lastIndex == 0 -> RoundedCornerShape(24.dp) // If only one item, fully rounded
+            index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp) // First item
+            index == lastIndex -> RoundedCornerShape(
+                bottomStart = 24.dp, bottomEnd = 24.dp
+            ) // Last item
+            else -> RoundedCornerShape(0.dp) // Middle items
+        }, modifier = Modifier.fillMaxWidth()
     ) {
-        if (!contact.profilePictureUrl.isNullOrEmpty()) {
-            Image(
-                painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
-                        .crossfade(true).build()
-                ),
-                contentDescription = "Profile Picture",
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondary),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = contact.name.first().toString(),
-                    fontSize = 20.sp,
-                    color = Color.White
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (!contact.profilePictureUrl.isNullOrEmpty()) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
+                            .crossfade(true).build()
+                    ),
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface)
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = contact.name.first().toString(),
+                        fontSize = 20.sp,
+                        color = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(modifier = Modifier.weight(1f)) { // Use weight instead of fillMaxSize
+                Row(
+                    Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = contact.name,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
+        
 
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = contact.name,
-                fontSize = 16.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = contact.phoneNumber,
-                fontSize = 14.sp,
-                color = Color.Gray,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+        // ✅ Place divider outside the card to maintain alignment
+        if (index != lastIndex) {
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 72.dp, end = 16.dp) // Match card padding
             )
         }
-
-        Icon(
-            imageVector = Icons.Outlined.NavigateNext,
-            contentDescription = "Info",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.clickable {
-                navController.navigate(Screen.CallDetails.createRoute(phoneNumber = contact.phoneNumber))
-            })
     }
 }
-//}
+
 
 @Composable
 fun NoContactsFound() {

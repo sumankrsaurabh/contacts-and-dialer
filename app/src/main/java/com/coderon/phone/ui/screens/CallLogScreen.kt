@@ -49,20 +49,28 @@ import com.coderon.phone.ui.theme.PhoneTheme
 fun CallLogScreen(
     callLog: Map<String, List<CallLog>>, navController: NavController
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        CenterAlignedTopAppBar(
-            title = {
-                com.coderon.phone.ui.Text("Phone")
-            },
-            expandedHeight = TopAppBarDefaults.LargeAppBarExpandedHeight
-        )
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Phone") },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors()
+            )
+        }
+    ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
             callLog.forEach { (date, logs) ->
                 item { CallLogDateHeader(date) }
                 itemsIndexed(logs) { index, log ->
-                    CallLogItem(log, index, logs.lastIndex)
+                    CallLogItem(
+                        log = log,
+                        index = index,
+                        lastIndex = logs.lastIndex,
+                        size = logs.size
+                    )
                 }
             }
         }
@@ -81,17 +89,21 @@ fun CallLogDateHeader(date: String) {
 
 @SuppressLint("MissingPermission")
 @Composable
-private fun CallLogItem(log: CallLog, index: Int, lastIndex: Int) {
-    Card(
-        shape = when (index) {
-            0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-            lastIndex -> RoundedCornerShape(
-                bottomStart = 24.dp,
-                bottomEnd = 24.dp
-            )
+private fun CallLogItem(log: CallLog, size: Int, index: Int, lastIndex: Int) {
+    val shape = when {
+        size == 1 -> RoundedCornerShape(24.dp) // Fully rounded if it's the only item
+        index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp) // Round top corners
+        index == lastIndex -> RoundedCornerShape(
+            bottomStart = 24.dp,
+            bottomEnd = 24.dp
+        ) // Round bottom corners
+        else -> RoundedCornerShape(0.dp) // No rounding for middle items
+    }
 
-            else -> RoundedCornerShape(0.dp)
-        }
+    Card(
+        shape = shape,
+        modifier = Modifier
+            .fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -107,11 +119,12 @@ private fun CallLogItem(log: CallLog, index: Int, lastIndex: Int) {
                         CallType.MISSED -> R.drawable.missed_call
                         else -> R.drawable.call
                     }
-                ), contentDescription = "Call Type", tint = Color.DarkGray
+                ),
+                contentDescription = "Call Type",
+                tint = Color.DarkGray
             )
             Column(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -127,8 +140,7 @@ private fun CallLogItem(log: CallLog, index: Int, lastIndex: Int) {
                     Spacer(Modifier.weight(1f))
                     Text(text = log.callTime.formatTime(), fontSize = 14.sp, color = Color.DarkGray)
                 }
-                if (index != lastIndex)
-                    HorizontalDivider()
+                if (index != lastIndex) HorizontalDivider()
             }
         }
     }
@@ -160,84 +172,103 @@ fun ContactProfileImage(contact: Contact?) {
     }
 }
 
-
 @PreviewLightDark
 @Composable
 fun PreviewCallLogScreen() {
     val sampleLogs = listOf(
         CallLog(
-            id = 0L,
+            id = 100L,
             callDuration = "30",
             contact = Contact("1", "Suman Kumar Saurabh", "780840285", null),
-            callTime = System.currentTimeMillis() - 3600000,
+            callTime = System.currentTimeMillis() - 3600000, // 1 hour ago
             callType = CallType.INCOMING,
             phoneNumber = "7808140285"
         ),
         CallLog(
-            id = 1L,
+            id = 101L,
             callDuration = "45",
             contact = Contact(
-                "2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"
+                "2",
+                "Aarav Sharma",
+                "9998887776",
+                "https://example.com/profile1.jpg"
             ),
-            callTime = System.currentTimeMillis() - 86400000,
+            callTime = System.currentTimeMillis() - 86400000, // 1 day ago
             callType = CallType.OUTGOING,
             phoneNumber = "9998887776"
         ),
         CallLog(
-            id = 0L,
-            callDuration = "30",
-            contact = Contact("1", "Suman Kumar Saurabh", "780840285", null),
-            callTime = System.currentTimeMillis() - 3600000,
+            id = 102L,
+            callDuration = "15",
+            contact = Contact("3", "Priya Singh", "9876543210", null),
+            callTime = System.currentTimeMillis() - 5400000, // 1.5 hours ago
+            callType = CallType.MISSED,
+            phoneNumber = "9876543210"
+        ),
+        CallLog(
+            id = 103L,
+            callDuration = "120",
+            contact = Contact("4", "Rohit Verma", "8974561230", "https://example.com/profile2.jpg"),
+            callTime = System.currentTimeMillis() - 172800000, // 2 days ago
+            callType = CallType.OUTGOING,
+            phoneNumber = "8974561230"
+        ),
+        CallLog(
+            id = 104L,
+            callDuration = "60",
+            contact = Contact("5", "Anjali Kapoor", "7854123690", null),
+            callTime = System.currentTimeMillis() - 10800000, // 3 hours ago
             callType = CallType.INCOMING,
-            phoneNumber = "7808140285"
+            phoneNumber = "7854123690"
         ),
         CallLog(
-            id = 1L,
-            callDuration = "45",
-            contact = Contact(
-                "2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"
-            ),
-            callTime = System.currentTimeMillis() - 86400000,
+            id = 105L,
+            callDuration = "5",
+            contact = Contact("6", "Vikas Patel", "9638527410", null),
+            callTime = System.currentTimeMillis() - 259200000, // 3 days ago
+            callType = CallType.MISSED,
+            phoneNumber = "9638527410"
+        ),
+        CallLog(
+            id = 106L,
+            callDuration = "20",
+            contact = Contact("7", "Meera Joshi", "8527419630", "https://example.com/profile3.jpg"),
+            callTime = System.currentTimeMillis() - 432000000, // 5 days ago
             callType = CallType.OUTGOING,
-            phoneNumber = "9998887776"
+            phoneNumber = "8527419630"
         ),
         CallLog(
-            id = 0L,
-            callDuration = "30",
-            contact = Contact("1", "Suman Kumar Saurabh", "780840285", null),
-            callTime = System.currentTimeMillis() - 3600000,
+            id = 107L,
+            callDuration = "90",
+            contact = Contact("8", "Raj Malhotra", "7896541230", null),
+            callTime = System.currentTimeMillis() - 7200000, // 2 hours ago
             callType = CallType.INCOMING,
-            phoneNumber = "7808140285"
+            phoneNumber = "7896541230"
         ),
         CallLog(
-            id = 1L,
-            callDuration = "45",
+            id = 108L,
+            callDuration = "10",
             contact = Contact(
-                "2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"
+                "9",
+                "Kavita Sharma",
+                "9517538520",
+                "https://example.com/profile4.jpg"
             ),
-            callTime = System.currentTimeMillis() - 86400000,
-            callType = CallType.OUTGOING,
-            phoneNumber = "9998887776"
+            callTime = System.currentTimeMillis() - 604800000, // 7 days ago
+            callType = CallType.MISSED,
+            phoneNumber = "9517538520"
         ),
         CallLog(
-            id = 0L,
-            callDuration = "30",
-            contact = Contact("1", "Suman Kumar Saurabh", "780840285", null),
-            callTime = System.currentTimeMillis() - 3600000,
-            callType = CallType.INCOMING,
-            phoneNumber = "7808140285"
-        ),
-        CallLog(
-            id = 1L,
-            callDuration = "45",
-            contact = Contact(
-                "2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"
-            ),
-            callTime = System.currentTimeMillis() - 86400000,
+            id = 109L,
+            callDuration = "25",
+            contact = Contact("10", "Sameer Khan", "7531598524", null),
+            callTime = System.currentTimeMillis() - 14400000, // 4 hours ago
             callType = CallType.OUTGOING,
-            phoneNumber = "9998887776"
-        ),
+            phoneNumber = "7531598524"
+        )
     )
+
+
     PhoneTheme {
         Scaffold(
             bottomBar = { BottomNavigationBar(rememberNavController()) },
