@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,12 +28,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Transparent
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.coderon.phone.R
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
@@ -44,8 +45,8 @@ import com.coderon.phone.ui.Text
 @Composable
 fun SearchScreen(
     onSearch: (String) -> Unit = {},
-    contacts: List<Contact>,
-    logs: List<CallLog>,
+    contacts: List<Contact> = emptyList(),
+    logs: List<CallLog> = emptyList(),
     navController: NavController,
     onBack: () -> Unit = {}
 ) {
@@ -82,7 +83,7 @@ fun SearchScreen(
             trailingIcon = {
                 // Add your clear search icon here
                 IconButton(onClick = { onSearch(text.text) }) {
-                    Icon(Icons.Rounded.Search, "Search")
+                    Icon(painter = painterResource(R.drawable.search), "Search")
                 }
             })
         when (text.text.isEmpty()) {
@@ -91,11 +92,11 @@ fun SearchScreen(
                 LazyColumn {
                     items(contacts) {
                         if (contacts.isNotEmpty()) Text("Contacts")
-                        ContactItem(it, navController)
+                        FilteredContactsBasedOnDialedDigitsItem(it)
                     }
                     items(logs) {
                         if (contacts.isNotEmpty()) Text("Recent calls")
-//                        CallLogItem(it, navController)
+                        FilteredCallLogItem(it)
                     }
                 }
             }

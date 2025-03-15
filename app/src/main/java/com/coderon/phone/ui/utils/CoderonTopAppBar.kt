@@ -1,6 +1,5 @@
 package com.coderon.phone.ui.utils
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -48,52 +47,34 @@ fun CoderonTopAppBar(
     onDismissSearch: () -> Unit = {},
     showActionsButton: Boolean = true,
 ) {
-    AnimatedContent(
-        targetState = isSearchExpanded,
-//        transitionSpec = {
-//            fadeIn(animationSpec = tween(300)) with slideInHorizontally { it / 2 }
-//        },
-        label = "TopAppBar Search Animation"
-    ) { expanded ->
-        if (expanded) {
-            // Expanded Search Bar
-            SearchScreen(
-                query = searchText,
-                onQueryChange = onSearchTextChanged,
-                onSearch = { onSearch() },
-                onDismiss = { onDismissSearch() }
-            )
-        } else {
-            // Default App Bar with Search Icon
-            LargeTopAppBar(
-                title = {
-                    Text(title)
-                },
-                actions = {
-                    if (showActionsButton) {
-                        IconButton(onClick = onSearch) {
-                            Icon(Icons.Rounded.Search, contentDescription = "Search")
-                        }
-                        /*IconButton(onClick = onMenu) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "Menu")
-                        }*/
-                    }
-                },
-                navigationIcon = {
-                    if (showBackArrow) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                ),
-                windowInsets = WindowInsets(top = 0.dp)
-            )
-        }
-    }
+    LargeTopAppBar(
+        title = {
+            Text(title)
+        },
+        actions = {
+            if (showActionsButton) {
+                IconButton(onClick = onSearch) {
+                    Icon(Icons.Rounded.Search, contentDescription = "Search")
+                }
+                /*IconButton(onClick = onMenu) {
+                    Icon(Icons.Rounded.MoreVert, contentDescription = "Menu")
+                }*/
+            }
+        },
+        navigationIcon = {
+            if (showBackArrow) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent,
+        ),
+        windowInsets = WindowInsets(top = 0.dp)
+    )
 }
+
 
 @Preview(showBackground = true)
 @PreviewLightDark
@@ -114,18 +95,19 @@ private fun Test() {
         )
     }
 }
+
 @Preview(showBackground = true)
 @PreviewLightDark
 @Composable
 private fun TestSamsung() {
     PhoneTheme {
-       SamsungStyleTopAppBar(
-           title = "Phone",
-           searchText = "",
-           isSearchExpanded = false,
-           onSearchTextChanged = {},
-           onSearchToggle = {}
-       )
+        SamsungStyleTopAppBar(
+            title = "Phone",
+            searchText = "",
+            isSearchExpanded = false,
+            onSearchTextChanged = {},
+            onSearchToggle = {}
+        )
     }
 }
 

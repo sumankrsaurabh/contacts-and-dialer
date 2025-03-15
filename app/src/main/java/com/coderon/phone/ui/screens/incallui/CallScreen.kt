@@ -53,14 +53,21 @@ fun CallScreen(
     }
 
     when (callState) {
-        is NoCall -> {
-            Log.d("CallScreen", "No active call, navigating back.")
-            navController.popBackStack()
-        }
-
         is SingleCall -> {
-            val phoneNumber = (callState as SingleCall).call.getCallerNumber() ?: "Unknown"
+            val singleCall = callState as SingleCall
+            val phoneNumber = singleCall.call.getCallerNumber() ?: "Unknown"
             val contact = CallManager.getContactByPhoneNumber(phoneNumber, context)
+
+            val callType = singleCall.call.details.callCapabilities.let {
+                when {
+                    it and android.telecom.Call.Details.CAPABILITY_VOLTE_CALL != 0 -> "VoLTE"
+                    it and android.telecom.Call.Details.CAPABILITY_WIFI != 0 -> "Wi-Fi"
+                    it and android.telecom.Call.Details.CAPABILITY_HIGH_DEF_AUDIO != 0 -> "HD"
+                    else -> "Regular"
+                }
+            }
+
+            val simInfo = CallManager.getSimInfoForCall(singleCall.call, context) ?: "Unknown SIM"
 
             when (currentCallState) {
                 State.RINGING -> IncomingCallScreen(
@@ -69,19 +76,17 @@ fun CallScreen(
                     profilePictureUrl = contact?.profilePictureUrl,
                     onAnswer = {
                         coroutineScope.launch {
-                            Log.d("CallScreen", "Answering call")
                             CallManager.acceptCall()
                         }
                     },
                     onDecline = {
                         coroutineScope.launch {
-                            Log.d("CallScreen", "Rejecting call")
                             CallManager.rejectCall()
                         }
-                    })
+                    }
+                )
 
                 State.DISCONNECTING, State.ENDED -> {
-                    Log.d("CallScreen", "Call disconnected, navigating back")
                     navController.popBackStack()
                 }
 
@@ -94,9 +99,10 @@ fun CallScreen(
                     profilePictureUrl = contact?.profilePictureUrl,
                     callDuration = callDuration.formatCallDuration(),
                     bluetoothDeviceConnected = isBluetoothAvailable(context),
+                    callType = callType,  // ✅ Pass Call Type (VoLTE, HD, Wi-Fi)
+                    simInfo = simInfo,    // ✅ Pass SIM Info (SIM 1 - Jio)
                     onEndCall = {
                         coroutineScope.launch {
-                            Log.d("CallScreen", "Ending active call")
                             CallManager.rejectCall()
                         }
                     },
@@ -106,12 +112,8 @@ fun CallScreen(
                             else AudioRoute.SPEAKER
                         )
                     },
-                    onToggleHold = {
-                        CallManager.toggleHold()
-                    },
-                    onToggleMute = {
-                        CallManager.toggleMute()
-                    },
+                    onToggleHold = { CallManager.toggleHold() },
+                    onToggleMute = { CallManager.toggleMute() },
                     onToggleBluetooth = {
                         CallManager.switchAudioRoute(
                             if (currentAudioRoute == AudioRoute.BLUETOOTH.value) AudioRoute.EARPIECE
@@ -120,24 +122,18 @@ fun CallScreen(
                     },
                     playDfmTones = {
                         coroutineScope.launch {
-                            sendDtmfTone(it) // Send DTMF tone
-                            delay(200) // Simulate keypress delay
-                            stopDtmfTone() // Stop DTMF tone
+                            sendDtmfTone(it)
+                            delay(200)
+                            stopDtmfTone()
                         }
-                    })
+                    }
+                )
             }
         }
 
         is TwoCalls -> {
-            Log.d("CallScreen", "Two active calls detected")
-            OutgoingCallScreen(
-                contactName = "Caller Name",
-                contactPhoneNumber = "1234567890",
-                state = "On Hold",
-                onEndCall = {
-                    Log.d("CallScreen", "Swapping calls")
-                    CallManager.swapCalls()
-                })
+            Log.d("CallScreen", "TwoCalls state received")
         }
     }
+
 }

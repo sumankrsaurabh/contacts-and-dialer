@@ -71,6 +71,7 @@ object CallManager {
         updateState()
 
         call.registerCallback(object : Call.Callback() {
+            @SuppressLint("SwitchIntDef")
             override fun onStateChanged(call: Call, state: Int) {
                 Log.d(TAG, "Call state changed: ${call.details.handle}, New State: $state")
                 _callState.value = updateCallState(state)
@@ -178,13 +179,14 @@ object CallManager {
     suspend fun acceptCall() {
         getPrimaryCall()?.let { call ->
             Log.d(TAG, "Accepting call: ${call.details.handle}")
-            call.answer(VideoProfile.STATE_AUDIO_ONLY)
+            call.answer(VideoProfile.STATE_BIDIRECTIONAL)
             _callEvents.emit("Call Accepted")
             updateState()
         }
     }
 
     /** Rejects or disconnects the call **/
+    @SuppressLint("SwitchIntDef")
     suspend fun rejectCall() {
         getPrimaryCall()?.let { call ->
             Log.d(TAG, "Rejecting call: ${call.details.handle}, State: ${call.state}")

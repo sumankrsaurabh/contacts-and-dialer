@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.coderon.phone.ui.screens
 
 import android.annotation.SuppressLint
@@ -5,6 +7,7 @@ import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,13 +22,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Whatsapp
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -48,7 +57,6 @@ import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
-import com.coderon.phone.ui.utils.CoderonTopAppBar
 
 @Composable
 fun ContactDetailsScreen(
@@ -60,7 +68,7 @@ fun ContactDetailsScreen(
 ) {
     Scaffold(
         bottomBar = { ActionButtons() },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(.25f)
+        containerColor = if (isSystemInDarkTheme()) Color.Black else Color.White
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -98,11 +106,14 @@ fun ContactDetails(
                     placeCall(context, contact.phoneNumber, it)
                 })
         }*/
-        CoderonTopAppBar(
-            showBackArrow = true,
-            onBack = { navController.popBackStack() },
-            showActionsButton = false,
-            title = ""
+        TopAppBar(
+            navigationIcon = {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(Icons.Rounded.ArrowBack, "back")
+                }
+            },
+            title = {},
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         )
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
@@ -146,45 +157,49 @@ fun ContactDetails(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    IconButton(
-                        onClick = {
-//                                showSimSelectDialog.value = true
-                        }, colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier.size(56.dp)
+                    Box(
+                        contentAlignment = Alignment.Center, modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)
+                            )
+                            .weight(1f)
+                            .height(64.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.call),
-                            "Call"
+                            "Call",
+                            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
                         )
                     }
-                    IconButton(
-                        onClick = onMessageClick, colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = MaterialTheme.colorScheme.onSecondary
-                        ),
-                        modifier = Modifier.size(56.dp)
+                    Box(
+                        contentAlignment = Alignment.Center, modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)
+                            )
+                            .weight(1f)
+                            .height(64.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.message),
-                            "Call"
+                            "Call",
+                            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
                         )
                     }
-                    IconButton(
-                        onClick = onBlockClick, colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiary,
-                            contentColor = MaterialTheme.colorScheme.onTertiary
-                        ),
-                        modifier = Modifier.size(56.dp)
+                    Box(
+                        contentAlignment = Alignment.Center, modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)
+                            )
+                            .weight(1f)
+                            .height(64.dp)
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.video_call),
-                            "Call"
+                            imageVector = Icons.Filled.Whatsapp,
+                            "whatsapp",
+                            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
                         )
                     }
                 }
@@ -196,29 +211,51 @@ fun ContactDetails(
 @Composable
 fun ActionButtons(onClick: () -> Unit = {}) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .padding(horizontal = 32.dp)
+            .padding(bottom = 8.dp)
+            .fillMaxWidth()
+            .height(62.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable(onClick = onClick)
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .weight(1f)
         ) {
             Icon(
-                painter = painterResource(R.drawable.edit), contentDescription = "edit",
-                modifier = Modifier.size(32.dp)
+                painter = painterResource(R.drawable.edit),
+                contentDescription = "edit",
+                modifier = Modifier.size(32.dp),
+                tint = if (isSystemInDarkTheme()) Color.White else Color.Black
             )
-            Text("Edit", fontSize = 16.sp)
+            Text(
+                "Edit", fontSize = 16.sp,
+                color = if (isSystemInDarkTheme()) Color.White else Color.Black
+            )
         }
+        VerticalDivider(
+            color = if (!isSystemInDarkTheme()) Color.LightGray else Color.DarkGray
+        )
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable(onClick = onClick)
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .weight(1f)
         ) {
             Icon(
-                painter = painterResource(R.drawable.delete), contentDescription = "delete",
-                modifier = Modifier.size(32.dp)
+                painter = painterResource(R.drawable.delete),
+                contentDescription = "delete",
+                modifier = Modifier.size(32.dp),
+                tint = if (isSystemInDarkTheme()) Color.White else Color.Black
             )
-            Text("Delete", fontSize = 16.sp)
+            Text(
+                "Delete", fontSize = 16.sp,
+                color = if (isSystemInDarkTheme()) Color.White else Color.Black
+            )
         }
     }
 }
@@ -229,7 +266,10 @@ fun CallLogList(callLogs: List<CallLog>) {
     LazyColumn() {
         item {
             Text(
-                "Recent calls", fontSize = 18.sp, modifier = Modifier
+                "Recent calls",
+                fontSize = 18.sp,
+                color = if (isSystemInDarkTheme()) Color.White else Color.Black,
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
             )
@@ -254,7 +294,7 @@ fun CallLogItemDetails(log: CallLog) {
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
             modifier = Modifier
@@ -297,7 +337,7 @@ fun CallLogItemDetails(log: CallLog) {
     }
 }
 
-@Preview(showBackground = true)
+@PreviewLightDark
 @Composable
 fun PreviewCallLogDetailsScreen() {
     val contact = Contact(

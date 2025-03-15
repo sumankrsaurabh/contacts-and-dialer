@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +29,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,12 +48,17 @@ import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.ActionsMenuTop
+import com.coderon.phone.ui.utils.IntentActionButtons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen(
     contacts: Map<Char, List<Contact>>, navController: NavController
 ) {
+    // ✅ Store the currently expanded contact ID
+    val expandedContactId = remember { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,9 +74,12 @@ fun ContactsScreen(
                         fontSize = 14.sp
                     )
                 }
-            }, expandedHeight = TopAppBarDefaults.LargeAppBarExpandedHeight
+            }, expandedHeight = TopAppBarDefaults.LargeAppBarExpandedHeight,
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                containerColor = Color.Transparent
+            )
         )
-
+        ActionsMenuTop(true, navController)
         if (contacts.isEmpty()) {
             NoContactsFound()
         } else {
@@ -80,8 +91,15 @@ fun ContactsScreen(
                             visible = true,
                             enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }) {
                             ContactItem(
-                                contact, index, contacts.lastIndex
-                            )
+                                contact = contact,
+                                index = index,
+                                lastIndex = contacts.lastIndex,
+                                expandedContactId = expandedContactId.value,
+                                onExpand = { contactId ->
+                                    // Expand only the clicked item, collapse others
+                                    expandedContactId.value =
+                                        if (expandedContactId.value == contactId) null else contactId
+                                })
                         }
                     }
                 }
@@ -113,21 +131,28 @@ fun ContactItem(
     contact: Contact,
     index: Int,
     lastIndex: Int,
+    expandedContactId: String?, // ✅ Accept currently expanded ID
+    onExpand: (String) -> Unit // ✅ Callback to update expanded ID
 ) {
+    val isExpanded = contact.id == expandedContactId // ✅ Check if this contact is expanded
+
     Card(
+        onClick = { onExpand(contact.id) }, // ✅ Expand or collapse on click
         shape = when {
-            lastIndex == 0 -> RoundedCornerShape(24.dp) // If only one item, fully rounded
+            lastIndex == 0 -> RoundedCornerShape(24.dp) // Only one item
             index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp) // First item
             index == lastIndex -> RoundedCornerShape(
                 bottomStart = 24.dp, bottomEnd = 24.dp
             ) // Last item
             else -> RoundedCornerShape(0.dp) // Middle items
-        }, modifier = Modifier.fillMaxWidth()
+        }, modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 24.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (!contact.profilePictureUrl.isNullOrEmpty()) {
@@ -138,14 +163,14 @@ fun ContactItem(
                     ),
                     contentDescription = "Profile Picture",
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surface)
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondary),
                     contentAlignment = Alignment.Center
@@ -160,21 +185,31 @@ fun ContactItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) { // Use weight instead of fillMaxSize
-                Row(
-                    Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
-                ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .animateContentSize()
+            ) {
+                Text(
+                    text = contact.name,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                // ✅ Show phone number only when expanded
+                if (isExpanded) {
                     Text(
-                        text = contact.name,
-                        fontSize = 16.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = contact.phoneNumber, fontSize = 14.sp, color = Color.Gray
                     )
                 }
             }
         }
-        
+        if (isExpanded) {
+            Spacer(Modifier.height(4.dp))
+            IntentActionButtons()
+            Spacer(Modifier.height(4.dp))
 
+        }
         // ✅ Place divider outside the card to maintain alignment
         if (index != lastIndex) {
             HorizontalDivider(
