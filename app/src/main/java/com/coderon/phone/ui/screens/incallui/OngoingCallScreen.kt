@@ -67,7 +67,7 @@ fun OngoingCallScreen(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
-                    ?: R.drawable.background_incallui).placeholder(R.drawable.background)
+                    ?: R.drawable.background_incallui).placeholder(R.drawable.background_incallui)
                 .error(R.drawable.background_incallui).crossfade(true).build(),
             contentDescription = "Contact Profile Picture",
             modifier = Modifier
@@ -189,6 +189,7 @@ fun OngoingCallScreen(
                     }
                 }
             }
+            
             AnimatedVisibility(state != State.CONNECTING && state != State.DIALING && isNumpadActive && !isButtonActive) {
                 TextButtonsForDfmTones(onClick = { playDfmTones(it) })
             }

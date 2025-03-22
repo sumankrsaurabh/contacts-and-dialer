@@ -5,78 +5,141 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
-import android.telephony.SubscriptionInfo
-import android.telephony.SubscriptionManager
 import androidx.annotation.RequiresPermission
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.ui.Text
 
+@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
 @Composable
 fun SimSelectionDialog(
-    availableAccounts: List<PhoneAccountHandle>,
-    onDismiss: () -> Unit,
-    onSimSelected: (PhoneAccountHandle) -> Unit,
+    availableAccounts: List<PhoneAccountHandle> = emptyList(),
+    onSimSelected: (PhoneAccountHandle) -> Unit = {},
     context: Context = LocalContext.current,
 ) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(text = "Select SIM Card") }, text = {
-        Column {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 24.dp)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    if (isSystemInDarkTheme()) Color.Black else Color.White,
+                    RoundedCornerShape(24.dp)
+                ) // Rounded top corners
+                .padding(vertical = 16.dp, horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Select SIM",
+                fontSize = 18.sp,
+                modifier = Modifier.padding(bottom = 8.dp),
+                color = if (isSystemInDarkTheme()) Color.White else Color.Black
+            )
+
             availableAccounts.forEachIndexed { index, account ->
-                val carrier = getSimInfo(context, account).first
-                val number = getSimInfo(context, account).second
+                val carrier = getSimInfo(context, account)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = {
-                            onSimSelected(
-                                account
-                            )
-                        })
-                        .padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        .clip(RoundedCornerShape(25))
+                        .clickable { onSimSelected(account) }
+                        .padding(vertical = 12.dp, horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text((index + 1).toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Column {
-                        Text(carrier, fontSize = 16.sp, fontWeight = FontWeight.Normal)
-                        Text(number, fontSize = 14.sp, fontWeight = FontWeight.Normal)
-                    }
+                    Text(
+                        text = "${index + 1}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSystemInDarkTheme()) Color.White else Color.Black
+                    )
+                    Text(
+                        text = carrier,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = if (isSystemInDarkTheme()) Color.White else Color.Black
+                    )
+                }
+                if (index != availableAccounts.lastIndex) {
+                    HorizontalDivider()
                 }
             }
         }
-    }, confirmButton = {})
+    }
 }
+
 
 @RequiresPermission(Manifest.permission.READ_PHONE_STATE)
-fun getSimInfo(context: Context, account: PhoneAccountHandle): Pair<String, String> {
-    val telecomManager = context.getSystemService(TelecomManager::class.java)
-    val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+fun getSimInfo(context: Context, account: PhoneAccountHandle): String {
+    return if (isInPreviewMode()) {
+        // Return dummy data for previews
+        when (account.id) {
+            "1" -> "Carrier A"
+            "2" -> "Carrier B"
+            else -> "Unknown SIM"
+        }
+    } else {
+        // Actual implementation
+        val telecomManager = context.getSystemService(TelecomManager::class.java)
+        val phoneAccount = telecomManager.getPhoneAccount(account)
+        val label = phoneAccount?.label?.toString() ?: "Unknown SIM"
 
-    val phoneAccount = telecomManager.getPhoneAccount(account)
-    val label = phoneAccount?.label?.toString() ?: "Unknown SIM"
-
-    val subscriptionInfoList = subscriptionManager.activeSubscriptionInfoList
-    val subscriptionInfo: SubscriptionInfo? = subscriptionInfoList?.find { info ->
-        // Match using the SIM slot ID or subscription ID
-        info.subscriptionId.toString() == account.id ||
-                info.iccId == account.id ||
-                info.simSlotIndex.toString() == account.id
+        label
     }
-
-    val phoneNumber = subscriptionInfo?.number ?: "Unknown Number"
-
-    return label to phoneNumber
 }
 
+// Helper function to detect preview mode
+fun isInPreviewMode(): Boolean {
+    return try {
+        Class.forName("androidx.compose.ui.tooling.preview.Preview")
+        true
+    } catch (e: ClassNotFoundException) {
+        false
+    }
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(device = "id:pixel_6_pro", showBackground = true)
+@PreviewLightDark
+@Composable
+fun SimSelectionDialogPreview() {
+    val context = LocalContext.current
+    val dummyAccounts = listOf(
+        PhoneAccountHandle(android.content.ComponentName("com.example", "Sim1"), "1"),
+        PhoneAccountHandle(android.content.ComponentName("com.example", "Sim2"), "2")
+    )
 
+    SimSelectionDialog(
+        availableAccounts = dummyAccounts,
+        onSimSelected = { selectedSim -> println("Selected SIM: $selectedSim") },
+        context = context
+    )
+}

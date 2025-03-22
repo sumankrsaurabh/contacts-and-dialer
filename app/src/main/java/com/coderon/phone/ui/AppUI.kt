@@ -2,8 +2,11 @@ package com.coderon.phone.ui
 
 import android.Manifest
 import androidx.annotation.RequiresPermission
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -14,13 +17,11 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Dialpad
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,6 +49,7 @@ import com.coderon.phone.ui.screens.DialerScreen
 import com.coderon.phone.ui.screens.SearchScreen
 import com.coderon.phone.ui.screens.incallui.CallScreen
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.utils.playTones
 import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -94,7 +96,8 @@ fun MyApp() {
                     DialerScreen(
                         navController,
                         contactViewModel::filteredContacts,
-                        callLogViewModel::filteredCallLogs
+                        callLogViewModel::filteredCallLogs,
+                        playTones = { playTones(it) }
                     )
                 }
             }
@@ -185,33 +188,44 @@ fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit
 fun BottomNavigationBar(navController: NavController) {
     val navBackStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = navBackStackEntry?.destination?.route
+    val isDarkTheme = isSystemInDarkTheme()
 
-    NavigationBar(containerColor = Color.Transparent) {
+    val backgroundColor = if (isDarkTheme) Color.Black else Color.White
+    val selectedColor = if (isDarkTheme) Color.White else Color.Black
+    val unselectedColor = if (isDarkTheme) Color.LightGray else Color.Gray
+
+    NavigationBar(containerColor = backgroundColor) {
         bottomNavigationItems.forEach { item ->
-            NavigationBarItem(
-                label = { Text(text = item.label, fontSize = 14.sp) },
-                selected = currentRoute == item.screen.route,
-                onClick = {
-                    navController.navigate(item.screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-                icon = {
-                    Icon(
-                        imageVector = if (currentRoute == item.screen.route) item.selectedIcon else item.icon,
-                        contentDescription = item.label
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color.Transparent,
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary
+            val selected = currentRoute == item.screen.route
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clickable {
+                        navController.navigate(item.screen.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    },
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    if (selected) item.selectedIcon else item.icon,
+                    contentDescription = item.label,
+                    tint = if (selected) selectedColor else unselectedColor
                 )
-            )
+                Text(
+                    text = item.label,
+                    fontSize = 10.sp,
+                    color = if (selected) selectedColor else unselectedColor
+                )
+            }
         }
     }
 }
+
 
 val bottomNavigationItems = listOf(
     BottomNavigationItem(Screen.Keypad, "Keypad", Icons.Outlined.Dialpad, Icons.Filled.Dialpad),

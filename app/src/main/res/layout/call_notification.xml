@@ -4,14 +4,13 @@
     android:id="@+id/notification_holder"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/white"
-    android:padding="16dp">
+    android:background="@color/white">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <!-- Caller Info Section -->
         <LinearLayout
@@ -24,10 +23,10 @@
                 android:id="@+id/notification_caller_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:textColor="@android:color/black"
                 android:textSize="18sp"
-                android:maxLines="1"
-                android:ellipsize="end"
                 tools:text="Caller Name" />
 
             <!-- Call Status -->
@@ -35,10 +34,10 @@
                 android:id="@+id/notification_call_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:textColor="@android:color/black"
                 android:textSize="14sp"
-                android:maxLines="1"
-                android:ellipsize="end"
                 tools:text="Ringing..." />
         </LinearLayout>
 
@@ -46,15 +45,15 @@
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"/>
+            android:layout_weight="1" />
 
         <!-- Call Action Buttons -->
         <LinearLayout
             android:id="@+id/notification_actions_holder"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="end">
+            android:gravity="end"
+            android:orientation="horizontal">
 
             <!-- Decline Button -->
             <ImageView
@@ -62,27 +61,27 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="@drawable/circle_red"
+                android:clickable="true"
+                android:focusable="true"
                 android:padding="12dp"
                 android:scaleType="centerInside"
                 android:src="@drawable/end_call"
                 android:tint="@android:color/white"
-                android:clickable="true"
-                android:focusable="true"
                 tools:ignore="UseAppTint" />
 
             <!-- Accept Button -->
             <ImageView
                 android:id="@+id/notification_accept_call"
-                android:layout_marginStart="12dp"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
+                android:layout_marginStart="12dp"
                 android:background="@drawable/circle_green"
+                android:clickable="true"
+                android:focusable="true"
                 android:padding="12dp"
                 android:scaleType="centerInside"
                 android:src="@drawable/call"
                 android:tint="@android:color/white"
-                android:clickable="true"
-                android:focusable="true"
                 tools:ignore="UseAppTint" />
         </LinearLayout>
     </LinearLayout>

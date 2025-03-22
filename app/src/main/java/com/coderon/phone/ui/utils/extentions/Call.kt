@@ -1,11 +1,15 @@
 package com.coderon.phone.ui.utils.extentions
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import android.telecom.Call
 import android.telecom.CallAudioState
+import android.telecom.TelecomManager
+import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import android.util.Log
 
 fun Call?.getCallState(): Int {
@@ -76,3 +80,33 @@ fun Long.formatCallDuration(): String {
     val sec = this % 60
     return String.format("%02d:%02d", minutes, sec)
 }
+
+@SuppressLint("MissingPermission")
+fun getCallType(context: Context): String {
+    val telephonyManager = context.getSystemService(TelephonyManager::class.java)
+    return when (telephonyManager.voiceNetworkType) {
+        TelephonyManager.NETWORK_TYPE_LTE -> "VoLTE"
+        TelephonyManager.NETWORK_TYPE_NR -> "5G"
+        else -> ""
+    }
+}
+
+@SuppressLint("MissingPermission")
+fun Call.getSimInfoForCall(context: Context): String {
+    val telecomManager = context.getSystemService(TelecomManager::class.java)
+    val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+
+    val phoneAccountHandle = this.details.accountHandle ?: return "Unknown SIM"
+    val phoneAccount = telecomManager.getPhoneAccount(phoneAccountHandle)
+    val subscriptionId = phoneAccount?.subscriptionAddress?.schemeSpecificPart?.toIntOrNull() ?: return "Unknown SIM"
+
+    val subscriptionInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        subscriptionManager.getActiveSubscriptionInfo(subscriptionId)
+    } else {
+        @Suppress("DEPRECATION")
+        subscriptionManager.activeSubscriptionInfoList?.firstOrNull { it.subscriptionId == subscriptionId }
+    }
+
+    return subscriptionInfo?.carrierName?.toString() ?: "Unknown Carrier"
+}
+

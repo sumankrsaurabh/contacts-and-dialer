@@ -1,5 +1,6 @@
 package com.coderon.phone.ui.screens.incallui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -18,12 +19,15 @@ import com.coderon.phone.call.services.TwoCalls
 import com.coderon.phone.ui.utils.extentions.AudioRoute
 import com.coderon.phone.ui.utils.extentions.State
 import com.coderon.phone.ui.utils.extentions.formatCallDuration
+import com.coderon.phone.ui.utils.extentions.getCallType
 import com.coderon.phone.ui.utils.extentions.getCallerNumber
 import com.coderon.phone.ui.utils.extentions.isBluetoothAvailable
+import com.coderon.phone.ui.utils.getSimInfo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+@SuppressLint("MissingPermission")
 @Composable
 fun CallScreen(
     navController: NavController, context: Context = LocalContext.current
@@ -58,17 +62,6 @@ fun CallScreen(
             val phoneNumber = singleCall.call.getCallerNumber() ?: "Unknown"
             val contact = CallManager.getContactByPhoneNumber(phoneNumber, context)
 
-            val callType = singleCall.call.details.callCapabilities.let {
-                when {
-                    it and android.telecom.Call.Details.CAPABILITY_VOLTE_CALL != 0 -> "VoLTE"
-                    it and android.telecom.Call.Details.CAPABILITY_WIFI != 0 -> "Wi-Fi"
-                    it and android.telecom.Call.Details.CAPABILITY_HIGH_DEF_AUDIO != 0 -> "HD"
-                    else -> "Regular"
-                }
-            }
-
-            val simInfo = CallManager.getSimInfoForCall(singleCall.call, context) ?: "Unknown SIM"
-
             when (currentCallState) {
                 State.RINGING -> IncomingCallScreen(
                     name = contact?.name,
@@ -99,8 +92,8 @@ fun CallScreen(
                     profilePictureUrl = contact?.profilePictureUrl,
                     callDuration = callDuration.formatCallDuration(),
                     bluetoothDeviceConnected = isBluetoothAvailable(context),
-                    callType = callType,  // ✅ Pass Call Type (VoLTE, HD, Wi-Fi)
-                    simInfo = simInfo,    // ✅ Pass SIM Info (SIM 1 - Jio)
+                    callType = getCallType(context),  // ✅ Pass Call Type (VoLTE, HD, Wi-Fi)
+                    simInfo = getSimInfo(context,singleCall.call.details.accountHandle),    // ✅ Pass SIM Info (SIM 1 - Jio)
                     onEndCall = {
                         coroutineScope.launch {
                             CallManager.rejectCall()
@@ -133,6 +126,10 @@ fun CallScreen(
 
         is TwoCalls -> {
             Log.d("CallScreen", "TwoCalls state received")
+        }
+
+        NoCall -> {
+            navController.popBackStack()
         }
     }
 

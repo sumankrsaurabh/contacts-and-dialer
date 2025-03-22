@@ -1,13 +1,9 @@
 package com.coderon.phone
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Intent
-import android.os.Build
+import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.view.View
-import android.view.WindowInsets
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,17 +17,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -45,12 +37,11 @@ import com.coderon.phone.utils.isDefaultDialer
 
 class MainActivity : ComponentActivity() {
     private var callType: String? = null
-
-    @SuppressLint("MissingPermission")
+    @SuppressLint("MissingPermission", "SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
-
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         setContent {
 //            HideSystemBars()
             PhoneTheme {
@@ -61,15 +52,9 @@ class MainActivity : ComponentActivity() {
                 ) { result ->
                     if (result.resultCode == RESULT_OK) {
                         isDefaultDialerState.value = true
-                        Toast.makeText(this, "App is now the default dialer!", Toast.LENGTH_SHORT)
-                            .show()
-                    } else {
-                        Toast.makeText(
-                            this, "User declined to set as default dialer", Toast.LENGTH_SHORT
-                        ).show()
                     }
                 }
-                Box(modifier = Modifier.windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.systemBars)) {
+                Box() {
                     if (isDefaultDialerState.value) {
                         MyApp()
                     } else {
@@ -145,45 +130,5 @@ fun RequestDefaultDialerScreen(onRequestDialerRole: () -> Unit) {
 fun PreviewRequestDefaultDialerScreen() {
     PhoneTheme {
         RequestDefaultDialerScreen {}
-    }
-}
-@Composable
-fun HideSystemBars() {
-    val context = LocalContext.current
-
-    DisposableEffect(Unit) {
-        val activity = context as? Activity
-        val window = activity?.window
-
-        if (window != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Android 11+ (API 30+)
-                val controller = window.insetsController
-                controller?.hide(WindowInsets.Type.systemBars())
-//                controller?.systemBarsBehavior =
-//                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                // Android 10 and below
-                @Suppress("DEPRECATION")
-                window.decorView.systemUiVisibility =
-                    (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            or View.SYSTEM_UI_FLAG_FULLSCREEN
-                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)
-                @Suppress("DEPRECATION")
-                window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-            }
-        }
-
-        // Restore system bars when leaving the screen
-        onDispose {
-            if (window != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    window.insetsController?.show(WindowInsets.Type.systemBars())
-                } else {
-                    @Suppress("DEPRECATION")
-                    window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
-                }
-            }
-        }
     }
 }

@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -40,20 +39,22 @@ fun IncomingCallScreen(
     phoneNumber: String = "Unknown Caller",
     name: String?,
     profilePictureUrl: String? = null,
+    callType: String = "",
+    simInfo: String = "",
     onAnswer: () -> Unit,
     onDecline: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-            .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
-                ?: R.drawable.background_incallui).placeholder(R.drawable.background_incallui)
-            .error(R.drawable.background_incallui).crossfade(true).build(),
+                .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
+                    ?: R.drawable.background_incallui).placeholder(R.drawable.background_incallui)
+                .error(R.drawable.background_incallui).crossfade(true).build(),
             contentDescription = "Contact Profile Picture",
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.primaryContainer)
-                .blur(2.dp),
+                .blur(4.dp),
             contentScale = ContentScale.Crop)
         Box(
             modifier = Modifier
@@ -63,21 +64,47 @@ fun IncomingCallScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 56.dp),
+                .padding(vertical = 64.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = name ?: phoneNumber,
-                fontSize = 24.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = phoneNumber, fontSize = 16.sp, color = Color.White
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {// Profile Image
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(profilePictureUrl.takeIf { !it.isNullOrEmpty() }
+                            ?: R.drawable.profile_picture_call)
+                        .placeholder(R.drawable.profile_picture_call)
+                        .error(R.drawable.profile_picture_call) // Ensures fallback if loading fails
+                        .crossfade(true).build(),
+                    contentDescription = "Contact Profile Picture",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer))
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = name ?: phoneNumber, fontSize = 24.sp, color = Color.White)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = phoneNumber, fontSize = 18.sp, color = Color.White.copy(.8f))
+                Spacer(modifier = Modifier.height(8.dp))
+                // Call Type (HD, VoLTE, Wi-Fi) and SIM Info Display
+                Row(
+                    modifier = Modifier.padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = callType,  // e.g., "HD"
+                        fontSize = 16.sp, color = Color.White.copy(.8f)
+                    )
+                    Text(
+                        text = simInfo,  // e.g., "SIM 1 - Jio"
+                        fontSize = 16.sp, color = Color.White.copy(.8f)
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(64.dp))
             Row(
                 modifier = Modifier
@@ -93,7 +120,7 @@ fun IncomingCallScreen(
                         icon = painterResource(R.drawable.call),
                         contentDescription = "Answer Call",
                         onClick = onAnswer,
-                        color = Color.Green
+                        color = Color(0xFF34C759)
                     )
                     Text(
                         "Accept", color = Color.White
