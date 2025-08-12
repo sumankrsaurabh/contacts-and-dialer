@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -48,7 +48,6 @@ import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.ActionsMenuTop
 import com.coderon.phone.ui.utils.BottomNavigationBar
-import com.coderon.phone.ui.utils.IntentActionButtons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,15 +75,13 @@ fun CallLogScreen(callLog: List<CallLog>, navController: NavController) {
                 itemsIndexed(logs) { index, log ->
                     CallLogItem(
                         log = log,
-                        size = logs.size,
-                        index = index,
-                        lastIndex = logs.lastIndex,
                         expandedContactId = expandedContactId.value,
                         onExpand = { contactId ->
                             // Expand only the clicked item, collapse others
                             expandedContactId.value =
                                 if (expandedContactId.value == contactId) null else contactId
                         })
+                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -105,26 +102,16 @@ fun CallLogDateHeader(date: String) {
 @SuppressLint("MissingPermission")
 @Composable
 private fun CallLogItem(
-    log: CallLog,
-    size: Int,
-    index: Int,
-    lastIndex: Int,
-    expandedContactId: String?, // ✅ Accept currently expanded ID
+    log: CallLog, expandedContactId: String?, // ✅ Accept currently expanded ID
     onExpand: (String) -> Unit // ✅ Callback to update expanded ID
 ) {
-    val shape = when {
-        size == 1 -> RoundedCornerShape(24.dp) // Fully rounded if it's the only item
-        index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp) // Round top corners
-        index == lastIndex -> RoundedCornerShape(
-            bottomStart = 24.dp, bottomEnd = 24.dp
-        ) // Round bottom corners
-        else -> RoundedCornerShape(0.dp) // No rounding for middle items
-    }
-    val isExpanded = log.id.toString() == expandedContactId // ✅ Check if this contact is expanded
-
     Card(
         onClick = { onExpand(log.id.toString()) }, // ✅ Expand or collapse on click
-        shape = shape, modifier = Modifier.fillMaxWidth()
+        shape = RoundedCornerShape(50),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
     ) {
         Row(
             modifier = Modifier
@@ -142,7 +129,10 @@ private fun CallLogItem(
                     }
                 ),
                 contentDescription = "Call Type",
-                tint = if (isSystemInDarkTheme()) Color.Gray else Color.DarkGray
+                tint = if (isSystemInDarkTheme() || log.callType == CallType.MISSED) Color.Gray else Color.DarkGray.copy(
+                    alpha = 0.8f
+                ),
+                modifier = Modifier.size(24.dp)
             )
             Column(
                 modifier = Modifier.padding(end = 24.dp, start = 16.dp)
@@ -154,35 +144,29 @@ private fun CallLogItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Row {
-                            Text(
-                                text = log.contact?.name ?: log.phoneNumber,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
+                        Text(
+                            text = log.contact?.name ?: log.phoneNumber,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (log.callType == CallType.MISSED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = log.phoneNumber,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = 0.7f
                             )
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                text = log.callTime.formatTime(),
-                                fontSize = 14.sp,
-                                color = if (isSystemInDarkTheme()) Color.Gray else Color.DarkGray
-                            )
-                        }
-                        // ✅ Show phone number only when expanded
-                        if (isExpanded) {
-                            Text(
-                                text = log.phoneNumber, fontSize = 14.sp, color = Color.Gray
-                            )
-                        }
+                        )
                     }
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = log.callTime.formatTime(),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                if (index != lastIndex && !isExpanded) HorizontalDivider()
             }
-        }
-        if (isExpanded) {
-            Spacer(Modifier.height(4.dp))
-            IntentActionButtons()
-            Spacer(Modifier.height(4.dp))
-            HorizontalDivider()
         }
     }
 }
@@ -194,7 +178,7 @@ fun ContactProfileImage(contact: Contact?) {
         modifier = Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.secondaryContainer),
+            .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center
     ) {
         if (profilePictureUrl != null) {
@@ -207,7 +191,8 @@ fun ContactProfileImage(contact: Contact?) {
             Text(
                 text = contact?.name?.firstOrNull()?.uppercase().toString(),
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }
