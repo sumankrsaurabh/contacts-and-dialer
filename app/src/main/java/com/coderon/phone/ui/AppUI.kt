@@ -49,6 +49,7 @@ import com.coderon.phone.ui.screens.DialerScreen
 import com.coderon.phone.ui.screens.SearchScreen
 import com.coderon.phone.ui.screens.incallui.CallScreen
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.playTones
 import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
@@ -161,86 +162,6 @@ fun MyApp() {
         }
     }
 }
-
-
-/**
- * Wrapper to apply Scaffold only to certain screens
- */
-@Composable
-fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit) {
-    Scaffold(
-        bottomBar = { BottomNavigationBar(navController) },
-        containerColor = if (isSystemInDarkTheme()) Color.Black else Color.White,
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-//                .clip(RoundedCornerShape(32.dp))
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
-fun BottomNavigationBar(navController: NavController) {
-    val navBackStackEntry = navController.currentBackStackEntryAsState().value
-    val currentRoute = navBackStackEntry?.destination?.route
-    val isDarkTheme = isSystemInDarkTheme()
-
-    val backgroundColor = if (isDarkTheme) Color.Black else Color.White
-    val selectedColor = if (isDarkTheme) Color.White else Color.Black
-    val unselectedColor = if (isDarkTheme) Color.LightGray else Color.Gray
-
-    NavigationBar(containerColor = backgroundColor) {
-        bottomNavigationItems.forEach { item ->
-            val selected = currentRoute == item.screen.route
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clickable {
-                        navController.navigate(item.screen.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                        }
-                    },
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    if (selected) item.selectedIcon else item.icon,
-                    contentDescription = item.label,
-                    tint = if (selected) selectedColor else unselectedColor
-                )
-                Text(
-                    text = item.label,
-                    fontSize = 10.sp,
-                    color = if (selected) selectedColor else unselectedColor
-                )
-            }
-        }
-    }
-}
-
-
-val bottomNavigationItems = listOf(
-    BottomNavigationItem(Screen.Keypad, "Keypad", Icons.Outlined.Dialpad, Icons.Filled.Dialpad),
-    BottomNavigationItem(
-        Screen.Recent,
-        "Recent",
-        Icons.Outlined.AccessTime,
-        Icons.Filled.AccessTime
-    ),
-    BottomNavigationItem(Screen.Contacts, "Contacts", Icons.Outlined.People, Icons.Filled.People)
-)
-
-data class BottomNavigationItem(
-    val screen: Screen, val label: String, val icon: ImageVector, val selectedIcon: ImageVector
-)
 
 @Preview
 @PreviewLightDark

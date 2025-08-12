@@ -2,6 +2,10 @@ package com.coderon.phone.utils
 
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.os.SystemClock.sleep
+
+private const val TONE_DURATION_MS = 100L
+private const val TONE_VOLUME_PERCENT = 80
 
 private fun getDTMFTone(digit: Char): Int? {
     return when (digit) {
@@ -22,9 +26,11 @@ private fun getDTMFTone(digit: Char): Int? {
 }
 
 fun playTones(char: Char) {
-    val toneGenerator = ToneGenerator(AudioManager.STREAM_DTMF, 80)
+    val toneGenerator = ToneGenerator(AudioManager.STREAM_DTMF, TONE_VOLUME_PERCENT)
     val tone = getDTMFTone(char)
     if (tone != null) {
         toneGenerator.startTone(tone)
+        sleep(TONE_DURATION_MS)
+        toneGenerator.stopTone()
     }
 }

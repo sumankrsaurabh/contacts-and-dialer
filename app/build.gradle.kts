@@ -77,7 +77,6 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.core)
     implementation(libs.androidx.collection.ktx)
-    implementation(libs.accompanist.navigation.animation)
     implementation(libs.androidx.core.telecom)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)

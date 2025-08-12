@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -32,11 +31,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.ui.MyApp
 import com.coderon.phone.ui.theme.PhoneTheme
-import com.coderon.phone.utils.getDefaultDialerIntent
 import com.coderon.phone.utils.isDefaultDialer
 
 class MainActivity : ComponentActivity() {
     private var callType: String? = null
+
     @SuppressLint("MissingPermission", "SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,27 +46,28 @@ class MainActivity : ComponentActivity() {
             PhoneTheme {
                 val isDefaultDialerState = remember { mutableStateOf(isDefaultDialer(this)) }
 
-                val defaultDialerLauncher = rememberLauncherForActivityResult(
+                rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult()
                 ) { result ->
                     if (result.resultCode == RESULT_OK) {
                         isDefaultDialerState.value = true
                     }
                 }
-                Box() {
-                    if (isDefaultDialerState.value) {
-                        MyApp()
-                    } else {
-                        RequestDefaultDialerScreen {
-                            getDefaultDialerIntent(this@MainActivity)?.let { intent ->
-                                defaultDialerLauncher.launch(intent)
-                            } ?: Toast.makeText(
-                                this@MainActivity,
-                                "Already the default dialer or unavailable",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
+                Box {
+                    MyApp()
+                    /* if (isDefaultDialerState.value) {
+                         MyApp()
+                     } else {
+                         RequestDefaultDialerScreen {
+                             getDefaultDialerIntent(this@MainActivity)?.let { intent ->
+                                 defaultDialerLauncher.launch(intent)
+                             } ?: Toast.makeText(
+                                 this@MainActivity,
+                                 "Already the default dialer or unavailable",
+                                 Toast.LENGTH_SHORT
+                             ).show()
+                         }
+                     }*/
                 }
             }
         }

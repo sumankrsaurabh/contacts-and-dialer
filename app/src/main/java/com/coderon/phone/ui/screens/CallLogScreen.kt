@@ -45,9 +45,9 @@ import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.BottomNavigationBar
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.ActionsMenuTop
+import com.coderon.phone.ui.utils.BottomNavigationBar
 import com.coderon.phone.ui.utils.IntentActionButtons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -205,8 +205,9 @@ fun ContactProfileImage(contact: Contact?) {
             )
         } else {
             Text(
-                text = contact?.name?.firstOrNull()?.toString() ?: "?",
+                text = contact?.name?.firstOrNull()?.uppercase().toString(),
                 fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }
