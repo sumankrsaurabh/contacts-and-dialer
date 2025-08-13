@@ -12,18 +12,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,7 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -45,42 +44,32 @@ import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.utils.ActionsMenuTop
-import com.coderon.phone.ui.utils.BottomNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CallLogScreen(callLog: List<CallLog>, navController: NavController) {
-    val groupedLogs = callLog.sortedByDescending { it.callTime } // Sort all logs by time first
-        .groupBy { it.callTime.formatDate() } // Group by date
+fun CallLogScreen(callLogs: List<CallLog>, navController: NavController) {
+    val groupedLogs = remember {
+        callLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
+    }
+    val expandedId = remember { mutableStateOf<String?>(null) }
 
-
-    // ✅ Store the currently expanded contact ID
-    val expandedContactId = remember { mutableStateOf<String?>(null) }
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        CenterAlignedTopAppBar(
-            title = { Text("Phone") }, colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = Color.Transparent
-            )
-        )
-        ActionsMenuTop(false, navController)
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
-        ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Phone" , color = MaterialTheme.colorScheme.primary) },
+                actions = { ActionsMenuTop(false, navController) })
+        },
+        containerColor = Color.Transparent
+    ) { inner ->
+        LazyColumn(contentPadding = inner, modifier = Modifier.fillMaxSize()) {
             groupedLogs.forEach { (date, logs) ->
-                item { CallLogDateHeader(date) }
-                itemsIndexed(logs) { index, log ->
-                    CallLogItem(
-                        log = log,
-                        expandedContactId = expandedContactId.value,
-                        onExpand = { contactId ->
-                            // Expand only the clicked item, collapse others
-                            expandedContactId.value =
-                                if (expandedContactId.value == contactId) null else contactId
-                        })
+                item { DateHeader(date) }
+                items(logs) { log ->
+                    CallLogItem(log) { id ->
+                        expandedId.value = if (expandedId.value == id) null else id
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -88,39 +77,28 @@ fun CallLogScreen(callLog: List<CallLog>, navController: NavController) {
     }
 }
 
-
 @Composable
-fun CallLogDateHeader(date: String) {
-    Text(
-        text = date,
-        fontSize = 18.sp,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        color = MaterialTheme.colorScheme.onBackground
-    )
-}
+fun DateHeader(date: String) = Text(
+    text = date,
+    fontSize = 18.sp,
+    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+)
 
 @SuppressLint("MissingPermission")
 @Composable
-private fun CallLogItem(
-    log: CallLog, expandedContactId: String?, // ✅ Accept currently expanded ID
-    onExpand: (String) -> Unit // ✅ Callback to update expanded ID
-) {
+fun CallLogItem(log: CallLog, onExpand: (String) -> Unit) {
     Card(
-        onClick = { onExpand(log.id.toString()) }, // ✅ Expand or collapse on click
+        onClick = { onExpand(log.id.toString()) },
         shape = RoundedCornerShape(50),
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp),
+            Modifier.padding(start = 24.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                painter = painterResource(
+                painterResource(
                     when (log.callType) {
                         CallType.INCOMING -> R.drawable.incoming_call
                         CallType.OUTGOING -> R.drawable.outgoing_call
@@ -128,163 +106,80 @@ private fun CallLogItem(
                         else -> R.drawable.call
                     }
                 ),
-                contentDescription = "Call Type",
-                tint = if (isSystemInDarkTheme() || log.callType == CallType.MISSED) Color.Gray else Color.DarkGray.copy(
+                contentDescription = null,
+                tint = if (log.callType == CallType.MISSED || isSystemInDarkTheme()) Color.Gray else Color.DarkGray.copy(
                     alpha = 0.8f
                 ),
                 modifier = Modifier.size(24.dp)
             )
-            Column(
-                modifier = Modifier.padding(end = 24.dp, start = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = log.contact?.name ?: log.phoneNumber,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (log.callType == CallType.MISSED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = log.phoneNumber,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                alpha = 0.7f
-                            )
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = log.callTime.formatTime(),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = log.contact?.name ?: log.phoneNumber,
+                    fontSize = 16.sp,
+                    color = if (log.callType == CallType.MISSED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = log.phoneNumber,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
             }
+            Text(
+                log.callTime.formatTime(),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
 fun ContactProfileImage(contact: Contact?) {
-    val profilePictureUrl = contact?.profilePictureUrl
+    val profileUrl = contact?.profilePictureUrl
     Box(
-        modifier = Modifier
+        Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center
     ) {
-        if (profilePictureUrl != null) {
-            AsyncImage(
-                model = profilePictureUrl,
-                contentDescription = "Profile Picture",
-                modifier = Modifier.size(40.dp)
-            )
-        } else {
-            Text(
-                text = contact?.name?.firstOrNull()?.uppercase().toString(),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
+        profileUrl?.let {
+            AsyncImage(model = it, contentDescription = null, modifier = Modifier.size(40.dp))
+        } ?: Text(
+            text = contact?.name?.firstOrNull()?.uppercase() ?: "",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     }
 }
 
-@PreviewLightDark
+
+
+@Preview(showBackground = true)
 @Composable
 fun PreviewCallLogScreen() {
-    val sampleLogs = listOf(
+    // Sample data for preview
+    val logs = listOf(
         CallLog(
-            id = 100L,
+            id = 1L,
             callDuration = "30",
             contact = Contact("1", "Suman Kumar Saurabh", "780840285", null),
-            callTime = System.currentTimeMillis() - 3600000, // 1 hour ago
+            callTime = System.currentTimeMillis(),
             callType = CallType.INCOMING,
-            phoneNumber = "7808140285"
-        ), CallLog(
-            id = 101L, callDuration = "45", contact = Contact(
-                "2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"
-            ), callTime = System.currentTimeMillis() - 86400000, // 1 day ago
-            callType = CallType.OUTGOING, phoneNumber = "9998887776"
-        ), CallLog(
-            id = 102L,
-            callDuration = "15",
-            contact = Contact("3", "Priya Singh", "9876543210", null),
-            callTime = System.currentTimeMillis() - 5400000, // 1.5 hours ago
-            callType = CallType.MISSED,
-            phoneNumber = "9876543210"
-        ), CallLog(
-            id = 103L,
-            callDuration = "120",
-            contact = Contact("4", "Rohit Verma", "8974561230", "https://example.com/profile2.jpg"),
-            callTime = System.currentTimeMillis() - 172800000, // 2 days ago
+            phoneNumber = "780840285"
+        ),
+        CallLog(
+            id = 2L,
+            callDuration = "45",
+            contact = Contact("2", "Aarav Sharma", "9998887776", null),
+            callTime = System.currentTimeMillis() - 3600000L,
             callType = CallType.OUTGOING,
-            phoneNumber = "8974561230"
-        ), CallLog(
-            id = 104L,
-            callDuration = "60",
-            contact = Contact("5", "Anjali Kapoor", "7854123690", null),
-            callTime = System.currentTimeMillis() - 10800000, // 3 hours ago
-            callType = CallType.INCOMING,
-            phoneNumber = "7854123690"
-        ), CallLog(
-            id = 105L,
-            callDuration = "5",
-            contact = Contact("6", "Vikas Patel", "9638527410", null),
-            callTime = System.currentTimeMillis() - 259200000, // 3 days ago
-            callType = CallType.MISSED,
-            phoneNumber = "9638527410"
-        ), CallLog(
-            id = 106L,
-            callDuration = "20",
-            contact = Contact("7", "Meera Joshi", "8527419630", "https://example.com/profile3.jpg"),
-            callTime = System.currentTimeMillis() - 432000000, // 5 days ago
-            callType = CallType.OUTGOING,
-            phoneNumber = "8527419630"
-        ), CallLog(
-            id = 107L,
-            callDuration = "90",
-            contact = Contact("8", "Raj Malhotra", "7896541230", null),
-            callTime = System.currentTimeMillis() - 7200000, // 2 hours ago
-            callType = CallType.INCOMING,
-            phoneNumber = "7896541230"
-        ), CallLog(
-            id = 108L, callDuration = "10", contact = Contact(
-                "9", "Kavita Sharma", "9517538520", "https://example.com/profile4.jpg"
-            ), callTime = System.currentTimeMillis() - 604800000, // 7 days ago
-            callType = CallType.MISSED, phoneNumber = "9517538520"
-        ), CallLog(
-            id = 109L,
-            callDuration = "25",
-            contact = Contact("10", "Sameer Khan", "7531598524", null),
-            callTime = System.currentTimeMillis() - 14400000, // 4 hours ago
-            callType = CallType.OUTGOING,
-            phoneNumber = "7531598524"
+            phoneNumber = "9998887776"
         )
     )
 
-
-    PhoneTheme {
-        Scaffold(
-            bottomBar = { BottomNavigationBar(rememberNavController()) },
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-            ) {
-                CallLogScreen(
-                    callLog = sampleLogs, navController = rememberNavController()
-                )
-            }
-        }
-    }
+    // Provide a dummy NavController for preview
+    CallLogScreen(callLogs = logs, navController = rememberNavController())
 }
