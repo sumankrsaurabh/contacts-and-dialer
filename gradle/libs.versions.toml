@@ -1,6 +1,6 @@
 [versions]
 accompanistPermissions = "0.37.3"
-agp = "8.12.0"
+agp = "8.12.1"
 coilCompose = "2.7.0"
 collectionKtx = "1.5.0"
 coreTelecom = "1.0.0"

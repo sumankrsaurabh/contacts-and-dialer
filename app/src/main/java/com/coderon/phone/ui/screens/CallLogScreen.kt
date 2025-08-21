@@ -3,6 +3,7 @@ package com.coderon.phone.ui.screens
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,8 +22,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,16 +53,21 @@ fun CallLogScreen(callLogs: List<CallLog>, navController: NavController) {
         callLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
     }
     val expandedId = remember { mutableStateOf<String?>(null) }
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Phone", fontSize = 24.sp)
+            ActionsMenuTop(false, navController)
+        }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Phone" , color = MaterialTheme.colorScheme.primary) },
-                actions = { ActionsMenuTop(false, navController) })
-        },
-        containerColor = Color.Transparent
-    ) { inner ->
-        LazyColumn(contentPadding = inner, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
             groupedLogs.forEach { (date, logs) ->
                 item { DateHeader(date) }
                 items(logs) { log ->
@@ -76,6 +80,7 @@ fun CallLogScreen(callLogs: List<CallLog>, navController: NavController) {
         }
     }
 }
+
 
 @Composable
 fun DateHeader(date: String) = Text(
@@ -154,7 +159,6 @@ fun ContactProfileImage(contact: Contact?) {
         )
     }
 }
-
 
 
 @Preview(showBackground = true)

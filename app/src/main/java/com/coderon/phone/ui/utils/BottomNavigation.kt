@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Dialpad
@@ -20,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,7 +49,6 @@ fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit
                 .padding(innerPadding)
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
-//                .clip(RoundedCornerShape(32.dp))
         ) {
             content()
         }
@@ -59,17 +60,16 @@ fun ScaffoldScreen(navController: NavController, content: @Composable () -> Unit
 fun BottomNavigationBar(navController: NavController) {
     val navBackStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = navBackStackEntry?.destination?.route
-    val isDarkTheme = isSystemInDarkTheme()
 
-    val backgroundColor = if (isDarkTheme) Color.Black else Color.White
-    val selectedColor = if (isDarkTheme) Color.White else Color.Black
-    val unselectedColor = if (isDarkTheme) Color.LightGray else Color.Gray
-
-    NavigationBar(containerColor = backgroundColor) {
+    NavigationBar {
         bottomNavigationItems.forEach { item ->
             val selected = currentRoute == item.screen.route
             Column(
                 Modifier
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(50))
+//                    .background(Color.Red)
+                    .padding(8.dp)
                     .weight(1f)
                     .clickable {
                         navController.navigate(item.screen.route) {
@@ -85,12 +85,10 @@ fun BottomNavigationBar(navController: NavController) {
                 Icon(
                     if (selected) item.selectedIcon else item.icon,
                     contentDescription = item.label,
-                    tint = if (selected) selectedColor else unselectedColor
                 )
                 Text(
                     text = item.label,
-                    fontSize = 10.sp,
-                    color = if (selected) selectedColor else unselectedColor
+                    fontSize = 12.sp,
                 )
             }
         }
