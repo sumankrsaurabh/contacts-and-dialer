@@ -70,7 +70,7 @@ fun MyApp() {
                 ScaffoldScreen(navController) {
                     DialerScreen(
                         navController,
-                        contactViewModel::filteredContacts,
+                        contactViewModel::groupedContacts,
                         callLogViewModel::filteredCallLogs,
                         playTones = { playTones(it) }
                     )

@@ -11,14 +11,20 @@ import com.coderon.phone.data.model.Contact
 import com.coderon.phone.domain.repository.CallLogRepository
 import com.coderon.phone.data.model.CallLog as CallLogData
 
-class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : CallLogRepository {
+class CallLogRepositoryImpl(
+    private val contentResolver: ContentResolver
+) : CallLogRepository {
 
-    private val TAG = "CallLogRepositoryImpl"
-    private val CACHE_DURATION = 10 * 60 * 1000L  // 10 minutes in milliseconds
-    private val contactsCache = mutableMapOf<String, Pair<Contact?, Long>>() // Cache with expiration time
+    companion object {
+        private const val TAG = "CallLogRepo"
+        private const val CACHE_DURATION = 10 * 60 * 1000L // 10 minutes
+    }
+
+    private val contactsCache = mutableMapOf<String, Pair<Contact?, Long>>()
 
     override suspend fun getCallLogs(): List<CallLogData> {
-        Log.d(TAG, "Fetching call logs")
+        Log.d(TAG, "Loading call logs from device")
+
         val callLogs = mutableListOf<CallLogData>()
 
         val projection = arrayOf(
@@ -29,50 +35,53 @@ class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : Call
             CallLog.Calls.DATE
         )
 
-        contentResolver.query(
+        val sortOrder = "${CallLog.Calls.DATE} DESC"
+
+        val cursor = contentResolver.query(
             CallLog.Calls.CONTENT_URI,
             projection,
             null,
             null,
-            "${CallLog.Calls.DATE} DESC"
-        )?.use { cursor ->
-            val idIndex = cursor.getColumnIndexOrThrow(CallLog.Calls._ID)
-            val numberIndex = cursor.getColumnIndexOrThrow(CallLog.Calls.NUMBER)
-            val typeIndex = cursor.getColumnIndexOrThrow(CallLog.Calls.TYPE)
-            val durationIndex = cursor.getColumnIndexOrThrow(CallLog.Calls.DURATION)
-            val dateIndex = cursor.getColumnIndexOrThrow(CallLog.Calls.DATE)
+            sortOrder
+        )
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idIndex)
-                val rawPhoneNumber = cursor.getString(numberIndex)
-                val normalizedPhoneNumber = PhoneNumberUtils.normalizeNumber(rawPhoneNumber)
+        if (cursor == null) {
+            Log.e(TAG, "Call log query returned null cursor")
+            return emptyList()
+        }
 
-                val callType = when (cursor.getInt(typeIndex)) {
-                    CallLog.Calls.INCOMING_TYPE -> CallType.INCOMING
-                    CallLog.Calls.OUTGOING_TYPE -> CallType.OUTGOING
-                    CallLog.Calls.MISSED_TYPE -> CallType.MISSED
-                    CallLog.Calls.REJECTED_TYPE -> CallType.REJECTED // Handle rejected calls
-                    else -> CallType.UNKNOWN
-                }
-                val callDuration = cursor.getLong(durationIndex).toString()
-                val callTime = cursor.getLong(dateIndex)
+        cursor.use {
+            val idIndex = it.getColumnIndexOrThrow(CallLog.Calls._ID)
+            val numberIndex = it.getColumnIndexOrThrow(CallLog.Calls.NUMBER)
+            val typeIndex = it.getColumnIndexOrThrow(CallLog.Calls.TYPE)
+            val durationIndex = it.getColumnIndexOrThrow(CallLog.Calls.DURATION)
+            val dateIndex = it.getColumnIndexOrThrow(CallLog.Calls.DATE)
 
-                val contact = getCachedOrFetchContact(normalizedPhoneNumber)
+            while (it.moveToNext()) {
+                val id = it.getLong(idIndex)
+                val rawNumber = it.getString(numberIndex) ?: continue
+                val normalizedNumber = PhoneNumberUtils.normalizeNumber(rawNumber)
+
+                val callType = mapCallType(it.getInt(typeIndex))
+                val duration = it.getLong(durationIndex).toString()
+                val date = it.getLong(dateIndex)
+
+                val contact = getCachedOrFetchContact(normalizedNumber)
 
                 callLogs.add(
                     CallLogData(
                         id = id,
                         contact = contact,
-                        phoneNumber = rawPhoneNumber,
+                        phoneNumber = rawNumber,
                         callType = callType,
-                        callDuration = callDuration,
-                        callTime = callTime
+                        callDuration = duration,
+                        callTime = date
                     )
                 )
             }
-        } ?: Log.w(TAG, "Cursor returned null when querying call logs")
+        }
 
-        Log.d(TAG, "Completed fetching call logs: Total = ${callLogs.size}")
+        Log.d(TAG, "Call logs fetched successfully: ${callLogs.size} entries")
         return callLogs
     }
 
@@ -84,25 +93,38 @@ class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : Call
             put(CallLog.Calls.DATE, System.currentTimeMillis())
         }
 
-        contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
-        Log.d(TAG, "Saved call log for number: ${callLog.phoneNumber}")
+        val resultUri = contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
+        if (resultUri != null) {
+            Log.d(TAG, "Call log inserted successfully: ${callLog.phoneNumber}")
+        } else {
+            Log.e(TAG, "Failed to insert call log for: ${callLog.phoneNumber}")
+        }
     }
 
-    // Cache handling with expiration logic
+    private fun mapCallType(type: Int): CallType {
+        return when (type) {
+            CallLog.Calls.INCOMING_TYPE -> CallType.INCOMING
+            CallLog.Calls.OUTGOING_TYPE -> CallType.OUTGOING
+            CallLog.Calls.MISSED_TYPE -> CallType.MISSED
+            CallLog.Calls.REJECTED_TYPE -> CallType.REJECTED
+            else -> CallType.UNKNOWN
+        }
+    }
+
     private fun getCachedOrFetchContact(phoneNumber: String): Contact? {
-        val now = System.currentTimeMillis()
-        val cachedContact = contactsCache[phoneNumber]
-        return if (cachedContact != null && now - cachedContact.second < CACHE_DURATION) {
-            cachedContact.first
+        val currentTime = System.currentTimeMillis()
+        val cached = contactsCache[phoneNumber]
+
+        return if (cached != null && currentTime - cached.second < CACHE_DURATION) {
+            cached.first
         } else {
-            val contact = fetchContactInfo(phoneNumber)
-            contactsCache[phoneNumber] = contact to now
+            val contact = fetchContactFromContactsContract(phoneNumber)
+            contactsCache[phoneNumber] = contact to currentTime
             contact
         }
     }
 
-    // Function to fetch contact info from ContactsContract
-    private fun fetchContactInfo(phoneNumber: String): Contact? {
+    private fun fetchContactFromContactsContract(phoneNumber: String): Contact? {
         val uri = ContactsContract.PhoneLookup.CONTENT_FILTER_URI.buildUpon()
             .appendPath(phoneNumber)
             .build()
@@ -112,21 +134,22 @@ class CallLogRepositoryImpl(private val contentResolver: ContentResolver) : Call
             ContactsContract.PhoneLookup.PHOTO_URI
         )
 
-        contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        return contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
-                val name = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.DISPLAY_NAME))
-                val photoUri = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.PHOTO_URI))
+                val name = cursor.getString(
+                    cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.DISPLAY_NAME)
+                )
+                val photoUri = cursor.getString(
+                    cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.PHOTO_URI)
+                )
 
-                return Contact(
-                    id = "",  // ID can be fetched if needed
-                    name = name,
+                Contact(
+                    id = "", // Optional: could extract ID if needed
+                    name = name ?: "Unknown",
                     profilePictureUrl = photoUri,
                     phoneNumber = phoneNumber
                 )
-            }
+            } else null
         }
-        return null
     }
-
-
 }

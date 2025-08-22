@@ -48,14 +48,18 @@ import com.coderon.phone.ui.utils.ActionsMenuTop
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CallLogScreen(callLogs: List<CallLog>, navController: NavController) {
-    val groupedLogs = remember {
-        callLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
+fun CallLogScreen(
+    callLogs: List<CallLog>,
+    navController: NavController,
+    onSearchQueryChanged: ((String) -> Unit)? = null // Optional
+) {
+    val groupedLogs = remember(callLogs) {
+        callLogs.sortedByDescending { it.callTime }
+            .groupBy { it.callTime.formatDate() }
     }
     val expandedId = remember { mutableStateOf<String?>(null) }
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+
+    Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -65,6 +69,14 @@ fun CallLogScreen(callLogs: List<CallLog>, navController: NavController) {
         ) {
             Text("Phone", fontSize = 24.sp)
             ActionsMenuTop(false, navController)
+        }
+
+        // Optional search bar
+        onSearchQueryChanged?.let { onSearch ->
+            SearchBar(
+                placeholder = "Search call logs",
+                onQueryChanged = onSearch
+            )
         }
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -80,7 +92,6 @@ fun CallLogScreen(callLogs: List<CallLog>, navController: NavController) {
         }
     }
 }
-
 
 @Composable
 fun DateHeader(date: String) = Text(
@@ -160,6 +171,27 @@ fun ContactProfileImage(contact: Contact?) {
     }
 }
 
+@Composable
+fun SearchBar(
+    placeholder: String = "Search...",
+    onQueryChanged: (String) -> Unit
+) {
+    val query = remember { mutableStateOf("") }
+
+    androidx.compose.material3.OutlinedTextField(
+        value = query.value,
+        onValueChange = {
+            query.value = it
+            onQueryChanged(it)
+        },
+        placeholder = { Text(placeholder) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        singleLine = true,
+        shape = RoundedCornerShape(24.dp)
+    )
+}
 
 @Preview(showBackground = true)
 @Composable
