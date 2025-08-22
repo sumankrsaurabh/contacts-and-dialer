@@ -1,6 +1,5 @@
 package com.coderon.phone.ui.screens
 
-import android.annotation.SuppressLint
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -43,49 +42,47 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
 import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.defaultCallLog
-import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.ActionsMenuTop
-import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.initiateCall
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 
 @Composable
 fun DialerScreen(
     navController: NavController,
-    filterContact: (String) -> Flow<Map<Char, List<Contact>>>,
-    filterCallLog: (String) -> Flow<List<CallLog>>,
+    filterContact: StateFlow<Map<Char, List<Contact>>>,
+    filterCallLog: Flow<List<CallLog>>,
+    updateSearchQuery: (String) -> Unit = {},
     playTones: (Char) -> Unit
 ) {
     var dialedNumber by remember { mutableStateOf("") }
+    updateSearchQuery(dialedNumber)
     val maxDialedNumberLength = 15
-    val filteredContacts by filterContact(dialedNumber).collectAsStateWithLifecycle(emptyMap())
-    val filteredCallLogs by filterCallLog(dialedNumber).collectAsStateWithLifecycle(emptyList())
-
-    val uniqueEntries = remember(filteredCallLogs, filteredContacts) {
-        val latestCallLogsByNumber = filteredCallLogs.groupBy { it.phoneNumber }
+    val contacts by filterContact.collectAsStateWithLifecycle()
+    val callLogs by filterCallLog.collectAsStateWithLifecycle(emptyList())
+    val uniqueEntries = remember(callLogs, contacts) {
+        val latestCallLogsByNumber = callLogs.groupBy { it.phoneNumber }
             .mapValues { (_, logs) -> logs.maxByOrNull { it.callTime } }.filterValues { it != null }
-
         val allEntries = linkedMapOf<String, Any>()
         latestCallLogsByNumber.forEach { (number, log) ->
             if (log != null) allEntries[number] = log
         }
-        filteredContacts.values.flatten()
-            .forEach { contact -> allEntries.putIfAbsent(contact.phoneNumber, contact) }
+        contacts.values.flatten().forEach { contact ->
+            allEntries.putIfAbsent(contact.phoneNumber, contact)
+        }
+
         allEntries
     }
 
@@ -221,8 +218,7 @@ fun FilteredCallLogItem(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+                modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center
             ) {
                 Text(text = callLogEntry.contact?.name?.ifBlank { callLogEntry.phoneNumber }
                     ?: callLogEntry.phoneNumber,
@@ -331,7 +327,8 @@ private fun DialPad(playTones: (Char) -> Unit, onDigitPress: (String) -> Unit) {
                                 }
                             },
                         verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text(
                             text = digitInDialPadRow.toString(),
                             fontSize = 24.sp,
@@ -347,21 +344,6 @@ private fun DialPad(playTones: (Char) -> Unit, onDigitPress: (String) -> Unit) {
                     }
                 }
             }
-        }
-    }
-}
-
-@SuppressLint("MissingPermission")
-@PreviewLightDark
-@Composable
-private fun DialerScreenPreview() {
-    PhoneTheme {
-        ScaffoldScreen(rememberNavController()) {
-            DialerScreen(
-                navController = rememberNavController(),
-                filterContact = { emptyFlow() },
-                filterCallLog = { emptyFlow() },
-                playTones = {})
         }
     }
 }

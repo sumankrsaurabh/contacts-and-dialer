@@ -50,7 +50,6 @@ import com.coderon.phone.ui.utils.ActionsMenuTop
 fun ContactsScreen(
     contacts: Map<Char, List<Contact>>, navController: NavController
 ) {
-
     Column(
         modifier = Modifier.fillMaxSize()
     ) {

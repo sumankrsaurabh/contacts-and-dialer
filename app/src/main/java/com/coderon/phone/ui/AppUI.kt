@@ -35,10 +35,7 @@ sealed class Screen(val route: String) {
     object Contacts : Screen("contacts")
     object Search : Screen("search")
     object AddContact : Screen("add_contact")
-    object CallDetails : Screen("contact_details/{phoneNumber}") {
-        fun createRoute(phoneNumber: String) = "contact_details/$phoneNumber"
-    }
-
+    object CallDetails : Screen("contact_details/{phoneNumber}")
     object CallScreen : Screen("call_screen")
 }
 
@@ -67,11 +64,16 @@ fun MyApp() {
         // Screens inside Scaffold (Keypad, Recent, Contacts)
         composable(Screen.Keypad.route) {
             if (currentCallState == NoCall) {
+                fun updateSearchQuery(query: String) {
+                    contactViewModel.onSearchQueryChanged(query)
+                    callLogViewModel.onSearchQueryChanged(query)
+                }
                 ScaffoldScreen(navController) {
                     DialerScreen(
                         navController,
-                        contactViewModel::groupedContacts,
-                        callLogViewModel::filteredCallLogs,
+                        contactViewModel.groupedContacts,
+                        callLogViewModel.filteredCallLogs,
+                        updateSearchQuery = { updateSearchQuery(it) },
                         playTones = { playTones(it) }
                     )
                 }
@@ -79,7 +81,7 @@ fun MyApp() {
         }
         composable(Screen.Recent.route) {
             if (currentCallState == NoCall) {
-                val callLogs = callLogViewModel.callLogs.collectAsStateWithLifecycle().value
+                val callLogs = callLogViewModel.allCallLogs.collectAsStateWithLifecycle().value
                 ScaffoldScreen(navController) {
                     CallLogScreen(
                         callLogs = callLogs,
@@ -90,7 +92,7 @@ fun MyApp() {
         }
         composable(Screen.Contacts.route) {
             if (currentCallState == NoCall) {
-                val contacts = contactViewModel.contacts.collectAsStateWithLifecycle().value
+                val contacts = contactViewModel.groupedContacts.collectAsStateWithLifecycle().value
                 ScaffoldScreen(navController) {
                     ContactsScreen(
                         contacts = contacts,
