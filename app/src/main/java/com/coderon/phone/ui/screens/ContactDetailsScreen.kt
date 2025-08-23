@@ -1,12 +1,9 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.coderon.phone.ui.screens
-
 import android.annotation.SuppressLint
-import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,10 +20,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Whatsapp
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,8 +33,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,12 +64,11 @@ import com.coderon.phone.ui.theme.PhoneTheme
 fun ContactDetailsScreen(
     contact: Contact,
     callLogs: List<CallLog>,
-    onMessageClick: () -> Unit,
-    onBlockClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     navController: NavController
 ) {
-    Scaffold(
-        bottomBar = { ActionButtons() },
+    Scaffold( // NOSONAR
         containerColor = if (isSystemInDarkTheme()) Color.Black else Color.White
     ) { paddingValues ->
         Column(
@@ -77,52 +78,70 @@ fun ContactDetailsScreen(
                 .padding(horizontal = 16.dp)
         ) {
             ContactDetails(
-                contact, onMessageClick, onBlockClick, navController
+                contact = contact,
+                onEditClick = onEditClick,
+                onDeleteClick = onDeleteClick,
+                navController = navController
             )
             CallLogList(callLogs)
         }
     }
 }
 
-@SuppressLint("MissingPermission")
 @Composable
+@SuppressLint("MissingPermission")
 fun ContactDetails(
     contact: Contact,
-    onMessageClick: () -> Unit,
-    onBlockClick: () -> Unit,
-    navController: NavController,
-    context: Context = LocalContext.current
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    navController: NavController
 ) {
-    Column(
-    ) {
-        /*val telecomManager = context.getSystemService(TelecomManager::class.java)
-        val showSimSelectDialog = remember { mutableStateOf(false) }
-        val availableAccounts = telecomManager.callCapablePhoneAccounts
-        if (showSimSelectDialog.value) {
-            SimSelectionDialog(
-                availableAccounts = availableAccounts,
-                onDismiss = { showSimSelectDialog.value = false },
-                onSimSelected = {
-                    placeCall(context, contact.phoneNumber, it)
-                })
-        }*/
+    var expanded by remember { mutableStateOf(false) }
+
+    Column { // NOSONAR
         TopAppBar(
             navigationIcon = {
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.Rounded.ArrowBack, "back")
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                 }
             },
             title = {},
+            actions = {
+                IconButton(onClick = { expanded = true }) {
+                    Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            expanded = false
+                            onEditClick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            expanded = false
+                            onDeleteClick()
+                        }
+                    )
+                }
+            },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         )
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) { // NOSONAR
             if (contact.profilePictureUrl != null) {
                 Image(
                     painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
-                            .crossfade(true).placeholder(R.drawable.profile_picture_call).build()
+                        ImageRequest.Builder(LocalContext.current)
+                            .data(contact.profilePictureUrl)
+                            .crossfade(true)
+                            .placeholder(R.drawable.profile_picture_call)
+                            .build()
                     ),
                     contentDescription = "Profile Picture",
                     modifier = Modifier
@@ -146,61 +165,37 @@ fun ContactDetails(
                     )
                 }
             }
+
             Column(
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = contact.name.ifBlank { contact.phoneNumber }, fontSize = 24.sp)
+                Text(text = contact.name.ifBlank { contact.phoneNumber }, fontSize = 24.sp) // NOSONAR
                 if (contact.name.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(text = contact.phoneNumber, fontSize = 16.sp)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center, modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)
+                    callActionButtons.forEach { buttons ->
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(50)
+                                )
+                                .size(64.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(buttons.icon),
+                                contentDescription = buttons.text,
+                                tint = if (isSystemInDarkTheme()) Color.White else Color.Black
                             )
-                            .weight(1f)
-                            .height(64.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.call),
-                            "Call",
-                            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
-                        )
-                    }
-                    Box(
-                        contentAlignment = Alignment.Center, modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)
-                            )
-                            .weight(1f)
-                            .height(64.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.message),
-                            "Call",
-                            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
-                        )
-                    }
-                    Box(
-                        contentAlignment = Alignment.Center, modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)
-                            )
-                            .weight(1f)
-                            .height(64.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Whatsapp,
-                            "whatsapp",
-                            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
-                        )
+                        }
                     }
                 }
             }
@@ -209,61 +204,8 @@ fun ContactDetails(
 }
 
 @Composable
-fun ActionButtons(onClick: () -> Unit = {}) {
-    Row(
-        modifier = Modifier
-            .padding(horizontal = 32.dp)
-            .padding(bottom = 8.dp)
-            .fillMaxWidth()
-            .height(62.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .clickable(onClick = onClick)
-                .weight(1f)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.edit),
-                contentDescription = "edit",
-                modifier = Modifier.size(32.dp),
-                tint = if (isSystemInDarkTheme()) Color.White else Color.Black
-            )
-            Text(
-                "Edit", fontSize = 16.sp,
-                color = if (isSystemInDarkTheme()) Color.White else Color.Black
-            )
-        }
-        VerticalDivider(
-            color = if (!isSystemInDarkTheme()) Color.LightGray else Color.DarkGray
-        )
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .clickable(onClick = onClick)
-                .weight(1f)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.delete),
-                contentDescription = "delete",
-                modifier = Modifier.size(32.dp),
-                tint = if (isSystemInDarkTheme()) Color.White else Color.Black
-            )
-            Text(
-                "Delete", fontSize = 16.sp,
-                color = if (isSystemInDarkTheme()) Color.White else Color.Black
-            )
-        }
-    }
-}
-
-@Composable
 fun CallLogList(callLogs: List<CallLog>) {
-
-    LazyColumn() {
+    LazyColumn { // NOSONAR
         item {
             Text(
                 "Recent calls",
@@ -280,7 +222,8 @@ fun CallLogList(callLogs: List<CallLog>) {
     }
     if (callLogs.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
             Text("No recent calls found")
         }
@@ -293,7 +236,7 @@ fun CallLogItemDetails(log: CallLog) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(50),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
@@ -310,9 +253,9 @@ fun CallLogItemDetails(log: CallLog) {
                     CallType.MISSED -> painterResource(R.drawable.incoming_call)
                     else -> painterResource(R.drawable.call)
                 },
-                log.callType.name,
+                contentDescription = log.callType.name,
                 tint = if (log.callType == CallType.MISSED) Color.Red else Color.Black
-            )
+            ) // NOSONAR
 
             Column(
                 modifier = Modifier
@@ -320,27 +263,18 @@ fun CallLogItemDetails(log: CallLog) {
                     .weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = log.phoneNumber,
-                    fontSize = 16.sp,
-                )
-                Text(
-                    text = log.callDuration.toLong().formatDuration(),
-                    fontSize = 16.sp,
-                )
+                Text(text = log.phoneNumber, fontSize = 16.sp) // NOSONAR
+                Text(text = log.callDuration.toLong().formatDuration(), fontSize = 16.sp)
             }
-            Text(
-                text = log.callTime.formatTime(),
-                fontSize = 16.sp,
-            )
+            Text(text = log.callTime.formatTime(), fontSize = 16.sp) // NOSONAR
         }
     }
 }
 
 @PreviewLightDark
 @Composable
-fun PreviewCallLogDetailsScreen() {
-    val contact = Contact(
+private fun PreviewCallLogDetailsScreen() {
+    val contact = Contact( // NOSONAR
         id = "1",
         name = "John Doe",
         phoneNumber = "+1234567890",
@@ -348,21 +282,23 @@ fun PreviewCallLogDetailsScreen() {
     )
 
     val callLogs = listOf(
-        CallLog(
+        CallLog( // NOSONAR
             id = 1,
             contact = contact,
             phoneNumber = "+1234567890",
             callType = CallType.INCOMING,
             callDuration = "120",
             callTime = 1700000000
-        ), CallLog(
+        ),
+        CallLog( // NOSONAR
             id = 2,
             contact = contact,
             phoneNumber = "+1234567890",
             callType = CallType.OUTGOING,
             callDuration = "60",
             callTime = 1700005000
-        ), CallLog(
+        ),
+        CallLog( // NOSONAR
             id = 3,
             contact = contact,
             phoneNumber = "+1234567890",
@@ -371,11 +307,25 @@ fun PreviewCallLogDetailsScreen() {
             callTime = 1700010000
         )
     )
+
     PhoneTheme {
         ContactDetailsScreen(
-            contact = Contact(
-                id = "", name = "Saurya", phoneNumber = "7808140285", profilePictureUrl = ""
-            ), callLogs = callLogs, onMessageClick = {}, onBlockClick = {}, rememberNavController()
+            contact = contact,
+            callLogs = callLogs,
+            onEditClick = {},
+            onDeleteClick = {},
+            navController = rememberNavController()
         )
     }
 }
+
+private data class CallActionButton(
+    val icon: Int,
+    val text: String
+)
+
+private val callActionButtons = listOf(
+    CallActionButton(R.drawable.call, "Call"),
+    CallActionButton(R.drawable.message, "Message"),
+//    CallActionButton(R.drawable.whatsapp, "WhatsApp")
+)

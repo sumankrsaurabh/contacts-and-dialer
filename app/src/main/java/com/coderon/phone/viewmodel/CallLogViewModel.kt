@@ -68,4 +68,18 @@ class CallLogViewModel(
             logs.filter { it.phoneNumber == phoneNumber }
         }
     }
+
+    fun deleteCallLog(callLog: CallLog): Boolean {
+        viewModelScope.launch {
+            try {
+                callLogRepository.deleteCallLog(callLog)
+                _allCallLogs.value = _allCallLogs.value - callLog
+                Log.d(TAG, "Fetched ${_allCallLogs.value.size} call logs")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching call logs", e)
+            }
+        }
+        return false
+    }
 }

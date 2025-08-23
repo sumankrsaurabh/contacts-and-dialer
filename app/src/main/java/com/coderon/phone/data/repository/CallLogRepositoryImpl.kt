@@ -101,6 +101,27 @@ class CallLogRepositoryImpl(
         }
     }
 
+    override suspend fun deleteCallLog(callLog: CallLogData) {
+        try {
+            val uri = CallLog.Calls.CONTENT_URI
+            val selection = "${CallLog.Calls._ID} = ?"
+            val selectionArgs = arrayOf(callLog.id.toString())
+
+            val rowsDeleted = contentResolver.delete(uri, selection, selectionArgs)
+
+            if (rowsDeleted > 0) {
+                Log.d(TAG, "Deleted call log entry with ID: ${callLog.id}")
+            } else {
+                Log.w(TAG, "No call log entry found with ID: ${callLog.id}")
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Permission denied: Cannot delete call log", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting call log with ID: ${callLog.id}", e)
+        }
+    }
+
+
     private fun mapCallType(type: Int): CallType {
         return when (type) {
             CallLog.Calls.INCOMING_TYPE -> CallType.INCOMING
