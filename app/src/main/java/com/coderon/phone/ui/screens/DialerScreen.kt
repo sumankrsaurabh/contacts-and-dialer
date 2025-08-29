@@ -82,7 +82,6 @@ fun DialerScreen(
         contacts.values.flatten().forEach { contact ->
             allEntries.putIfAbsent(contact.phoneNumber, contact)
         }
-
         allEntries
     }
 

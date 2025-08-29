@@ -50,6 +50,22 @@ fun SearchScreen(
     navController: NavController,
     onBack: () -> Unit = {}
 ) {
+    val (filteredContacts, filteredCallLogs) = remember(logs, contacts) {
+        val latestCallLogsByNumber = logs.groupBy { it.phoneNumber }.mapValues { (_, logs) ->
+            logs.maxByOrNull { it.callTime }
+        }.filterValues { it != null }
+
+        val filteredContactsList = mutableListOf<Contact>()
+        val filteredCallLogsList = mutableListOf<CallLog>()
+
+        contacts.forEach { contact ->
+            filteredContactsList.add(contact)
+        }
+        latestCallLogsByNumber.values.forEach { log ->
+            log?.let { filteredCallLogsList.add(it) }
+        }
+        Pair(filteredContactsList, filteredCallLogsList)
+    }
     var text by remember { mutableStateOf(TextFieldValue("")) }
     LaunchedEffect(text.text) {
         onSearch(text.text)
@@ -58,7 +74,9 @@ fun SearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(16.dp), verticalArrangement = Arrangement.Top
+            .padding(top = 64.dp, bottom = 16.dp, start = 16.dp, end = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
     ) {
         TextField(
             modifier = Modifier.fillMaxWidth(),
@@ -90,14 +108,27 @@ fun SearchScreen(
             true -> NoItem()
             false -> {
                 LazyColumn {
-                    items(contacts) {
-                        if (contacts.isNotEmpty()) Text("Contacts")
-                        FilteredContactsBasedOnDialedDigitsItem(it)
+                    item {
+                        if (filteredContacts.isNotEmpty()) Text(
+                            "Contacts",
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
                     }
-                    items(logs) {
-                        if (contacts.isNotEmpty()) Text("Recent calls")
-                        FilteredCallLogItem(it)
+                    items(filteredContacts) { contact ->
+                        FilteredContactsBasedOnDialedDigitsItem(contact)
                     }
+
+                    item {
+                        if (filteredCallLogs.isNotEmpty()) Text(
+                            "Call Logs",
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                    items(filteredCallLogs) { callLog ->
+                        FilteredCallLogItem(callLog)
+                    }
+
+
                 }
             }
         }

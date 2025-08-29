@@ -52,24 +52,22 @@ fun MyApp() {
     }
 
     NavHost(
-        navController = navController,
-        startDestination = Screen.Keypad.route
+        navController = navController, startDestination = Screen.Keypad.route
     ) {
+        fun updateSearchQuery(query: String) {
+            contactViewModel.onSearchQueryChanged(query)
+            callLogViewModel.onSearchQueryChanged(query)
+        }
         // Screens inside Scaffold (Keypad, Recent, Contacts)
         composable(Screen.Keypad.route) {
             if (currentCallState == NoCall) {
-                fun updateSearchQuery(query: String) {
-                    contactViewModel.onSearchQueryChanged(query)
-                    callLogViewModel.onSearchQueryChanged(query)
-                }
                 ScaffoldScreen(navController) {
                     DialerScreen(
                         navController,
-                        contactViewModel.groupedContacts,
-                        callLogViewModel.filteredCallLogs,
+                        filterContact = contactViewModel.filteredContacts,
+                        filterCallLog = callLogViewModel.filteredCallLogs,
                         updateSearchQuery = { updateSearchQuery(it) },
-                        playTones = { playTones(it) }
-                    )
+                        playTones = { playTones(it) })
                 }
             }
         }
@@ -78,8 +76,7 @@ fun MyApp() {
                 val callLogs = callLogViewModel.allCallLogs.collectAsStateWithLifecycle().value
                 ScaffoldScreen(navController) {
                     CallLogScreen(
-                        callLogs = callLogs,
-                        navController = navController
+                        callLogs = callLogs, navController = navController
                     )
                 }
             }
@@ -97,7 +94,12 @@ fun MyApp() {
             CallScreen(navController)
         }
         composable(Screen.Search.route) {
-            SearchScreen(navController = navController)
+            SearchScreen(
+                navController = navController,
+                contacts = contactViewModel.filteredContacts.collectAsStateWithLifecycle().value.values.flatten(),
+                logs = callLogViewModel.filteredCallLogs.collectAsStateWithLifecycle().value,
+                onSearch = { updateSearchQuery(it) },
+                onBack = { navController.popBackStack() })
         }
         composable(Screen.AddContact.route) {
             if (currentCallState == NoCall) {
@@ -112,16 +114,12 @@ fun MyApp() {
                     .collectAsStateWithLifecycle(emptyList()).value
                 ContactDetailsScreen(
                     contact = contact ?: Contact(
-                        id = "",
-                        name = "",
-                        phoneNumber = phoneNumber,
-                        profilePictureUrl = null
+                        id = "", name = "", phoneNumber = phoneNumber, profilePictureUrl = null
                     ),
                     callLogs = callLogs,
-                    onMessageClick = {},
-                    onBlockClick = {},
-                    navController = navController
-                )
+                    navController = navController,
+                    onEditClick = { TODO() },
+                    onDeleteClick = { TODO() })
             }
         }
     }
