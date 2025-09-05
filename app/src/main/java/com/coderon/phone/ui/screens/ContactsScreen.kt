@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.ActionsMenuTop
@@ -74,7 +76,8 @@ fun ContactsScreen(
                             visible = true,
                             enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }) {
                             ContactItem(
-                                contact = contact
+                                contact = contact,
+                                navController = navController
                             )
                         }
                         Spacer(Modifier.height(8.dp))
@@ -105,12 +108,15 @@ fun LetterHeader(letter: Char) {
 @SuppressLint("MissingPermission")
 @Composable
 fun ContactItem(
-    contact: Contact
+    contact: Contact, navController: NavController
 ) {
     Card(
         shape = RoundedCornerShape(50), modifier = Modifier
             .fillMaxWidth()
             .animateContentSize()
+            .clickable {
+                navController.navigate(Screen.CallDetails.createRoute(contact.phoneNumber))
+            }
     ) {
         Row(
             modifier = Modifier

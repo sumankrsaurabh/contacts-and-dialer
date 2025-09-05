@@ -30,7 +30,10 @@ sealed class Screen(val route: String) {
     object Contacts : Screen("contacts")
     object Search : Screen("search")
     object AddContact : Screen("add_contact")
-    object CallDetails : Screen("contact_details/{phoneNumber}")
+    object CallDetails : Screen("contact_details/{phoneNumber}") {
+        fun createRoute(phoneNumber: String) = "contact_details/$phoneNumber"
+    }
+
     object CallScreen : Screen("call_screen")
 }
 
@@ -42,6 +45,9 @@ fun MyApp() {
     val callLogViewModel: CallLogViewModel = koinViewModel()
 
     val currentCallState = CallManager.phoneState.collectAsStateWithLifecycle().value
+    val contacts =
+        contactViewModel.groupedContacts.collectAsStateWithLifecycle().value
+    val callLogs = callLogViewModel.allCallLogs.collectAsStateWithLifecycle().value
 
     LaunchedEffect(currentCallState) {
         if (currentCallState != NoCall) {
@@ -73,7 +79,6 @@ fun MyApp() {
         }
         composable(Screen.Recent.route) {
             if (currentCallState == NoCall) {
-                val callLogs = callLogViewModel.allCallLogs.collectAsStateWithLifecycle().value
                 ScaffoldScreen(navController) {
                     CallLogScreen(
                         callLogs = callLogs, navController = navController
@@ -83,7 +88,6 @@ fun MyApp() {
         }
         composable(Screen.Contacts.route) {
             if (currentCallState == NoCall) {
-                val contacts = contactViewModel.groupedContacts.collectAsStateWithLifecycle().value
                 ScaffoldScreen(navController) {
                     ContactsScreen(contacts = contacts, navController)
                 }
@@ -109,17 +113,29 @@ fun MyApp() {
         composable(Screen.CallDetails.route) { backStackEntry ->
             if (currentCallState == NoCall) {
                 val phoneNumber = backStackEntry.arguments?.getString("phoneNumber") ?: ""
-                val contact = contactViewModel.getContact(phoneNumber)
-                val callLogs = callLogViewModel.getCallLogsForNumber(phoneNumber)
+                val normalizedRoutePhoneNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
+
+                val callLogs = callLogViewModel.getCallLogsForNumber(normalizedRoutePhoneNumber)
                     .collectAsStateWithLifecycle(emptyList()).value
+
+                val fetchedContact = contacts.values.flatten().find { contact ->
+                    val contactPhoneNumber = contact.phoneNumber.replace(Regex("[^0-9]"), "")
+                    val contactPhoneNumberWithoutCountryCode =
+                        when {
+                            contactPhoneNumber.startsWith("+91") -> contactPhoneNumber.substring(3)
+                            contactPhoneNumber.startsWith("91") -> contactPhoneNumber.substring(2)
+                            else -> contactPhoneNumber
+                        }
+                    contactPhoneNumberWithoutCountryCode == normalizedRoutePhoneNumber
+                }
+
                 ContactDetailsScreen(
-                    contact = contact ?: Contact(
-                        id = "", name = "", phoneNumber = phoneNumber, profilePictureUrl = null
-                    ),
+                    contact = fetchedContact ?: Contact(phoneNumber = normalizedRoutePhoneNumber),
                     callLogs = callLogs,
                     navController = navController,
-                    onEditClick = { TODO() },
-                    onDeleteClick = { TODO() })
+                    onEditClick = { },
+                    onDeleteClick = { }
+                )
             }
         }
     }

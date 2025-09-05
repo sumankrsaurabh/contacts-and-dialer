@@ -1,10 +1,8 @@
 package com.coderon.phone.ui.screens
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,22 +25,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import coil.compose.AsyncImage
 import com.coderon.phone.R
 import com.coderon.phone.data.helpers.formatDate
 import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.utils.ActionsMenuTop
 
@@ -54,10 +50,8 @@ fun CallLogScreen(
     onSearchQueryChanged: ((String) -> Unit)? = null // Optional
 ) {
     val groupedLogs = remember(callLogs) {
-        callLogs.sortedByDescending { it.callTime }
-            .groupBy { it.callTime.formatDate() }
+        callLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
     }
-    val expandedId = remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -74,8 +68,7 @@ fun CallLogScreen(
         // Optional search bar
         onSearchQueryChanged?.let { onSearch ->
             SearchBar(
-                placeholder = "Search call logs",
-                onQueryChanged = onSearch
+                placeholder = "Search call logs", onQueryChanged = onSearch
             )
         }
 
@@ -83,8 +76,8 @@ fun CallLogScreen(
             groupedLogs.forEach { (date, logs) ->
                 item { DateHeader(date) }
                 items(logs) { log ->
-                    CallLogItem(log) { id ->
-                        expandedId.value = if (expandedId.value == id) null else id
+                    CallLogItem(log) { phoneNumber ->
+                        navController.navigate(Screen.CallDetails.createRoute(phoneNumber))
                     }
                     Spacer(Modifier.height(8.dp))
                 }
@@ -95,16 +88,14 @@ fun CallLogScreen(
 
 @Composable
 fun DateHeader(date: String) = Text(
-    text = date,
-    fontSize = 18.sp,
-    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    text = date, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
 )
 
 @SuppressLint("MissingPermission")
 @Composable
-fun CallLogItem(log: CallLog, onExpand: (String) -> Unit) {
+fun CallLogItem(log: CallLog, onCallLogEntryClick: (String) -> Unit) {
     Card(
-        onClick = { onExpand(log.id.toString()) },
+        onClick = { onCallLogEntryClick(log.phoneNumber) },
         shape = RoundedCornerShape(50),
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -151,30 +142,8 @@ fun CallLogItem(log: CallLog, onExpand: (String) -> Unit) {
 }
 
 @Composable
-fun ContactProfileImage(contact: Contact?) {
-    val profileUrl = contact?.profilePictureUrl
-    Box(
-        Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer),
-        contentAlignment = Alignment.Center
-    ) {
-        profileUrl?.let {
-            AsyncImage(model = it, contentDescription = null, modifier = Modifier.size(40.dp))
-        } ?: Text(
-            text = contact?.name?.firstOrNull()?.uppercase() ?: "",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-    }
-}
-
-@Composable
 fun SearchBar(
-    placeholder: String = "Search...",
-    onQueryChanged: (String) -> Unit
+    placeholder: String = "Search...", onQueryChanged: (String) -> Unit
 ) {
     val query = remember { mutableStateOf("") }
 
@@ -205,8 +174,7 @@ fun PreviewCallLogScreen() {
             callTime = System.currentTimeMillis(),
             callType = CallType.INCOMING,
             phoneNumber = "780840285"
-        ),
-        CallLog(
+        ), CallLog(
             id = 2L,
             callDuration = "45",
             contact = Contact("2", "Aarav Sharma", "9998887776", null),

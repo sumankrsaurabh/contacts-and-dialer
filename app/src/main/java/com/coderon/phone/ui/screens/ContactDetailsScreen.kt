@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -56,6 +57,7 @@ import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.defaultCallLog
 import com.coderon.phone.ui.Text
 
 @Composable
@@ -72,7 +74,7 @@ fun ContactDetailsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+//                .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
             ContactDetails(
@@ -161,8 +163,12 @@ fun ContactDetails(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    modifier = Modifier.fillMaxWidth()
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(vertical = 12.dp, horizontal = 16.dp)
                 ) {
                     callActionButtons.forEach { buttons ->
                         Box(
@@ -261,3 +267,24 @@ private val callActionButtons = listOf(
     CallActionButton(R.drawable.message, "Message"),
 //    CallActionButton(R.drawable.whatsapp, "WhatsApp")
 )
+
+@Preview
+@Composable
+fun ContactDetailsScreenPreview() {
+    ContactDetailsScreen(
+        contact = Contact(name = "John Doe", phoneNumber = "1234567890"),
+        callLogs = listOf(
+            defaultCallLog(),
+            defaultCallLog(CallType.MISSED),
+            defaultCallLog(CallType.INCOMING),
+            defaultCallLog(),
+            defaultCallLog(CallType.MISSED),
+            defaultCallLog(CallType.INCOMING),
+        ),
+        onEditClick = {},
+        onDeleteClick = {},
+        navController = NavController(LocalContext.current)
+    )
+}
+
+

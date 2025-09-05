@@ -107,7 +107,7 @@ fun SearchScreen(
         when (text.text.isEmpty()) {
             true -> NoItem()
             false -> {
-                LazyColumn {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item {
                         if (filteredContacts.isNotEmpty()) Text(
                             "Contacts",
@@ -115,7 +115,7 @@ fun SearchScreen(
                         )
                     }
                     items(filteredContacts) { contact ->
-                        FilteredContactsBasedOnDialedDigitsItem(contact)
+                        ContactItem(contact, navController)
                     }
 
                     item {
@@ -125,7 +125,10 @@ fun SearchScreen(
                         )
                     }
                     items(filteredCallLogs) { callLog ->
-                        FilteredCallLogItem(callLog)
+                        CallLogItem(
+                            callLog,
+                            onCallLogEntryClick = { TODO() }
+                        )
                     }
 
 

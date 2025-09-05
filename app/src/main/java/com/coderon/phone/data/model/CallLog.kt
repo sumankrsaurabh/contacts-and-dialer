@@ -11,12 +11,12 @@ data class CallLog(
     val callTime: Long
 )
 
-fun defaultCallLog(): CallLog {
+fun defaultCallLog(callType: CallType = CallType.OUTGOING): CallLog {
     return CallLog(
         id = 0L,
         contact = null,
         phoneNumber = "7808140285",
-        callType = CallType.OUTGOING,
+        callType = callType,
         callDuration = "000",
         callTime = currentTimeMillis()
     )

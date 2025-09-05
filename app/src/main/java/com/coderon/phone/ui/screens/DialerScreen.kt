@@ -14,15 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MissedVideoCall
 import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,17 +38,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.coderon.phone.R
-import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
-import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.data.model.defaultCallLog
 import com.coderon.phone.ui.utils.ActionsMenuTop
 import com.coderon.phone.utils.initiateCall
 import kotlinx.coroutines.flow.Flow
@@ -93,15 +86,20 @@ fun DialerScreen(
         ActionsMenuTop(navController = navController)
 
         if (dialedNumber.isNotEmpty()) {
-            LazyColumn(Modifier.weight(1f)) {
+            LazyColumn(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 // Display unique call logs and contacts
                 items(uniqueEntries.values.toList()) { contactOrCallLog ->
                     when (contactOrCallLog) {
-                        is CallLog -> FilteredCallLogItem(
+                        is CallLog -> CallLogItem(
                             contactOrCallLog, onCallLogEntryClick = { dialedNumber = it })
 
-                        is Contact -> FilteredContactsBasedOnDialedDigitsItem(
-                            contactOrCallLog, onCallLogEntryClick = { dialedNumber = it })
+                        is Contact -> ContactItem(
+                            contactOrCallLog,
+                            navController = navController/*, onCallLogEntryClick = { dialedNumber = it }*/
+                        )
                     }
                 }
             }
@@ -186,102 +184,6 @@ fun DialerScreen(
     }
 }
 
-@Preview
-@Composable
-fun FilteredCallLogItem(
-    callLogEntry: CallLog = defaultCallLog(), onCallLogEntryClick: (String) -> Unit = { }
-) {
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(50),
-        onClick = { onCallLogEntryClick(callLogEntry.phoneNumber) }) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(
-                    when (callLogEntry.callType) {
-                        CallType.INCOMING -> R.drawable.incoming_call
-                        CallType.OUTGOING -> R.drawable.outgoing_call
-                        CallType.MISSED -> R.drawable.missed_call
-                        else -> R.drawable.call
-                    }
-                ),
-                contentDescription = "Call Type",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(
-                modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center
-            ) {
-                Text(text = callLogEntry.contact?.name?.ifBlank { callLogEntry.phoneNumber }
-                    ?: callLogEntry.phoneNumber,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = callLogEntry.phoneNumber,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Normal
-                )
-            }
-            Text(
-                text = callLogEntry.callTime.formatTime(),
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Normal
-            )
-        }
-    }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun FilteredContactsBasedOnDialedDigitsItem(
-    contact: Contact = Contact(name = "Little princes", phoneNumber = "1597534862"),
-    onCallLogEntryClick: (String) -> Unit = { }
-
-) {
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(50),
-        onClick = { onCallLogEntryClick(contact.phoneNumber) }) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ContactProfileImage(contact)
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                Text(
-                    text = contact.name.ifBlank { contact.phoneNumber },
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = contact.phoneNumber,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Normal
-                )
-            }
-        }
-    }
-}
-
-
 @Composable
 private fun DialPad(playTones: (Char) -> Unit, onDigitPress: (String) -> Unit) {
     val digitLetters = mapOf(
@@ -316,7 +218,6 @@ private fun DialPad(playTones: (Char) -> Unit, onDigitPress: (String) -> Unit) {
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                             .padding(8.dp)
-                            .graphicsLayer(scaleX = scale.value, scaleY = scale.value)
                             .clickable {
                                 onDigitPress(digitInDialPadRow.toString())
                                 playTones(digitInDialPadRow)
@@ -324,7 +225,8 @@ private fun DialPad(playTones: (Char) -> Unit, onDigitPress: (String) -> Unit) {
                                     scale.animateTo(0.8f, animationSpec = spring())
                                     scale.animateTo(1f, animationSpec = spring())
                                 }
-                            },
+                            }
+                            .graphicsLayer(scaleX = scale.value, scaleY = scale.value),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
