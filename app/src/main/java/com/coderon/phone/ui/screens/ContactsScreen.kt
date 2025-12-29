@@ -1,14 +1,9 @@
 package com.coderon.phone.ui.screens
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,15 +20,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +38,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
@@ -50,37 +47,54 @@ import com.coderon.phone.ui.utils.ActionsMenuTop
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen(
-    contacts: Map<Char, List<Contact>>, navController: NavController
+    contacts: Map<Char, List<Contact>>,
+    navController: NavController
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize()
+    val gradient = Brush.linearGradient(
+        colors = listOf(
+            Color(0xFF6A82FB),
+            Color(0xFFFC5C7D)
+        )
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(gradient)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Phone", fontSize = 24.sp)
-            ActionsMenuTop(true, navController)
-        }
-        if (contacts.isEmpty()) {
-            NoContactsFound()
-        } else {
-            LazyColumn {
-                contacts.forEach { (letter, contacts) ->
-                    item { LetterHeader(letter) }
-                    itemsIndexed(contacts) { index, contact ->
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(animationSpec = tween(300)) + slideInHorizontally { it / 2 }) {
-                            ContactItem(
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // Top bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Phone",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                ActionsMenuTop(true, navController)
+            }
+
+            if (contacts.isEmpty()) {
+                NoContactsFoundGlass()
+            } else {
+                LazyColumn {
+                    contacts.forEach { (letter, list) ->
+                        item { LetterHeaderGlass(letter) }
+
+                        itemsIndexed(list) { _, contact ->
+                            ContactItemGlass(
                                 contact = contact,
                                 navController = navController
                             )
+                            Spacer(Modifier.height(6.dp))
                         }
-                        Spacer(Modifier.height(8.dp))
                     }
                 }
             }
@@ -88,122 +102,146 @@ fun ContactsScreen(
     }
 }
 
-
 @Composable
-fun LetterHeader(letter: Char) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 0.dp, horizontal = 16.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = letter.toString(),
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(8.dp)
-        )
-    }
+fun LetterHeaderGlass(letter: Char) {
+    Text(
+        text = letter.toString(),
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+        color = Color.White.copy(alpha = 0.9f)
+    )
 }
 
 @SuppressLint("MissingPermission")
 @Composable
-fun ContactItem(
-    contact: Contact, navController: NavController
+fun ContactItemGlass(
+    contact: Contact,
+    navController: NavController
 ) {
+    val primaryNumber = contact.phoneNumbers.firstOrNull()?.number ?: ""
+
     Card(
-        shape = RoundedCornerShape(50), modifier = Modifier
+        shape = RoundedCornerShape(50.dp),
+        modifier = Modifier
             .fillMaxWidth()
-            .animateContentSize()
-            .clickable {
-                navController.navigate(Screen.CallDetails.createRoute(contact.phoneNumber))
-            }
+            .padding(horizontal = 12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.12f)
+        ),
+        border = BorderStroke(
+            1.dp,
+            Color.White.copy(alpha = 0.25f)
+        ),
+        onClick = {
+            navController.navigate(
+                Screen.CallDetails.createRoute(primaryNumber)
+            )
+        }
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+
+            // Avatar
             if (!contact.profilePictureUrl.isNullOrEmpty()) {
                 Image(
                     painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
-                            .crossfade(true).build()
+                        ImageRequest.Builder(LocalContext.current)
+                            .data(contact.profilePictureUrl)
+                            .crossfade(true)
+                            .build()
                     ),
-                    contentDescription = "Profile Picture",
+                    contentDescription = null,
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondary),
+                        .background(Color.White.copy(alpha = 0.25f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = contact.name.first().toString(),
-                        fontSize = 24.sp,
+                        text = contact.displayName.firstOrNull()?.toString() ?: "#",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(Modifier.width(16.dp))
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .animateContentSize()
-            ) {
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text = contact.name,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = contact.displayName,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    maxLines = 1
                 )
 
-                Text(
-                    text = contact.phoneNumber, fontSize = 14.sp, color = Color.Gray
-                )
+                Spacer(Modifier.height(4.dp))
 
+                Text(
+                    text = primaryNumber,
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
             }
         }
     }
 }
 
-
 @Composable
-fun NoContactsFound() {
+fun NoContactsFoundGlass() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 100.dp), contentAlignment = Alignment.Center
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "No contacts found", fontSize = 18.sp, color = Color.Gray
+            text = "No contacts found",
+            fontSize = 18.sp,
+            color = Color.White.copy(alpha = 0.7f)
         )
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
 fun PreviewContactsScreen() {
     val sampleContacts = listOf(
-        Contact("1", "Alice Johnson", "1234567890", null),
-        Contact("2", "Aaron Brown", "9876543210", null),
-        Contact("3", "Alex Carter", "1112223333", "https://example.com/profile1.jpg"),
-        Contact("4", "Brian Lee", "4445556666", null),
-        Contact("5", "Bella Smith", "7778889999", "https://example.com/profile2.jpg"),
-        Contact("6", "Charlie Adams", "0001112222", null),
-        Contact("7", "David White", "3334445555", "https://example.com/profile3.jpg"),
-        Contact("8", "Emma Davis", "6667778888", null)
+        Contact(
+            id = "1",
+            displayName = "Alice Johnson",
+            phoneNumbers = listOf(PhoneNumber("1234567890", isPrimary = true)),
+            profilePictureUrl = null
+        ),
+        Contact(
+            id = "2",
+            displayName = "Brian Lee",
+            phoneNumbers = listOf(PhoneNumber("9876543210", isPrimary = true)),
+            profilePictureUrl = null
+        ),
+        Contact(
+            id = "3",
+            displayName = "Charlie Adams",
+            phoneNumbers = listOf(PhoneNumber("1112223333", isPrimary = true)),
+            profilePictureUrl = "https://example.com/profile.jpg"
+        )
     )
+
     PhoneTheme {
-        ContactsScreen(sampleContacts.groupBy { it.name.first() }, rememberNavController())
+        ContactsScreen(
+            contacts = sampleContacts.groupBy {
+                it.displayName.first().uppercaseChar()
+            },
+            navController = rememberNavController()
+        )
     }
 }

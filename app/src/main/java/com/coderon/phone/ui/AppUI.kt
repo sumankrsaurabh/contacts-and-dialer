@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.call.services.NoCall
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.screens.AddContactScreen
 import com.coderon.phone.ui.screens.CallLogScreen
 import com.coderon.phone.ui.screens.ContactDetailsScreen
@@ -41,102 +42,149 @@ sealed class Screen(val route: String) {
 @Composable
 fun MyApp() {
     val navController = rememberNavController()
+
     val contactViewModel: ContactViewModel = koinViewModel()
     val callLogViewModel: CallLogViewModel = koinViewModel()
 
     val currentCallState = CallManager.phoneState.collectAsStateWithLifecycle().value
-    val contacts =
+
+    val contactsGrouped =
         contactViewModel.groupedContacts.collectAsStateWithLifecycle().value
-    val callLogs = callLogViewModel.allCallLogs.collectAsStateWithLifecycle().value
+
+    val filteredContacts =
+        contactViewModel.allContacts.collectAsStateWithLifecycle().value
+
+    val callLogs =
+        callLogViewModel.filteredCallLogs.collectAsStateWithLifecycle().value
 
     LaunchedEffect(currentCallState) {
         if (currentCallState != NoCall) {
-            navController.navigate(Screen.CallScreen.route) {
-                /* popUpTo(0) // Clear the back stack to prevent going back*/
-            }
+            navController.navigate(Screen.CallScreen.route)
         }
     }
 
     NavHost(
-        navController = navController, startDestination = Screen.Keypad.route
+        navController = navController,
+        startDestination = Screen.Keypad.route
     ) {
+
         fun updateSearchQuery(query: String) {
             contactViewModel.onSearchQueryChanged(query)
             callLogViewModel.onSearchQueryChanged(query)
         }
-        // Screens inside Scaffold (Keypad, Recent, Contacts)
+
+        /* -------------------- KEYPAD -------------------- */
         composable(Screen.Keypad.route) {
             if (currentCallState == NoCall) {
                 ScaffoldScreen(navController) {
                     DialerScreen(
-                        navController,
-                        filterContact = contactViewModel.filteredContacts,
+                        navController = navController,
+                        filterContact = contactViewModel.groupedContacts,
                         filterCallLog = callLogViewModel.filteredCallLogs,
-                        updateSearchQuery = { updateSearchQuery(it) },
-                        playTones = { playTones(it) })
-                }
-            }
-        }
-        composable(Screen.Recent.route) {
-            if (currentCallState == NoCall) {
-                ScaffoldScreen(navController) {
-                    CallLogScreen(
-                        callLogs = callLogs, navController = navController
+                        updateSearchQuery = ::updateSearchQuery,
+                        playTones = { playTones(it) }
                     )
                 }
             }
         }
+
+        /* -------------------- RECENT -------------------- */
+        composable(Screen.Recent.route) {
+            if (currentCallState == NoCall) {
+                ScaffoldScreen(navController) {
+                    CallLogScreen(
+                        callLogs = callLogs,
+                        navController = navController
+                    )
+                }
+            }
+        }
+
+        /* -------------------- CONTACTS -------------------- */
         composable(Screen.Contacts.route) {
             if (currentCallState == NoCall) {
                 ScaffoldScreen(navController) {
-                    ContactsScreen(contacts = contacts, navController)
+                    ContactsScreen(
+                        contacts = contactsGrouped,
+                        navController = navController
+                    )
                 }
             }
         }
 
-        composable(Screen.CallScreen.route) {
-            CallScreen(navController)
-        }
+        /* -------------------- SEARCH -------------------- */
         composable(Screen.Search.route) {
             SearchScreen(
                 navController = navController,
-                contacts = contactViewModel.filteredContacts.collectAsStateWithLifecycle().value.values.flatten(),
-                logs = callLogViewModel.filteredCallLogs.collectAsStateWithLifecycle().value,
-                onSearch = { updateSearchQuery(it) },
-                onBack = { navController.popBackStack() })
+                contacts = filteredContacts,
+                logs = callLogs,
+                onSearch = ::updateSearchQuery,
+                onBack = { navController.popBackStack() }
+            )
         }
+
+        /* -------------------- ADD CONTACT -------------------- */
         composable(Screen.AddContact.route) {
             if (currentCallState == NoCall) {
-                AddContactScreen(onSaveContact = contactViewModel::saveContact)
+                AddContactScreen(
+//                    onSaveContact = contactViewModel::saveContact
+                )
             }
         }
+
+        /* -------------------- CALL DETAILS -------------------- */
         composable(Screen.CallDetails.route) { backStackEntry ->
             if (currentCallState == NoCall) {
-                val phoneNumber = backStackEntry.arguments?.getString("phoneNumber") ?: ""
-                val normalizedRoutePhoneNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
 
-                val callLogs = callLogViewModel.getCallLogsForNumber(normalizedRoutePhoneNumber)
-                    .collectAsStateWithLifecycle(emptyList()).value
+                val routePhoneNumber =
+                    backStackEntry.arguments?.getString("phoneNumber").orEmpty()
 
-                val fetchedContact = contacts.values.flatten().find { contact ->
-                    val contactPhoneNumber = contact.phoneNumber.replace(Regex("[^0-9]"), "")
-                    val contactPhoneNumberWithoutCountryCode =
-                        when {
-                            contactPhoneNumber.startsWith("+91") -> contactPhoneNumber.substring(3)
-                            contactPhoneNumber.startsWith("91") -> contactPhoneNumber.substring(2)
-                            else -> contactPhoneNumber
-                        }
-                    contactPhoneNumberWithoutCountryCode == normalizedRoutePhoneNumber
+                val normalizedRouteNumber =
+                    routePhoneNumber.replace(Regex("[^0-9+]"), "")
+
+                val callLogsForNumber =
+                    callLogViewModel
+                        .getCallLogsForNumber(normalizedRouteNumber)
+                        .collectAsStateWithLifecycle(emptyList())
+                        .value
+
+                val matchedContact = filteredContacts.firstOrNull { contact ->
+                    contact.phoneNumbers.any { phone ->
+                        normalize(phone.number) == normalizedRouteNumber
+                    }
                 }
 
                 ContactDetailsScreen(
-                    contact = fetchedContact ?: Contact(phoneNumber = normalizedRoutePhoneNumber),
-                    callLogs = callLogs,
+                    contact = matchedContact ?: Contact(
+                        id = "",
+                        displayName = normalizedRouteNumber,
+                        phoneNumbers = listOf(
+                            PhoneNumber(normalizedRouteNumber, isPrimary = true)
+                        ),
+                        profilePictureUrl = null
+                    ),
+                    callLogs = callLogsForNumber,
                     navController = navController,
                     onEditClick = { },
                     onDeleteClick = { }
                 )
             }
         }
+
+        /* -------------------- INCALL UI -------------------- */
+        composable(Screen.CallScreen.route) {
+            CallScreen(navController)
+        }
+    }
+}
+
+/* -------------------- HELPERS -------------------- */
+
+private fun normalize(number: String): String {
+    val clean = number.replace(Regex("[^0-9+]"), "")
+    return when {
+        clean.startsWith("+91") -> clean.substring(3)
+        clean.startsWith("91") -> clean.substring(2)
+        else -> clean
     }
 }

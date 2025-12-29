@@ -2,13 +2,21 @@ package com.coderon.phone.data.repository
 
 import android.content.ContentResolver
 import android.content.ContentValues
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.CallLog
 import android.provider.ContactsContract
 import android.telephony.PhoneNumberUtils
 import android.util.Log
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.domain.repository.CallLogRepository
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import java.lang.System.currentTimeMillis
 import com.coderon.phone.data.model.CallLog as CallLogData
 
 class CallLogRepositoryImpl(
@@ -17,14 +25,44 @@ class CallLogRepositoryImpl(
 
     companion object {
         private const val TAG = "CallLogRepo"
-        private const val CACHE_DURATION = 10 * 60 * 1000L // 10 minutes
+        private const val CACHE_DURATION = 10 * 60 * 1000L // 10 min
     }
 
     private val contactsCache = mutableMapOf<String, Pair<Contact?, Long>>()
 
-    override suspend fun getCallLogs(): List<CallLogData> {
-        Log.d(TAG, "Loading call logs from device")
+    // -------------------------------
+    // AUTO REFRESH CALL LOGS (FLOW)
+    // -------------------------------
+    override fun observeCallLogs(): Flow<List<CallLogData>> = callbackFlow {
 
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                trySend(loadCallLogs())
+            }
+        }
+
+        contentResolver.registerContentObserver(
+            CallLog.Calls.CONTENT_URI,
+            true,
+            observer
+        )
+
+        // Emit initial data
+        trySend(loadCallLogs())
+
+        awaitClose {
+            contentResolver.unregisterContentObserver(observer)
+        }
+    }
+
+    // -------------------------------
+    // ONE-TIME LOAD
+    // -------------------------------
+    override suspend fun getCallLogs(): List<CallLogData> {
+        return loadCallLogs()
+    }
+
+    private fun loadCallLogs(): List<CallLogData> {
         val callLogs = mutableListOf<CallLogData>()
 
         val projection = arrayOf(
@@ -32,23 +70,17 @@ class CallLogRepositoryImpl(
             CallLog.Calls.NUMBER,
             CallLog.Calls.TYPE,
             CallLog.Calls.DURATION,
-            CallLog.Calls.DATE
+            CallLog.Calls.DATE,
+            CallLog.Calls.PHONE_ACCOUNT_ID
         )
-
-        val sortOrder = "${CallLog.Calls.DATE} DESC"
 
         val cursor = contentResolver.query(
             CallLog.Calls.CONTENT_URI,
             projection,
             null,
             null,
-            sortOrder
-        )
-
-        if (cursor == null) {
-            Log.e(TAG, "Call log query returned null cursor")
-            return emptyList()
-        }
+            "${CallLog.Calls.DATE} DESC"
+        ) ?: return emptyList()
 
         cursor.use {
             val idIndex = it.getColumnIndexOrThrow(CallLog.Calls._ID)
@@ -60,117 +92,115 @@ class CallLogRepositoryImpl(
             while (it.moveToNext()) {
                 val id = it.getLong(idIndex)
                 val rawNumber = it.getString(numberIndex) ?: continue
-                val normalizedNumber = PhoneNumberUtils.normalizeNumber(rawNumber)
-
-                val callType = mapCallType(it.getInt(typeIndex))
-                val duration = it.getLong(durationIndex).toString()
-                val date = it.getLong(dateIndex)
-
-                val contact = getCachedOrFetchContact(normalizedNumber)
+                val normalized = PhoneNumberUtils.normalizeNumber(rawNumber)
 
                 callLogs.add(
                     CallLogData(
                         id = id,
-                        contact = contact,
                         phoneNumber = rawNumber,
-                        callType = callType,
-                        callDuration = duration,
-                        callTime = date
+                        callType = mapCallType(it.getInt(typeIndex)),
+                        callDurationSeconds = it.getInt(durationIndex),
+                        callTime = it.getLong(dateIndex),
+                        contact = getCachedOrFetchContact(normalized)
                     )
                 )
             }
         }
 
-        Log.d(TAG, "Call logs fetched successfully: ${callLogs.size} entries")
+        Log.d(TAG, "Loaded ${callLogs.size} call logs")
         return callLogs
     }
 
+    // -------------------------------
+    // INSERT CALL LOG
+    // -------------------------------
     override suspend fun addCallLog(callLog: CallLogData) {
         val values = ContentValues().apply {
             put(CallLog.Calls.NUMBER, callLog.phoneNumber)
-            put(CallLog.Calls.TYPE, callLog.callType.ordinal)
-            put(CallLog.Calls.DURATION, callLog.callDuration)
-            put(CallLog.Calls.DATE, System.currentTimeMillis())
+            put(CallLog.Calls.TYPE, mapCallTypeToSystem(callLog.callType))
+            put(CallLog.Calls.DURATION, callLog.callDurationSeconds)
+            put(CallLog.Calls.DATE, currentTimeMillis())
         }
 
-        val resultUri = contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
-        if (resultUri != null) {
-            Log.d(TAG, "Call log inserted successfully: ${callLog.phoneNumber}")
-        } else {
-            Log.e(TAG, "Failed to insert call log for: ${callLog.phoneNumber}")
-        }
+        contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
     }
 
+    // -------------------------------
+    // DELETE CALL LOG
+    // -------------------------------
     override suspend fun deleteCallLog(callLog: CallLogData) {
-        try {
-            val uri = CallLog.Calls.CONTENT_URI
-            val selection = "${CallLog.Calls._ID} = ?"
-            val selectionArgs = arrayOf(callLog.id.toString())
-
-            val rowsDeleted = contentResolver.delete(uri, selection, selectionArgs)
-
-            if (rowsDeleted > 0) {
-                Log.d(TAG, "Deleted call log entry with ID: ${callLog.id}")
-            } else {
-                Log.w(TAG, "No call log entry found with ID: ${callLog.id}")
-            }
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Permission denied: Cannot delete call log", e)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deleting call log with ID: ${callLog.id}", e)
-        }
+        contentResolver.delete(
+            CallLog.Calls.CONTENT_URI,
+            "${CallLog.Calls._ID}=?",
+            arrayOf(callLog.id.toString())
+        )
     }
 
-
-    private fun mapCallType(type: Int): CallType {
-        return when (type) {
-            CallLog.Calls.INCOMING_TYPE -> CallType.INCOMING
-            CallLog.Calls.OUTGOING_TYPE -> CallType.OUTGOING
-            CallLog.Calls.MISSED_TYPE -> CallType.MISSED
-            CallLog.Calls.REJECTED_TYPE -> CallType.REJECTED
-            else -> CallType.UNKNOWN
-        }
+    // -------------------------------
+    // HELPERS
+    // -------------------------------
+    private fun mapCallType(type: Int): CallType = when (type) {
+        CallLog.Calls.INCOMING_TYPE -> CallType.INCOMING
+        CallLog.Calls.OUTGOING_TYPE -> CallType.OUTGOING
+        CallLog.Calls.MISSED_TYPE -> CallType.MISSED
+        CallLog.Calls.REJECTED_TYPE -> CallType.REJECTED
+        else -> CallType.UNKNOWN
     }
 
+    private fun mapCallTypeToSystem(type: CallType): Int = when (type) {
+        CallType.INCOMING -> CallLog.Calls.INCOMING_TYPE
+        CallType.OUTGOING -> CallLog.Calls.OUTGOING_TYPE
+        CallType.MISSED -> CallLog.Calls.MISSED_TYPE
+        CallType.REJECTED -> CallLog.Calls.REJECTED_TYPE
+        else -> CallLog.Calls.OUTGOING_TYPE
+    }
+
+    // -------------------------------
+    // CONTACT CACHE
+    // -------------------------------
     private fun getCachedOrFetchContact(phoneNumber: String): Contact? {
-        val currentTime = System.currentTimeMillis()
+        val now = currentTimeMillis()
         val cached = contactsCache[phoneNumber]
 
-        return if (cached != null && currentTime - cached.second < CACHE_DURATION) {
+        return if (cached != null && now - cached.second < CACHE_DURATION) {
             cached.first
         } else {
-            val contact = fetchContactFromContactsContract(phoneNumber)
-            contactsCache[phoneNumber] = contact to currentTime
+            val contact = fetchContact(phoneNumber)
+            contactsCache[phoneNumber] = contact to now
             contact
         }
     }
 
-    private fun fetchContactFromContactsContract(phoneNumber: String): Contact? {
-        val uri = ContactsContract.PhoneLookup.CONTENT_FILTER_URI.buildUpon()
+    private fun fetchContact(phoneNumber: String): Contact? {
+        val uri = ContactsContract.PhoneLookup.CONTENT_FILTER_URI
+            .buildUpon()
             .appendPath(phoneNumber)
             .build()
 
         val projection = arrayOf(
+            ContactsContract.PhoneLookup._ID,
             ContactsContract.PhoneLookup.DISPLAY_NAME,
             ContactsContract.PhoneLookup.PHOTO_URI
         )
 
-        return contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val name = cursor.getString(
-                    cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.DISPLAY_NAME)
-                )
-                val photoUri = cursor.getString(
-                    cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.PHOTO_URI)
-                )
+        return contentResolver.query(uri, projection, null, null, null)?.use {
+            if (!it.moveToFirst()) return null
 
-                Contact(
-                    id = "", // Optional: could extract ID if needed
-                    name = name ?: "Unknown",
-                    profilePictureUrl = photoUri,
-                    phoneNumber = phoneNumber
+            Contact(
+                id = it.getString(it.getColumnIndexOrThrow(ContactsContract.PhoneLookup._ID)),
+                displayName = it.getString(
+                    it.getColumnIndexOrThrow(ContactsContract.PhoneLookup.DISPLAY_NAME)
+                ) ?: "Unknown",
+                profilePictureUrl = it.getString(
+                    it.getColumnIndexOrThrow(ContactsContract.PhoneLookup.PHOTO_URI)
+                ),
+                phoneNumbers = listOf(
+                    PhoneNumber(
+                        number = phoneNumber,
+                        isPrimary = true
+                    )
                 )
-            } else null
+            )
         }
     }
 }

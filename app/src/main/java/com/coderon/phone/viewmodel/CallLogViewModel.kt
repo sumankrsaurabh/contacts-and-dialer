@@ -3,7 +3,6 @@ package com.coderon.phone.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.domain.repository.CallLogRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +13,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.coderon.phone.data.model.CallLog as CallLogEntry
 
 class CallLogViewModel(
     private val callLogRepository: CallLogRepository
@@ -23,63 +23,79 @@ class CallLogViewModel(
         private const val TAG = "CallLogViewModel"
     }
 
-    private val _allCallLogs = MutableStateFlow<List<CallLog>>(emptyList())
-    val allCallLogs: StateFlow<List<CallLog>> = _allCallLogs.asStateFlow()
-
+    // -------------------------------
+    // SEARCH QUERY
+    // -------------------------------
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    val filteredCallLogs: StateFlow<List<CallLog>> = combine(
-        _allCallLogs,
+    // -------------------------------
+    // AUTO-REFRESHED CALL LOGS
+    // -------------------------------
+    private val allCallLogs: StateFlow<List<CallLogEntry>> =
+        callLogRepository.observeCallLogs()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList()
+            )
+
+    // -------------------------------
+    // FILTERED CALL LOGS
+    // -------------------------------
+    val filteredCallLogs: StateFlow<List<CallLogEntry>> = combine(
+        allCallLogs,
         _searchQuery
     ) { logs, query ->
         if (query.isBlank()) {
             logs
         } else {
             logs.filter { log ->
-                log.contact?.name?.contains(query, ignoreCase = true) == true ||
-                        log.phoneNumber.contains(query, ignoreCase = true)
+                log.contact?.displayName
+                    ?.contains(query, ignoreCase = true) == true ||
+                        log.phoneNumber.contains(query)
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList()
+    )
 
+    // -------------------------------
+    // INIT
+    // -------------------------------
     init {
-        fetchCallLogs()
+        Log.d(TAG, "CallLogViewModel initialized")
     }
 
-    private fun fetchCallLogs() {
-        viewModelScope.launch {
-            try {
-                val logs = callLogRepository.getCallLogs()
-                _allCallLogs.value = logs
-                Log.d(TAG, "Fetched ${logs.size} call logs")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching call logs", e)
-            }
-        }
-    }
-
+    // -------------------------------
+    // SEARCH
+    // -------------------------------
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
 
-    fun getCallLogsForNumber(phoneNumber: String): Flow<List<CallLog>> {
+    // -------------------------------
+    // FILTER BY NUMBER
+    // -------------------------------
+    fun getCallLogsForNumber(phoneNumber: String): Flow<List<CallLogEntry>> {
         return allCallLogs.map { logs ->
             logs.filter { it.phoneNumber == phoneNumber }
         }
     }
 
-    fun deleteCallLog(callLog: CallLog): Boolean {
+    // -------------------------------
+    // DELETE CALL LOG
+    // -------------------------------
+    fun deleteCallLog(callLog: CallLogEntry) {
         viewModelScope.launch {
             try {
                 callLogRepository.deleteCallLog(callLog)
-                _allCallLogs.value = _allCallLogs.value - callLog
-                Log.d(TAG, "Fetched ${_allCallLogs.value.size} call logs")
-                true
+                Log.d(TAG, "Deleted call log id=${callLog.id}")
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching call logs", e)
+                Log.e(TAG, "Error deleting call log", e)
             }
         }
-        return false
     }
 }

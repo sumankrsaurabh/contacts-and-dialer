@@ -64,7 +64,7 @@ fun CallScreen(
 
             when (currentCallState) {
                 State.RINGING -> IncomingCallScreen(
-                    name = contact?.name,
+                    name = contact?.displayName,
                     phoneNumber = phoneNumber,
                     profilePictureUrl = contact?.profilePictureUrl,
                     onAnswer = {
@@ -84,7 +84,7 @@ fun CallScreen(
                 }
 
                 else -> OngoingCallScreen(
-                    contactName = contact?.name.orEmpty(),
+                    contactName = contact?.displayName.orEmpty(),
                     contactPhoneNumber = phoneNumber,
                     state = currentCallState,
                     currentAudioRoute = currentAudioRoute,
@@ -93,7 +93,10 @@ fun CallScreen(
                     callDuration = callDuration.formatCallDuration(),
                     bluetoothDeviceConnected = isBluetoothAvailable(context),
                     callType = getCallType(context),  // ✅ Pass Call Type (VoLTE, HD, Wi-Fi)
-                    simInfo = getSimInfo(context,singleCall.call.details.accountHandle),    // ✅ Pass SIM Info (SIM 1 - Jio)
+                    simInfo = getSimInfo(
+                        context,
+                        singleCall.call.details.accountHandle
+                    ),    // ✅ Pass SIM Info (SIM 1 - Jio)
                     onEndCall = {
                         coroutineScope.launch {
                             CallManager.rejectCall()

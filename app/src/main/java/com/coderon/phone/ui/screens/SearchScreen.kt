@@ -115,7 +115,7 @@ fun SearchScreen(
                         )
                     }
                     items(filteredContacts) { contact ->
-                        ContactItem(contact, navController)
+                        ContactItemGlass(contact, navController)
                     }
 
                     item {
@@ -163,14 +163,12 @@ private fun Test() {
         ), navController = rememberNavController(), logs = listOf(
             CallLog(
                 id = 0L,
-                callDuration = "30",
                 contact = Contact("1", "Suman Kumar Saurabh", "780840285", null),
                 callTime = System.currentTimeMillis() - 3600000,
                 callType = CallType.INCOMING,
                 phoneNumber = "7808140285"
             ), CallLog(
                 id = 1L,
-                callDuration = "45",
                 contact = Contact(
                     "2", "Aarav Sharma", "9998887776", "https://example.com/profile1.jpg"
                 ),

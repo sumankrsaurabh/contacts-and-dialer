@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -52,239 +53,252 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.R
-import com.coderon.phone.data.helpers.formatDuration
 import com.coderon.phone.data.helpers.formatTime
-import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.data.model.defaultCallLog
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.Text
+import com.coderon.phone.data.model.CallLog as CallLogEntry
+
+/* ------------------------------------------------
+   SCREEN
+------------------------------------------------ */
 
 @Composable
 fun ContactDetailsScreen(
     contact: Contact,
-    callLogs: List<CallLog>,
+    callLogs: List<CallLogEntry>,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     navController: NavController
 ) {
     Scaffold(
         containerColor = if (isSystemInDarkTheme()) Color.Black else Color.White
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-//                .padding(paddingValues)
+                .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            ContactDetails(
+            ContactHeader(
                 contact = contact,
                 onEditClick = onEditClick,
                 onDeleteClick = onDeleteClick,
                 navController = navController
             )
+
             CallLogList(callLogs)
         }
     }
 }
 
-@Composable
+/* ------------------------------------------------
+   HEADER
+------------------------------------------------ */
+
 @SuppressLint("MissingPermission")
-fun ContactDetails(
+@Composable
+private fun ContactHeader(
     contact: Contact,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     navController: NavController
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val primaryNumber = contact.phoneNumbers.firstOrNull()?.number.orEmpty()
 
-    Column {
-        TopAppBar(
-            navigationIcon = {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
-                }
-            }, title = {}, actions = {
-                IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Rounded.MoreVert, contentDescription = "More")
-                }
-                DropdownMenu(
-                    expanded = expanded, onDismissRequest = { expanded = false }) {
-                    DropdownMenuItem(text = { Text("Edit") }, onClick = {
-                        expanded = false
-                        onEditClick()
-                    })
-                    DropdownMenuItem(text = { Text("Delete") }, onClick = {
-                        expanded = false
-                        onDeleteClick()
-                    })
-                }
-            }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+            }
+        }, title = {}, actions = {
+            IconButton(onClick = { expanded = true }) {
+                Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+            }
+            DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Edit") },
+                    onClick = { expanded = false; onEditClick() })
+                DropdownMenuItem(
+                    text = { Text("Delete") },
+                    onClick = { expanded = false; onDeleteClick() })
+            }
+        }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+        // Avatar
+        if (!contact.profilePictureUrl.isNullOrEmpty()) {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
+                        .crossfade(true).placeholder(R.drawable.profile_picture_call).build()
+                ), contentDescription = null, modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondary),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = contact.displayName.firstOrNull()?.toString() ?: "#",
+                    fontSize = 48.sp,
+                    color = Color.White
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            text = contact.displayName.ifBlank { primaryNumber }, fontSize = 24.sp
         )
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (contact.profilePictureUrl != null) {
-                Image(
-                    painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
-                            .crossfade(true).placeholder(R.drawable.profile_picture_call).build()
-                    ),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (contact.name.isEmpty()) contact.phoneNumber.firstOrNull()
-                            .toString() else contact.name.firstOrNull().toString(),
-                        fontSize = 48.sp,
-                        color = Color.White
-                    )
-                }
-            }
+        if (contact.displayName.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(text = primaryNumber, fontSize = 16.sp)
+        }
 
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = contact.name.ifBlank { contact.phoneNumber }, fontSize = 24.sp)
-                if (contact.name.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = contact.phoneNumber, fontSize = 16.sp)
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(50))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(vertical = 12.dp, horizontal = 16.dp)
-                ) {
-                    callActionButtons.forEach { buttons ->
-                        Box(
-                            contentAlignment = Alignment.Center, modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50)
-                                )
-                                .size(64.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(buttons.icon),
-                                contentDescription = buttons.text,
-                                tint = if (isSystemInDarkTheme()) Color.White else Color.Black
-                            )
-                        }
-                    }
-                }
-            }
+        Spacer(Modifier.height(16.dp))
+
+        // Action buttons
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(vertical = 12.dp, horizontal = 16.dp)
+        ) {
+//            callActionButtons.forEach { button ->
+//                Box(
+//                    modifier = Modifier
+//                        .size(64.dp)
+//                        .background(
+//                            MaterialTheme.colorScheme.surfaceVariant,
+//                            RoundedCornerShape(50)
+//                        ),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Icon(
+//                        painter = painterResource(button.icon),
+//                        contentDescription = button.text,
+//                        tint = if (isSystemInDarkTheme()) Color.White else Color.Black
+//                    )
+//                }
+//            }
         }
     }
 }
 
+/* ------------------------------------------------
+   CALL LOG LIST
+------------------------------------------------ */
+
 @Composable
-fun CallLogList(callLogs: List<CallLog>) {
-    LazyColumn {
-        item {
-            Text(
-                "Recent calls",
-                fontSize = 18.sp,
-                color = if (isSystemInDarkTheme()) Color.White else Color.Black,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            )
-        }
-        items(callLogs) { log ->
-            CallLogItemDetails(log)
-        }
-    }
+private fun CallLogList(callLogs: List<CallLogEntry>) {
     if (callLogs.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center
         ) {
             Text("No recent calls found")
         }
+        return
+    }
+
+    LazyColumn {
+        item {
+            Text(
+                "Recent calls", fontSize = 18.sp, modifier = Modifier.padding(8.dp)
+            )
+        }
+        items(callLogs) { log ->
+            CallLogItemDetails(log)
+        }
     }
 }
 
 @Composable
-fun CallLogItemDetails(log: CallLog) {
+private fun CallLogItemDetails(log: CallLogEntry) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(50),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 12.dp, horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                when (log.callType) {
-                    CallType.INCOMING -> painterResource(R.drawable.incoming_call)
-                    CallType.OUTGOING -> painterResource(R.drawable.outgoing_call)
-                    CallType.MISSED -> painterResource(R.drawable.incoming_call)
-                    else -> painterResource(R.drawable.call)
-                },
+                painter = painterResource(
+                    when (log.callType) {
+                        CallType.INCOMING -> R.drawable.incoming_call
+                        CallType.OUTGOING -> R.drawable.outgoing_call
+                        CallType.MISSED -> R.drawable.missed_call
+                        else -> R.drawable.call
+                    }
+                ),
                 contentDescription = log.callType.name,
-                tint = if (log.callType == CallType.MISSED) Color.Red else Color.Black
+                tint = if (log.callType == CallType.MISSED) Color.Red
+                else MaterialTheme.colorScheme.onSurface
             )
 
-            Column(
-                modifier = Modifier
-                    .padding(start = 16.dp)
-                    .weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
+            Spacer(Modifier.width(16.dp))
+
+            Column(Modifier.weight(1f)) {
                 Text(text = log.phoneNumber, fontSize = 16.sp)
-                Text(text = log.callDuration.toLong().formatDuration(), fontSize = 16.sp)
+                Text(
+                    text = log.callDurationSeconds.toString(), fontSize = 14.sp
+                )
             }
-            Text(text = log.callTime.formatTime(), fontSize = 16.sp)
+
+            Text(
+                text = log.callTime.formatTime(), fontSize = 14.sp
+            )
         }
     }
 }
 
-private data class CallActionButton(
-    val icon: Int, val text: String
-)
+/* ------------------------------------------------
+   PREVIEW
+------------------------------------------------ */
 
-private val callActionButtons = listOf(
-    CallActionButton(R.drawable.call, "Call"),
-    CallActionButton(R.drawable.message, "Message"),
-//    CallActionButton(R.drawable.whatsapp, "WhatsApp")
-)
-
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun ContactDetailsScreenPreview() {
     ContactDetailsScreen(
-        contact = Contact(name = "John Doe", phoneNumber = "1234567890"),
-        callLogs = listOf(
-            defaultCallLog(),
-            defaultCallLog(CallType.MISSED),
-            defaultCallLog(CallType.INCOMING),
-            defaultCallLog(),
-            defaultCallLog(CallType.MISSED),
-            defaultCallLog(CallType.INCOMING),
-        ),
-        onEditClick = {},
-        onDeleteClick = {},
-        navController = NavController(LocalContext.current)
+        contact = Contact(
+            id = "1", displayName = "John Doe", phoneNumbers = listOf(
+                PhoneNumber("1234567890", isPrimary = true)
+            ), profilePictureUrl = null
+        ), callLogs = listOf(
+            CallLogEntry(
+                id = 1,
+                phoneNumber = "1234567890",
+                callType = CallType.OUTGOING,
+                callDurationSeconds = 45,
+                callTime = System.currentTimeMillis()
+            ), CallLogEntry(
+                id = 2,
+                phoneNumber = "1234567890",
+                callType = CallType.MISSED,
+                callDurationSeconds = 0,
+                callTime = System.currentTimeMillis()
+            )
+        ), onEditClick = {}, onDeleteClick = {}, navController = NavController(LocalContext.current)
     )
 }
-
-
