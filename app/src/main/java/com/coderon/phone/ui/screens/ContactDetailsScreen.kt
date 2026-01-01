@@ -9,6 +9,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,15 +51,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.R
 import com.coderon.phone.data.helpers.formatTime
+import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
+import com.coderon.phone.data.model.PhoneNumberType
 import com.coderon.phone.ui.Text
-import com.coderon.phone.data.model.CallLog as CallLogEntry
+import com.coderon.phone.ui.theme.PhoneTheme
 
 /* ------------------------------------------------
    SCREEN
@@ -67,28 +71,57 @@ import com.coderon.phone.data.model.CallLog as CallLogEntry
 @Composable
 fun ContactDetailsScreen(
     contact: Contact,
-    callLogs: List<CallLogEntry>,
+    callLogs: List<CallLog>,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     navController: NavController
 ) {
     Scaffold(
-        containerColor = if (isSystemInDarkTheme()) Color.Black else Color.White
+        containerColor =
+            if (isSystemInDarkTheme()) Color.Black else Color.White
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            ContactHeader(
-                contact = contact,
-                onEditClick = onEditClick,
-                onDeleteClick = onDeleteClick,
-                navController = navController
-            )
+            item {
+                ContactHeader(
+                    contact = contact,
+                    onEditClick = onEditClick,
+                    onDeleteClick = onDeleteClick,
+                    navController = navController
+                )
+            }
 
-            CallLogList(callLogs)
+            item {
+                Spacer(Modifier.height(16.dp))
+                PhoneNumbersSection(contact.phoneNumbers)
+            }
+
+            if (contact.emailAddresses.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(16.dp))
+                    EmailSection(contact.emailAddresses)
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(16.dp))
+                StatusSection(contact)
+            }
+
+            if (callLogs.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(24.dp))
+                    Text("Recent Calls", fontSize = 18.sp)
+                }
+
+                items(callLogs) { log ->
+                    CallLogItem(log)
+                }
+            }
         }
     }
 }
@@ -106,37 +139,44 @@ private fun ContactHeader(
     navController: NavController
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val primaryNumber = contact.phoneNumbers.firstOrNull()?.number.orEmpty()
 
     TopAppBar(
         navigationIcon = {
             IconButton(onClick = { navController.popBackStack() }) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, null)
             }
-        }, title = {}, actions = {
+        },
+        title = {},
+        actions = {
             IconButton(onClick = { expanded = true }) {
-                Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+                Icon(Icons.Rounded.MoreVert, null)
             }
-            DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(expanded, { expanded = false }) {
                 DropdownMenuItem(
                     text = { Text("Edit") },
-                    onClick = { expanded = false; onEditClick() })
+                    onClick = { expanded = false; onEditClick() }
+                )
                 DropdownMenuItem(
                     text = { Text("Delete") },
-                    onClick = { expanded = false; onDeleteClick() })
+                    onClick = { expanded = false; onDeleteClick() }
+                )
             }
-        }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
     )
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-        // Avatar
         if (!contact.profilePictureUrl.isNullOrEmpty()) {
             Image(
                 painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(LocalContext.current).data(contact.profilePictureUrl)
-                        .crossfade(true).placeholder(R.drawable.profile_picture_call).build()
-                ), contentDescription = null, modifier = Modifier
+                    ImageRequest.Builder(LocalContext.current)
+                        .data(contact.profilePictureUrl)
+                        .crossfade(true)
+                        .build()
+                ),
+                contentDescription = null,
+                modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
             )
@@ -145,7 +185,7 @@ private fun ContactHeader(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondary),
+                    .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -159,100 +199,105 @@ private fun ContactHeader(
         Spacer(Modifier.height(12.dp))
 
         Text(
-            text = contact.displayName.ifBlank { primaryNumber }, fontSize = 24.sp
+            text = contact.displayName,
+            fontSize = 24.sp
         )
 
-        if (contact.displayName.isNotBlank()) {
-            Spacer(Modifier.height(4.dp))
-            Text(text = primaryNumber, fontSize = 16.sp)
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Action buttons
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(vertical = 12.dp, horizontal = 16.dp)
-        ) {
-//            callActionButtons.forEach { button ->
-//                Box(
-//                    modifier = Modifier
-//                        .size(64.dp)
-//                        .background(
-//                            MaterialTheme.colorScheme.surfaceVariant,
-//                            RoundedCornerShape(50)
-//                        ),
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    Icon(
-//                        painter = painterResource(button.icon),
-//                        contentDescription = button.text,
-//                        tint = if (isSystemInDarkTheme()) Color.White else Color.Black
-//                    )
-//                }
-//            }
+        if (contact.firstName != null || contact.lastName != null) {
+            Text(
+                text = listOfNotNull(contact.firstName, contact.lastName).joinToString(" "),
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 /* ------------------------------------------------
-   CALL LOG LIST
+   PHONE NUMBERS
 ------------------------------------------------ */
 
 @Composable
-private fun CallLogList(callLogs: List<CallLogEntry>) {
-    if (callLogs.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center
-        ) {
-            Text("No recent calls found")
-        }
-        return
-    }
-
-    LazyColumn {
-        item {
-            Text(
-                "Recent calls", fontSize = 18.sp, modifier = Modifier.padding(8.dp)
-            )
-        }
-        items(callLogs) { log ->
-            CallLogItemDetails(log)
+private fun PhoneNumbersSection(numbers: List<PhoneNumber>) {
+    SectionCard("Phone Numbers") {
+        numbers.forEach { phone ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(phone.number)
+                Text(
+                    phone.type.name,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
+/* ------------------------------------------------
+   EMAILS
+------------------------------------------------ */
+
 @Composable
-private fun CallLogItemDetails(log: CallLogEntry) {
+private fun EmailSection(emails: List<String>) {
+    SectionCard("Emails") {
+        emails.forEach {
+            Text(it, modifier = Modifier.padding(vertical = 4.dp))
+        }
+    }
+}
+
+/* ------------------------------------------------
+   STATUS
+------------------------------------------------ */
+
+@Composable
+private fun StatusSection(contact: Contact) {
+    SectionCard("Status") {
+        if (contact.isFavorite) Text("⭐ Favorite")
+        if (contact.isBlocked) Text("🚫 Blocked")
+        if (!contact.isFavorite && !contact.isBlocked) {
+            Text("Normal contact")
+        }
+    }
+}
+
+/* ------------------------------------------------
+   CALL LOG ITEM
+------------------------------------------------ */
+
+@Composable
+private fun CallLogItem(log: CallLog) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(50),
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+
             Icon(
                 painter = painterResource(
                     when (log.callType) {
                         CallType.INCOMING -> R.drawable.incoming_call
                         CallType.OUTGOING -> R.drawable.outgoing_call
                         CallType.MISSED -> R.drawable.missed_call
+                        CallType.REJECTED -> R.drawable.call
+                        CallType.BLOCKED -> R.drawable.call
+                        CallType.VOICEMAIL -> R.drawable.call
                         else -> R.drawable.call
                     }
                 ),
-                contentDescription = log.callType.name,
+                contentDescription = null,
                 tint = if (log.callType == CallType.MISSED) Color.Red
                 else MaterialTheme.colorScheme.onSurface
             )
@@ -260,45 +305,77 @@ private fun CallLogItemDetails(log: CallLogEntry) {
             Spacer(Modifier.width(16.dp))
 
             Column(Modifier.weight(1f)) {
-                Text(text = log.phoneNumber, fontSize = 16.sp)
+                Text(log.phoneNumber)
                 Text(
-                    text = log.callDurationSeconds.toString(), fontSize = 14.sp
+                    "${log.callType.name} • SIM ${log.simSlot}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Text(
-                text = log.callTime.formatTime(), fontSize = 14.sp
+                text = log.callTime.formatTime(),
+                fontSize = 12.sp
             )
         }
     }
 }
 
 /* ------------------------------------------------
-   PREVIEW
+   SECTION CARD
 ------------------------------------------------ */
 
-@Preview(showBackground = true)
 @Composable
-fun ContactDetailsScreenPreview() {
-    ContactDetailsScreen(
-        contact = Contact(
-            id = "1", displayName = "John Doe", phoneNumbers = listOf(
-                PhoneNumber("1234567890", isPrimary = true)
-            ), profilePictureUrl = null
-        ), callLogs = listOf(
-            CallLogEntry(
-                id = 1,
-                phoneNumber = "1234567890",
-                callType = CallType.OUTGOING,
-                callDurationSeconds = 45,
-                callTime = System.currentTimeMillis()
-            ), CallLogEntry(
-                id = 2,
-                phoneNumber = "1234567890",
-                callType = CallType.MISSED,
-                callDurationSeconds = 0,
-                callTime = System.currentTimeMillis()
-            )
-        ), onEditClick = {}, onDeleteClick = {}, navController = NavController(LocalContext.current)
-    )
+private fun SectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column {
+        Text(title, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(Modifier.padding(16.dp), content = content)
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun ContactDetailsScreenPreview() {
+    PhoneTheme {
+        ContactDetailsScreen(
+            contact = Contact(
+                id = "1",
+                displayName = "John Doe",
+                firstName = "John",
+                lastName = "Doe",
+                phoneNumbers = listOf(
+                    PhoneNumber("123-456-7890", PhoneNumberType.MOBILE, true),
+                    PhoneNumber("098-765-4321", PhoneNumberType.WORK, false)
+                ),
+                emailAddresses = listOf("john.doe@example.com"),
+                isFavorite = true
+            ),
+            callLogs = listOf(
+                CallLog(
+                    id = 1,
+                    phoneNumber = "123-456-7890",
+                    callType = CallType.INCOMING,
+                    callDurationSeconds = 60,
+                    simSlot = 1
+                ),
+                CallLog(
+                    id = 2,
+                    phoneNumber = "123-456-7890",
+                    callType = CallType.MISSED,
+                    simSlot = 2
+                )
+            ),
+            onEditClick = {},
+            onDeleteClick = {},
+            navController = rememberNavController()
+        )
+    }
 }

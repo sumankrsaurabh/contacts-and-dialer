@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.telephony.TelephonyManager
 import com.coderon.phone.MainActivity
-import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.notifications.CallNotificationManager
 import com.coderon.phone.ui.utils.extentions.checkPermissions
 import com.coderon.phone.utils.Constants.ACCEPT_CALL
@@ -46,12 +45,12 @@ class CallReceiver : BroadcastReceiver() {
     }
 
     private suspend fun handleAcceptCall(context: Context) {
-        CallManager.acceptCall()
+//        CallManager.acceptCall()
         updateCallNotification(context)
     }
 
     private suspend fun handleRejectCall(context: Context) {
-        CallManager.rejectCall()
+//        CallManager.rejectCall()
         updateCallNotification(context)
     }
 

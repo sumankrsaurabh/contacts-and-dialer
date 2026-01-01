@@ -14,4 +14,7 @@
     <string name="call_ending">Call ending</string>
     <string name="ongoing_call">Outging call</string>
     <string name="conference">confrence\n</string>
+    <string name="call_waiting">\nwaiting</string>
+    <string name="conference_call">conference\n</string>
+    <string name="unknown_caller">unknown</string>
 </resources>

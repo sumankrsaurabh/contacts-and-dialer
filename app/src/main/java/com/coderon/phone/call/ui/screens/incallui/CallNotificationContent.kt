@@ -1,4 +1,4 @@
-package com.coderon.phone.ui.screens.incallui
+package com.coderon.phone.call.ui.screens.incallui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

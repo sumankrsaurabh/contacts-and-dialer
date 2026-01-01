@@ -115,7 +115,7 @@ fun SearchScreen(
                         )
                     }
                     items(filteredContacts) { contact ->
-                        ContactItemGlass(contact, navController)
+//                        ContactItemGlass(contact, navController)
                     }
 
                     item {
@@ -125,10 +125,10 @@ fun SearchScreen(
                         )
                     }
                     items(filteredCallLogs) { callLog ->
-                        CallLogItem(
-                            callLog,
-                            onCallLogEntryClick = { TODO() }
-                        )
+//                        CallLogItem(
+//                            callLog,
+//                            onCallLogEntryClick = { TODO() }
+//                        )
                     }
 
 

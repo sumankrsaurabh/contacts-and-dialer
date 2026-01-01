@@ -1,5 +1,6 @@
-package com.coderon.phone.ui.screens.incallui
+package com.coderon.phone.call.ui.screens.incallui
 
+import android.graphics.SurfaceTexture
 import android.telecom.Call
 import android.view.Surface
 import android.view.TextureView
@@ -40,16 +41,26 @@ fun VideoCallUi(call: Call?) {
             factory = { context ->
                 TextureView(context).apply {
                     surfaceTextureListener = object : SurfaceTextureListener {
-                        override fun onSurfaceTextureAvailable(texture: android.graphics.SurfaceTexture, width: Int, height: Int) {
+                        override fun onSurfaceTextureAvailable(
+                            texture: SurfaceTexture,
+                            width: Int,
+                            height: Int
+                        ) {
                             val surface = Surface(texture)
                             call?.videoCall?.setDisplaySurface(surface)
                         }
 
-                        override fun onSurfaceTextureSizeChanged(texture: android.graphics.SurfaceTexture, width: Int, height: Int) {}
+                        override fun onSurfaceTextureSizeChanged(
+                            texture: SurfaceTexture,
+                            width: Int,
+                            height: Int
+                        ) {
+                        }
 
-                        override fun onSurfaceTextureDestroyed(texture: android.graphics.SurfaceTexture): Boolean = true
+                        override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean =
+                            true
 
-                        override fun onSurfaceTextureUpdated(texture: android.graphics.SurfaceTexture) {}
+                        override fun onSurfaceTextureUpdated(texture: SurfaceTexture) {}
                     }
                 }
             },
@@ -67,16 +78,26 @@ fun VideoCallUi(call: Call?) {
                 factory = { context ->
                     TextureView(context).apply {
                         surfaceTextureListener = object : SurfaceTextureListener {
-                            override fun onSurfaceTextureAvailable(texture: android.graphics.SurfaceTexture, width: Int, height: Int) {
+                            override fun onSurfaceTextureAvailable(
+                                texture: SurfaceTexture,
+                                width: Int,
+                                height: Int
+                            ) {
                                 val surface = Surface(texture)
                                 call?.videoCall?.setPreviewSurface(surface)
                             }
 
-                            override fun onSurfaceTextureSizeChanged(texture: android.graphics.SurfaceTexture, width: Int, height: Int) {}
+                            override fun onSurfaceTextureSizeChanged(
+                                texture: SurfaceTexture,
+                                width: Int,
+                                height: Int
+                            ) {
+                            }
 
-                            override fun onSurfaceTextureDestroyed(texture: android.graphics.SurfaceTexture): Boolean = true
+                            override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean =
+                                true
 
-                            override fun onSurfaceTextureUpdated(texture: android.graphics.SurfaceTexture) {}
+                            override fun onSurfaceTextureUpdated(texture: SurfaceTexture) {}
                         }
                     }
                 },

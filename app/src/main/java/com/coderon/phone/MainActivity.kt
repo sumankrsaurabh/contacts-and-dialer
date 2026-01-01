@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -29,11 +28,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
 import com.coderon.phone.ui.MyApp
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
-import com.coderon.phone.utils.getDefaultDialerIntent
 import com.coderon.phone.utils.isDefaultDialer
 
 class MainActivity : ComponentActivity() {
@@ -51,38 +48,30 @@ class MainActivity : ComponentActivity() {
                     remember { mutableStateOf(isDefaultDialer(this)) }
 
                 // ✅ REQUIRED launcher
-                val defaultDialerLauncher =
-                    rememberLauncherForActivityResult(
-                        ActivityResultContracts.StartActivityForResult()
-                    ) { result ->
-                        if (result.resultCode == RESULT_OK) {
-                            isDefaultDialerState.value = true
-                        }
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    if (result.resultCode == RESULT_OK) {
+                        isDefaultDialerState.value = true
                     }
+                }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-
-                    // Background
-                    Image(
-                        painter = rememberAsyncImagePainter(R.drawable.background),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize()
-                    )
-
+                    MyApp()
                     // App or permission screen
-                    if (isDefaultDialerState.value) {
-                        MyApp()
-                    } else {
-                        RequestDefaultDialerScreen {
-                            getDefaultDialerIntent(this@MainActivity)?.let { intent ->
-                                defaultDialerLauncher.launch(intent)
-                            } ?: Toast.makeText(
-                                this@MainActivity,
-                                "Already the default dialer or unavailable",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
+//                    if (isDefaultDialerState.value) {
+//                        MyApp()
+//                    } else {
+//                        RequestDefaultDialerScreen {
+//                            getDefaultDialerIntent(this@MainActivity)?.let { intent ->
+//                                defaultDialerLauncher.launch(intent)
+//                            } ?: Toast.makeText(
+//                                this@MainActivity,
+//                                "Already the default dialer or unavailable",
+//                                Toast.LENGTH_SHORT
+//                            ).show()
+//                        }
+//                    }
                 }
             }
         }

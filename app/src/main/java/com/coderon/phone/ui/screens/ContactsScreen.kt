@@ -1,33 +1,42 @@
 package com.coderon.phone.ui.screens
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,203 +51,282 @@ import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
-import com.coderon.phone.ui.utils.ActionsMenuTop
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+/* ------------------------------------------------ */
+/* ---------------- CONTACTS SCREEN ---------------- */
+/* ------------------------------------------------ */
+
 @Composable
 fun ContactsScreen(
     contacts: Map<Char, List<Contact>>,
     navController: NavController
 ) {
-    val gradient = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFF6A82FB),
-            Color(0xFFFC5C7D)
-        )
-    )
+    val isDark = isSystemInDarkTheme()
+    val background = if (isDark) Color.Black else Color.White
+    val primaryText = if (isDark) Color.White else Color.Black
+    val secondaryText = primaryText.copy(alpha = 0.6f)
+
+    val allContacts = remember(contacts) { contacts.values.flatten() }
+    val duplicates = remember(allContacts) { findDuplicateContacts(allContacts) }
+
+    val grouped = remember(allContacts) {
+        allContacts
+            .sortedBy { it.displayName.lowercase() }
+            .groupBy { it.displayName.firstOrNull()?.uppercaseChar() ?: '#' }
+            .toSortedMap()
+    }
+
+    val listState = rememberLazyListState()
+    val letterPositions = remember { mutableStateMapOf<Char, Int>() }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(gradient)
+            .background(background)
+            .windowInsetsPadding(WindowInsets.statusBars)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
 
-            // Top bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(bottom = 96.dp)
+        ) {
+
+            var currentIndex = 0
+
+            /* -------- TITLE -------- */
+            item {
                 Text(
-                    "Phone",
+                    text = "Contacts",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = primaryText,
+                    modifier = Modifier.padding(16.dp)
                 )
-                ActionsMenuTop(true, navController)
+                currentIndex++
             }
 
-            if (contacts.isEmpty()) {
-                NoContactsFoundGlass()
-            } else {
-                LazyColumn {
-                    contacts.forEach { (letter, list) ->
-                        item { LetterHeaderGlass(letter) }
+            /* -------- DUPLICATES -------- */
+            if (duplicates.isNotEmpty()) {
+                item {
+                    SmartDuplicatesRow(
+                        count = duplicates.distinctBy { it.displayName }.size
+                    )
+                }
+                currentIndex++
+            }
 
-                        itemsIndexed(list) { _, contact ->
-                            ContactItemGlass(
-                                contact = contact,
-                                navController = navController
+            /* -------- CONTACT SECTIONS -------- */
+            grouped.forEach { (letter, list) ->
+
+                item {
+                    letterPositions[letter] = currentIndex
+                    LetterHeader(letter, secondaryText)
+                }
+                currentIndex++
+
+                items(list, key = { it.id }) { contact ->
+                    ContactRow(
+                        contact = contact,
+                        primaryText = primaryText,
+                        secondaryText = secondaryText
+                    ) {
+                        navController.navigate(
+                            Screen.CallDetails.createRoute(
+                                contact.phoneNumbers.firstOrNull()?.number.orEmpty()
                             )
-                            Spacer(Modifier.height(6.dp))
-                        }
+                        )
                     }
+                    currentIndex++
                 }
             }
         }
+
+        AlphabetIndexBar(
+            letters = grouped.keys.toList(),
+            listState = listState,
+            letterPositions = letterPositions,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
     }
 }
 
-@Composable
-fun LetterHeaderGlass(letter: Char) {
-    Text(
-        text = letter.toString(),
-        fontSize = 16.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-        color = Color.White.copy(alpha = 0.9f)
-    )
-}
+/* ------------------------------------------------ */
+/* ---------------- CONTACT ROW ------------------- */
+/* ------------------------------------------------ */
 
 @SuppressLint("MissingPermission")
 @Composable
-fun ContactItemGlass(
+private fun ContactRow(
     contact: Contact,
-    navController: NavController
+    primaryText: Color,
+    secondaryText: Color,
+    onClick: () -> Unit
 ) {
-    val primaryNumber = contact.phoneNumbers.firstOrNull()?.number ?: ""
+    val context = LocalContext.current
 
-    Card(
-        shape = RoundedCornerShape(50.dp),
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.12f)
-        ),
-        border = BorderStroke(
-            1.dp,
-            Color.White.copy(alpha = 0.25f)
-        ),
-        onClick = {
-            navController.navigate(
-                Screen.CallDetails.createRoute(primaryNumber)
-            )
-        }
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
 
-            // Avatar
-            if (!contact.profilePictureUrl.isNullOrEmpty()) {
-                Image(
-                    painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(LocalContext.current)
-                            .data(contact.profilePictureUrl)
-                            .crossfade(true)
-                            .build()
-                    ),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
+        if (!contact.profilePictureUrl.isNullOrEmpty()) {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(context)
+                        .data(contact.profilePictureUrl)
+                        .crossfade(true)
+                        .build()
+                ),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(primaryText.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = contact.displayName.first().uppercaseChar().toString(),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = primaryText
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.25f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = contact.displayName.firstOrNull()?.toString() ?: "#",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
             }
+        }
 
-            Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(16.dp))
 
-            Column(Modifier.weight(1f)) {
+        Column {
+            Text(
+                text = contact.displayName,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = primaryText
+            )
+
+            contact.phoneNumbers.firstOrNull()?.let {
                 Text(
-                    text = contact.displayName,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                    maxLines = 1
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    text = primaryNumber,
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.8f)
+                    text = it.number,
+                    fontSize = 13.sp,
+                    color = secondaryText
                 )
             }
         }
     }
 }
+
+/* ------------------------------------------------ */
+/* ---------------- DUPLICATES ROW ---------------- */
+/* ------------------------------------------------ */
 
 @Composable
-fun NoContactsFoundGlass() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+private fun SmartDuplicatesRow(count: Int) {
+    Text(
+        text = "$count Duplicate${if (count > 1) "s" else ""} Found",
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
+        color = Color(0xFF0A84FF),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+/* ------------------------------------------------ */
+/* ---------------- LETTER HEADER ----------------- */
+/* ------------------------------------------------ */
+
+@Composable
+private fun LetterHeader(letter: Char, color: Color) {
+    Text(
+        text = letter.toString(),
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
+        color = color,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+    )
+}
+
+/* ------------------------------------------------ */
+/* ---------------- ALPHABET INDEX ---------------- */
+/* ------------------------------------------------ */
+
+@Composable
+private fun AlphabetIndexBar(
+    letters: List<Char>,
+    listState: LazyListState,
+    letterPositions: Map<Char, Int>,
+    modifier: Modifier
+) {
+    var letterHeight by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = modifier
+            .padding(end = 4.dp)
+            .pointerInput(letters) {
+                detectVerticalDragGestures { change, _ ->
+                    val index =
+                        (change.position.y / letterHeight)
+                            .toInt()
+                            .coerceIn(0, letters.lastIndex)
+
+                    val letter = letters[index]
+                    letterPositions[letter]?.let {
+                        scope.launch { listState.scrollToItem(it) }
+                    }
+                }
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "No contacts found",
-            fontSize = 18.sp,
-            color = Color.White.copy(alpha = 0.7f)
-        )
+        letters.forEach {
+            Text(
+                text = it.toString(),
+                fontSize = 11.sp,
+                color = Color(0xFF0A84FF),
+                modifier = Modifier
+                    .padding(vertical = 1.dp)
+                    .onGloballyPositioned {
+                        letterHeight = it.size.height.toFloat()
+                    }
+            )
+        }
     }
 }
+
+/* ------------------------------------------------ */
+/* ---------------- DUPLICATE LOGIC ---------------- */
+/* ------------------------------------------------ */
+
+private fun findDuplicateContacts(contacts: List<Contact>): List<Contact> =
+    contacts
+        .groupBy { it.displayName.lowercase() }
+        .filter { it.value.size > 1 }
+        .flatMap { it.value }
+
+/* ------------------------------------------------ */
+/* ---------------- PREVIEW ----------------------- */
+/* ------------------------------------------------ */
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewContactsScreen() {
-    val sampleContacts = listOf(
-        Contact(
-            id = "1",
-            displayName = "Alice Johnson",
-            phoneNumbers = listOf(PhoneNumber("1234567890", isPrimary = true)),
-            profilePictureUrl = null
-        ),
-        Contact(
-            id = "2",
-            displayName = "Brian Lee",
-            phoneNumbers = listOf(PhoneNumber("9876543210", isPrimary = true)),
-            profilePictureUrl = null
-        ),
-        Contact(
-            id = "3",
-            displayName = "Charlie Adams",
-            phoneNumbers = listOf(PhoneNumber("1112223333", isPrimary = true)),
-            profilePictureUrl = "https://example.com/profile.jpg"
-        )
+private fun PreviewContactsIOS() {
+    val contacts = listOf(
+        Contact("1", "Simple Alpaca", phoneNumbers = listOf(PhoneNumber("123"))),
+        Contact("2", "Simple Alpaca", phoneNumbers = listOf(PhoneNumber("456"))),
+        Contact("3", "John Doe", phoneNumbers = listOf(PhoneNumber("789")))
     )
 
     PhoneTheme {
         ContactsScreen(
-            contacts = sampleContacts.groupBy {
+            contacts = contacts.groupBy {
                 it.displayName.first().uppercaseChar()
             },
             navController = rememberNavController()

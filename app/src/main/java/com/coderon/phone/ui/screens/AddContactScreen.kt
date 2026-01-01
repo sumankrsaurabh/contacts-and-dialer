@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,15 +18,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,114 +41,194 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.ui.Text
 
+/* ------------------------------------------------
+   ADD CONTACT (iOS STYLE)
+------------------------------------------------ */
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddContactScreen(
+    navController: NavController? = null,
     onSaveContact: (String, String, String?) -> Unit = { _, _, _ -> }
 ) {
-    var name by remember { mutableStateOf(TextFieldValue("")) }
-    var phoneNumber by remember { mutableStateOf(TextFieldValue("")) }
-    var profilePictureUri by remember { mutableStateOf<Uri?>(null) }
+    val isDark = isSystemInDarkTheme()
+    val bg = if (isDark) Color.Black else Color.White
+    val primary = if (isDark) Color.White else Color.Black
+
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var photoUri by remember { mutableStateOf<Uri?>(null) }
 
     val context = LocalContext.current
-    val imagePickerLauncher =
-        rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri ->
-            profilePictureUri = uri
+
+    val imagePicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
+            photoUri = it
         }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Profile Picture Selector
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .align(Alignment.CenterHorizontally)
-                .clickable { imagePickerLauncher.launch("image/*") },
-            contentAlignment = Alignment.Center
-        ) {
-            if (profilePictureUri != null) {
-                Image(
-                    painter = rememberAsyncImagePainter(
-                        ImageRequest.Builder(context)
-                            .data(profilePictureUri)
-                            .crossfade(true)
-                            .build()
-                    ),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(160.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Add Profile Picture",
-                    tint = Color.Gray,
-                    modifier = Modifier.size(160.dp)
-                )
-            }
+    Scaffold(
+        containerColor = bg,
+        topBar = {
+            TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = { navController?.popBackStack() }) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Cancel"
+                        )
+                    }
+                },
+                title = {
+                    Text("New Contact", fontSize = 18.sp)
+                },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            val displayName =
+                                listOf(firstName, lastName).joinToString(" ").trim()
+                            onSaveContact(
+                                displayName,
+                                phoneNumber,
+                                photoUri?.toString()
+                            )
+                            navController?.popBackStack()
+                        },
+                        enabled = firstName.isNotBlank() && phoneNumber.isNotBlank()
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Done")
+                    }
+                }
+            )
         }
+    ) { padding ->
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Name Input Field with Icon
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true,
-            leadingIcon = {
-                Icon(imageVector = Icons.Default.Person, contentDescription = "Name Icon")
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Phone Number Input Field with Icon
-        OutlinedTextField(
-            value = phoneNumber,
-            onValueChange = { phoneNumber = it },
-            label = { Text("Phone Number") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true,
-            leadingIcon = {
-                Icon(imageVector = Icons.Default.Phone, contentDescription = "Phone Icon")
-            }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Save Contact Button
-        Button(
-            onClick = { onSaveContact(name.text, phoneNumber.text, profilePictureUri?.toString()) },
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
-            enabled = name.text.isNotBlank() && phoneNumber.text.isNotBlank()
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
         ) {
-            Icon(imageVector = Icons.Default.Check, contentDescription = "Save Contact")
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Save Contact")
+
+            Spacer(Modifier.height(24.dp))
+
+            /* ---------- AVATAR ---------- */
+
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { imagePicker.launch("image/*") },
+                contentAlignment = Alignment.Center
+            ) {
+                if (photoUri != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            ImageRequest.Builder(context)
+                                .data(photoUri)
+                                .crossfade(true)
+                                .build()
+                        ),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        contentDescription = "Add Photo",
+                        tint = primary.copy(alpha = 0.6f),
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            /* ---------- FORM ---------- */
+
+            IOSInputField(
+                label = "First name",
+                value = firstName,
+                onValueChange = { firstName = it }
+            )
+
+            IOSInputField(
+                label = "Last name",
+                value = lastName,
+                onValueChange = { lastName = it }
+            )
+
+            IOSInputField(
+                label = "Phone",
+                value = phoneNumber,
+                keyboardType = KeyboardType.Phone,
+                onValueChange = { phoneNumber = it }
+            )
+
+            IOSInputField(
+                label = "Email",
+                value = email,
+                keyboardType = KeyboardType.Email,
+                onValueChange = { email = it }
+            )
         }
     }
 }
 
+/* ------------------------------------------------
+   INPUT FIELD (iOS LOOK)
+------------------------------------------------ */
+
+@Composable
+private fun IOSInputField(
+    label: String,
+    value: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    onValueChange: (String) -> Unit
+) {
+    Column {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+        )
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = keyboardType
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+/* ------------------------------------------------
+   PREVIEW
+------------------------------------------------ */
+
 @Preview(showBackground = true)
 @Composable
-private fun PreviewAddContactScreen() {
+fun PreviewAddContactIOS() {
     AddContactScreen()
 }

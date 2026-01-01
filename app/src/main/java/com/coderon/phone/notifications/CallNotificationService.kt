@@ -7,115 +7,192 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.telecom.Call
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.coderon.phone.MainActivity
 import com.coderon.phone.R
 import com.coderon.phone.call.services.CallManager
+import com.coderon.phone.call.ui.CallScreenType
+import com.coderon.phone.call.ui.CallUiState
 import com.coderon.phone.receiver.CallReceiver
-import com.coderon.phone.ui.utils.extentions.getCallState
-import com.coderon.phone.ui.utils.extentions.getCallerName
-import com.coderon.phone.ui.utils.extentions.getCallerNumber
 import com.coderon.phone.ui.utils.extentions.notificationManager
 import com.coderon.phone.utils.Constants.ACCEPT_CALL
 import com.coderon.phone.utils.Constants.DECLINE_CALL
 
-class CallNotificationManager(private val context: Context) {
-    private val CALL_NOTIFICATION_ID = 42
-    private val ACCEPT_CALL_CODE = 0
-    private val DECLINE_CALL_CODE = 1
-    private val notificationManager = context.notificationManager
+class CallNotificationManager(
+    private val context: Context
+) {
+
+    private companion object {
+        const val CALL_NOTIFICATION_ID = 42
+        const val CHANNEL_INCOMING = "call_incoming"
+        const val CHANNEL_ONGOING = "call_ongoing"
+    }
+
+    private val notificationManager: NotificationManager =
+        context.notificationManager
+
+    /* ---------------------------------------------------
+       PUBLIC API
+    --------------------------------------------------- */
 
     @SuppressLint("NewApi")
-    fun setupNotification(forceLowPriority: Boolean = false) {
-        val callState = CallManager.getPrimaryCall().getCallState()
-        val nameOrNumber =
-            CallManager.getPrimaryCall()?.getCallerName() ?: CallManager.getPrimaryCall()
-                ?.getCallerNumber()
-        val isHighPriority = callState == Call.STATE_RINGING && !forceLowPriority
-        val channelId = if (isHighPriority) "call_high_priority" else "call_default"
-        val importance =
-            if (isHighPriority) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
-        val channelName = if (isHighPriority) "Incoming Calls" else "Ongoing Calls"
+    fun setupNotification(showOngoing: Boolean = false) {
+        val uiState = CallManager.uiState.value
 
-        val notificationChannel = NotificationChannel(channelId, channelName, importance).apply {
-            setSound(null, null)
+        if (uiState.hasNoCalls) {
+            cancelNotification()
+            return
         }
-        notificationManager.createNotificationChannel(notificationChannel)
 
-        val openAppIntent = Intent(context, MainActivity::class.java)
-        val openAppPendingIntent = PendingIntent.getActivity(
-            context, 0, openAppIntent, PendingIntent.FLAG_IMMUTABLE
+        val isIncoming = uiState.screen == CallScreenType.INCOMING
+        val channelId = if (isIncoming) CHANNEL_INCOMING else CHANNEL_ONGOING
+
+        createChannelIfNeeded(channelId, isIncoming)
+
+        val notification = buildNotification(
+            uiState = uiState,
+            channelId = channelId,
+            isIncoming = isIncoming,
+            showOngoing = showOngoing
         )
 
-        val acceptCallIntent =
-            Intent(context, CallReceiver::class.java).apply { action = ACCEPT_CALL }
-        val acceptPendingIntent = PendingIntent.getBroadcast(
-            context,
-            ACCEPT_CALL_CODE,
-            acceptCallIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-
-        val declineCallIntent =
-            Intent(context, CallReceiver::class.java).apply { action = DECLINE_CALL }
-        val declinePendingIntent = PendingIntent.getBroadcast(
-            context,
-            DECLINE_CALL_CODE,
-            declineCallIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-
-        val contentTextId = when (callState) {
-            Call.STATE_RINGING -> R.string.is_calling
-            Call.STATE_DIALING -> R.string.dialing
-            Call.STATE_DISCONNECTED -> R.string.call_ended
-            Call.STATE_DISCONNECTING -> R.string.call_ending
-            else -> R.string.ongoing_call
-        }
-
-        val collapsedView = RemoteViews(context.packageName, R.layout.call_notification).apply {
-            setTextViewText(R.id.notification_call_status, context.getString(contentTextId))
-            setTextViewText(R.id.notification_caller_name, nameOrNumber)
-            setViewVisibility(
-                R.id.notification_accept_call,
-                if (callState == Call.STATE_RINGING) View.VISIBLE else View.GONE
-            )
-            setOnClickPendingIntent(R.id.notification_decline_call, declinePendingIntent)
-            setOnClickPendingIntent(R.id.notification_accept_call, acceptPendingIntent)
-        }
-
-        val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.call)
-            .setContentIntent(openAppPendingIntent)
-            .setPriority(if (isHighPriority) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
-            .setCategory(Notification.CATEGORY_CALL)
-            .setCustomContentView(collapsedView)
-            .setOngoing(true)
-            .setSound(null)
-            .setChannelId(channelId)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-
-        if (callState == Call.STATE_ACTIVE) {
-            builder.setUsesChronometer(true)
-                .setWhen(System.currentTimeMillis())
-        }
-
-        if (isHighPriority) {
-            builder.setFullScreenIntent(openAppPendingIntent, true)
-        }
-
-        val notification = builder.build()
-
-        // Prevent outdated notification if call state changes mid-setup
-        if (CallManager.getPrimaryCall().getCallState() == callState) {
-            notificationManager.notify(CALL_NOTIFICATION_ID, notification)
-        }
+        notificationManager.notify(CALL_NOTIFICATION_ID, notification)
     }
 
     fun cancelNotification() {
         notificationManager.cancel(CALL_NOTIFICATION_ID)
+    }
+
+    /* ---------------------------------------------------
+       INTERNALS
+    --------------------------------------------------- */
+
+    private fun buildNotification(
+        uiState: CallUiState,
+        channelId: String,
+        isIncoming: Boolean,
+        showOngoing: Boolean
+    ): Notification {
+
+        val callerName =
+            uiState.primaryCall?.displayName
+                ?: uiState.primaryCall?.phoneNumber
+                ?: context.getString(R.string.unknown_caller)
+
+        val statusTextRes = when (uiState.screen) {
+            CallScreenType.INCOMING -> R.string.is_calling
+            CallScreenType.CALL_WAITING -> R.string.call_waiting
+            CallScreenType.CONFERENCE -> R.string.conference_call
+            CallScreenType.ONGOING -> R.string.ongoing_call
+            else -> R.string.ongoing_call
+        }
+
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java).apply {
+                flags =
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val collapsedView =
+            RemoteViews(context.packageName, R.layout.call_notification).apply {
+
+                setTextViewText(
+                    R.id.notification_caller_name,
+                    callerName
+                )
+
+                setTextViewText(
+                    R.id.notification_call_status,
+                    context.getString(statusTextRes)
+                )
+
+                setViewVisibility(
+                    R.id.notification_accept_call,
+                    if (isIncoming) View.VISIBLE else View.GONE
+                )
+
+                setOnClickPendingIntent(
+                    R.id.notification_accept_call,
+                    actionPendingIntent(ACCEPT_CALL)
+                )
+
+                setOnClickPendingIntent(
+                    R.id.notification_decline_call,
+                    actionPendingIntent(DECLINE_CALL)
+                )
+            }
+
+        return NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(R.drawable.call)
+            .setCategory(Notification.CATEGORY_CALL)
+            .setPriority(
+                if (isIncoming)
+                    NotificationCompat.PRIORITY_HIGH
+                else
+                    NotificationCompat.PRIORITY_DEFAULT
+            )
+            .setOngoing(showOngoing || !isIncoming)
+            .setSound(null)
+            .setContentIntent(contentIntent)
+            .setCustomContentView(collapsedView)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .apply {
+                if (!isIncoming && uiState.callDurationSeconds > 0) {
+                    setUsesChronometer(true)
+                    setWhen(
+                        System.currentTimeMillis() -
+                                uiState.callDurationSeconds * 1000
+                    )
+                }
+                if (isIncoming) {
+                    setFullScreenIntent(contentIntent, true)
+                }
+            }
+            .build()
+    }
+
+    private fun actionPendingIntent(action: String): PendingIntent {
+        return PendingIntent.getBroadcast(
+            context,
+            action.hashCode(),
+            Intent(context, CallReceiver::class.java).apply {
+                this.action = action
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
+    }
+
+    @SuppressLint("NewApi")
+    private fun createChannelIfNeeded(
+        channelId: String,
+        isIncoming: Boolean
+    ) {
+        val importance =
+            if (isIncoming)
+                NotificationManager.IMPORTANCE_HIGH
+            else
+                NotificationManager.IMPORTANCE_DEFAULT
+
+        val channelName =
+            if (isIncoming) "Incoming Calls"
+            else "Ongoing Calls"
+
+        val channel = NotificationChannel(
+            channelId,
+            channelName,
+            importance
+        ).apply {
+            setSound(null, null)
+            enableVibration(false)
+        }
+
+        notificationManager.createNotificationChannel(channel)
     }
 }

@@ -4,12 +4,15 @@ import android.Manifest
 import androidx.annotation.RequiresPermission
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.call.services.CallManager
-import com.coderon.phone.call.services.NoCall
+import com.coderon.phone.call.ui.screens.incallui.CallScreen
+import com.coderon.phone.data.model.CallLog
+import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.screens.AddContactScreen
@@ -18,12 +21,15 @@ import com.coderon.phone.ui.screens.ContactDetailsScreen
 import com.coderon.phone.ui.screens.ContactsScreen
 import com.coderon.phone.ui.screens.DialerScreen
 import com.coderon.phone.ui.screens.SearchScreen
-import com.coderon.phone.ui.screens.incallui.CallScreen
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.playTones
 import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
 import org.koin.androidx.compose.koinViewModel
+
+/* ------------------------------------------------
+   NAV ROUTES
+------------------------------------------------ */
 
 sealed class Screen(val route: String) {
     object Keypad : Screen("keypad")
@@ -38,30 +44,52 @@ sealed class Screen(val route: String) {
     object CallScreen : Screen("call_screen")
 }
 
+/* ------------------------------------------------
+   ROOT APP
+------------------------------------------------ */
 @RequiresPermission(Manifest.permission.READ_PHONE_STATE)
 @Composable
 fun MyApp() {
+
     val navController = rememberNavController()
 
     val contactViewModel: ContactViewModel = koinViewModel()
     val callLogViewModel: CallLogViewModel = koinViewModel()
 
-    val currentCallState = CallManager.phoneState.collectAsStateWithLifecycle().value
+    val callUiState =
+        CallManager.uiState.collectAsStateWithLifecycle().value
 
-    val contactsGrouped =
+    val groupedContacts =
         contactViewModel.groupedContacts.collectAsStateWithLifecycle().value
 
-    val filteredContacts =
+    val allContacts =
         contactViewModel.allContacts.collectAsStateWithLifecycle().value
 
-    val callLogs =
+    val filteredCallLogs =
         callLogViewModel.filteredCallLogs.collectAsStateWithLifecycle().value
 
-    LaunchedEffect(currentCallState) {
-        if (currentCallState != NoCall) {
-            navController.navigate(Screen.CallScreen.route)
+    /* ------------------------------------------------
+       AUTO NAVIGATION (SIMPLE & SAFE)
+    ------------------------------------------------ */
+
+    val activeCallId = callUiState.primaryCall?.id
+
+    LaunchedEffect(activeCallId) {
+        if (activeCallId != null) {
+            navController.navigate(Screen.CallScreen.route) {
+                launchSingleTop = true
+            }
+        } else {
+            navController.popBackStack(
+                route = Screen.Keypad.route,
+                inclusive = false
+            )
         }
     }
+
+    /* ------------------------------------------------
+       NAV HOST
+    ------------------------------------------------ */
 
     NavHost(
         navController = navController,
@@ -75,40 +103,34 @@ fun MyApp() {
 
         /* -------------------- KEYPAD -------------------- */
         composable(Screen.Keypad.route) {
-            if (currentCallState == NoCall) {
-                ScaffoldScreen(navController) {
-                    DialerScreen(
-                        navController = navController,
-                        filterContact = contactViewModel.groupedContacts,
-                        filterCallLog = callLogViewModel.filteredCallLogs,
-                        updateSearchQuery = ::updateSearchQuery,
-                        playTones = { playTones(it) }
-                    )
-                }
+            ScaffoldScreen(navController) {
+                DialerScreen(
+                    navController = navController,
+                    filterContact = contactViewModel.groupedContacts,
+                    filterCallLog = callLogViewModel.filteredCallLogs,
+                    updateSearchQuery = ::updateSearchQuery,
+                    playTones = { playTones(it) }
+                )
             }
         }
 
         /* -------------------- RECENT -------------------- */
         composable(Screen.Recent.route) {
-            if (currentCallState == NoCall) {
-                ScaffoldScreen(navController) {
-                    CallLogScreen(
-                        callLogs = callLogs,
-                        navController = navController
-                    )
-                }
+            ScaffoldScreen(navController) {
+                CallLogScreen(
+                    callLogs = filteredCallLogs,
+                    navController = navController
+                )
             }
         }
 
         /* -------------------- CONTACTS -------------------- */
         composable(Screen.Contacts.route) {
-            if (currentCallState == NoCall) {
-                ScaffoldScreen(navController) {
-                    ContactsScreen(
-                        contacts = contactsGrouped,
-                        navController = navController
-                    )
-                }
+            ScaffoldScreen(navController) {
+                ContactsScreen(
+                    contacts = groupedContacts,
+                    navController = navController
+                )
             }
         }
 
@@ -116,8 +138,8 @@ fun MyApp() {
         composable(Screen.Search.route) {
             SearchScreen(
                 navController = navController,
-                contacts = filteredContacts,
-                logs = callLogs,
+                contacts = allContacts,
+                logs = filteredCallLogs,
                 onSearch = ::updateSearchQuery,
                 onBack = { navController.popBackStack() }
             )
@@ -125,50 +147,44 @@ fun MyApp() {
 
         /* -------------------- ADD CONTACT -------------------- */
         composable(Screen.AddContact.route) {
-            if (currentCallState == NoCall) {
-                AddContactScreen(
-//                    onSaveContact = contactViewModel::saveContact
-                )
-            }
+            AddContactScreen()
         }
 
-        /* -------------------- CALL DETAILS -------------------- */
+        /* -------------------- CONTACT DETAILS -------------------- */
         composable(Screen.CallDetails.route) { backStackEntry ->
-            if (currentCallState == NoCall) {
 
-                val routePhoneNumber =
-                    backStackEntry.arguments?.getString("phoneNumber").orEmpty()
+            val routePhoneNumber =
+                backStackEntry.arguments?.getString("phoneNumber").orEmpty()
 
-                val normalizedRouteNumber =
-                    routePhoneNumber.replace(Regex("[^0-9+]"), "")
+            val normalizedRouteNumber = normalize(routePhoneNumber)
 
-                val callLogsForNumber =
-                    callLogViewModel
-                        .getCallLogsForNumber(normalizedRouteNumber)
-                        .collectAsStateWithLifecycle(emptyList())
-                        .value
+            val callLogsForNumber =
+                callLogViewModel
+                    .getCallLogsForNumber(normalizedRouteNumber)
+                    .collectAsStateWithLifecycle(emptyList())
+                    .value
 
-                val matchedContact = filteredContacts.firstOrNull { contact ->
-                    contact.phoneNumbers.any { phone ->
-                        normalize(phone.number) == normalizedRouteNumber
-                    }
+            val matchedContact = allContacts.firstOrNull { contact ->
+                contact.phoneNumbers.any { phone ->
+                    normalize(phone.number) == normalizedRouteNumber
                 }
-
-                ContactDetailsScreen(
-                    contact = matchedContact ?: Contact(
-                        id = "",
-                        displayName = normalizedRouteNumber,
-                        phoneNumbers = listOf(
-                            PhoneNumber(normalizedRouteNumber, isPrimary = true)
-                        ),
-                        profilePictureUrl = null
-                    ),
-                    callLogs = callLogsForNumber,
-                    navController = navController,
-                    onEditClick = { },
-                    onDeleteClick = { }
-                )
             }
+
+            ContactDetailsScreen(
+                contact = matchedContact ?: Contact(
+                    displayName = normalizedRouteNumber,
+                    phoneNumbers = listOf(
+                        PhoneNumber(
+                            number = normalizedRouteNumber,
+                            isPrimary = true
+                        )
+                    )
+                ),
+                callLogs = callLogsForNumber,
+                navController = navController,
+                onEditClick = {},
+                onDeleteClick = {}
+            )
         }
 
         /* -------------------- INCALL UI -------------------- */
@@ -178,7 +194,9 @@ fun MyApp() {
     }
 }
 
-/* -------------------- HELPERS -------------------- */
+/* ------------------------------------------------
+   PHONE NORMALIZATION
+------------------------------------------------ */
 
 private fun normalize(number: String): String {
     val clean = number.replace(Regex("[^0-9+]"), "")
@@ -188,3 +206,54 @@ private fun normalize(number: String): String {
         else -> clean
     }
 }
+
+/* ------------------------------------------------ */
+/* ---------------- PREVIEW DATA ------------------ */
+/* ------------------------------------------------ */
+
+private fun previewCallLogs(): List<CallLog> {
+    val now = System.currentTimeMillis()
+
+    return List(20) { index ->
+        CallLog(
+            id = index.toLong(),
+            phoneNumber = "98765432${index}",
+            callType = when (index % 3) {
+                0 -> CallType.INCOMING
+                1 -> CallType.OUTGOING
+                else -> CallType.MISSED
+            },
+            callDurationSeconds = (10..300).random(),
+            callTime = now - (index * 60 * 60 * 1000L),
+            contact = if (index % 4 == 0) null else Contact(
+                id = index.toString(),
+                displayName = "Contact $index",
+                phoneNumbers = listOf(
+                    PhoneNumber(
+                        number = "98765432$index",
+                        isPrimary = true
+                    )
+                ),
+                profilePictureUrl = null
+            )
+        )
+    }
+}
+
+/* ------------------------------------------------ */
+/* ---------------- PREVIEW ----------------------- */
+/* ------------------------------------------------ */
+
+@Preview
+@Composable
+private fun Test() {
+    val navController = rememberNavController()
+
+    ScaffoldScreen(navController = navController) {
+        CallLogScreen(
+            callLogs = previewCallLogs(),
+            navController = navController
+        )
+    }
+}
+

@@ -27,7 +27,7 @@ fun Text(
     fontSize: TextUnit = TextUnit.Unspecified,
     fontStyle: FontStyle? = null,
     fontWeight: FontWeight? = null,
-    fontFamily: FontFamily? = FontFamily(Font(R.font.regular)),
+    fontFamily: FontFamily? = FontFamily(Font(R.font.source_sans_3)),
 //    fontFamily: FontFamily? = FontFamily.Default,
     letterSpacing: TextUnit = 1.sp,
     textDecoration: TextDecoration? = null,

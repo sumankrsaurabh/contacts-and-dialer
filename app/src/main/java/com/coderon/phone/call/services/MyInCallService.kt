@@ -1,73 +1,119 @@
 package com.coderon.phone.call.services
 
-import android.app.KeyguardManager
-import android.content.Context
 import android.content.Intent
 import android.telecom.Call
-import android.telecom.CallAudioState
 import android.telecom.InCallService
 import com.coderon.phone.MainActivity
 import com.coderon.phone.notifications.CallNotificationManager
-import com.coderon.phone.ui.utils.extentions.isOutgoing
 
+/**
+ * Thin InCallService layer.
+ *
+ * Responsibilities:
+ * - Forward Telecom callbacks to CallManager
+ * - Maintain notification lifecycle
+ * - Launch UI ONLY when instructed by domain state
+ *
+ * ❌ No business rules
+ * ❌ No call logic
+ * ❌ No UI decisions
+ */
 class CallService : InCallService() {
-    private val callNotificationManager by lazy { CallNotificationManager(this) }
 
-    private val callListener = object : Call.Callback() {
+    private val notificationManager by lazy {
+        CallNotificationManager(this)
+    }
+
+    private val callback = object : Call.Callback() {
+
         override fun onStateChanged(call: Call, state: Int) {
-            super.onStateChanged(call, state)
-            if (state in listOf(Call.STATE_DISCONNECTED, Call.STATE_DISCONNECTING)) {
-                callNotificationManager.cancelNotification()
-            } else {
-                callNotificationManager.setupNotification()
-            }
+            CallManager.onCallStateChanged(call, state)
+            syncNotification()
+        }
+
+        override fun onDetailsChanged(call: Call, details: Call.Details) {
+            CallManager.onCallStateChanged(call, call.state)
+            syncNotification()
+        }
+
+        override fun onConferenceableCallsChanged(
+            call: Call,
+            conferenceableCalls: MutableList<Call>
+        ) {
+            CallManager.onCallStateChanged(call, call.state)
         }
     }
+
+    /* ---------------------------------------------------
+       CALL ADDED
+    --------------------------------------------------- */
 
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
-        CallManager.addCall(call, this)
-        call.registerCallback(callListener)
 
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        val isScreenLocked = keyguardManager.isDeviceLocked
+        CallManager.setService(this)
+        CallManager.onCallAdded(call)
 
-        // Open MainActivity only when necessary
-        if (call.isOutgoing() || isScreenLocked) {
-            try {
-                callNotificationManager.setupNotification(true)
-                val intent = Intent(applicationContext, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                }
-                startActivity(intent)
-            } catch (e: Exception) {
-                callNotificationManager.setupNotification()
-            }
-        } else {
-            callNotificationManager.setupNotification()
-        }
+        call.registerCallback(callback)
+
+        maybeLaunchUi()
+        syncNotification(forceOngoing = true)
     }
+
+    /* ---------------------------------------------------
+       CALL REMOVED
+    --------------------------------------------------- */
 
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
-        call.unregisterCallback(callListener)
-        CallManager.removeCall(call)
 
-        if (CallManager.hasNoCalls()) {
-            callNotificationManager.cancelNotification()
-        } else {
-            callNotificationManager.setupNotification()
-        }
+        call.unregisterCallback(callback)
+        CallManager.onCallRemoved(call)
+
+        syncNotification()
     }
 
-    override fun onCallAudioStateChanged(audioState: CallAudioState?) {
-        super.onCallAudioStateChanged(audioState)
-        audioState?.let { CallManager.updateAudioState(it) }
-    }
-
+    /* ---------------------------------------------------
+       AUDIO STATE
+    --------------------------------------------------- */
 
     override fun onDestroy() {
         super.onDestroy()
-        callNotificationManager.cancelNotification()
+        notificationManager.cancelNotification()
+    }
+
+    /* ---------------------------------------------------
+       HELPERS
+    --------------------------------------------------- */
+
+    private fun syncNotification(forceOngoing: Boolean = false) {
+        val uiState = CallManager.uiState.value
+
+        when {
+            uiState.hasNoCalls ->
+                notificationManager.cancelNotification()
+
+            else ->
+                notificationManager.setupNotification(
+                    showOngoing = forceOngoing || uiState.isOngoing
+                )
+        }
+    }
+
+    private fun maybeLaunchUi() {
+        if (!CallManager.uiState.value.shouldLaunchUi) return
+
+        try {
+            startActivity(
+                Intent(this, MainActivity::class.java).apply {
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    )
+                }
+            )
+        } catch (_: Exception) {
+            // Notification is fallback
+        }
     }
 }
