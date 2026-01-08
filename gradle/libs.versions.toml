@@ -4,6 +4,7 @@ agp = "8.13.2"
 coilCompose = "2.7.0"
 collectionKtx = "1.5.0"
 coreTelecom = "1.0.1"
+datastorePreferences = "1.2.0"
 koinAndroidxComposeVersion = "4.1.1"
 koinCore = "4.1.1"
 kotlin = "2.3.0"
@@ -24,6 +25,7 @@ accompanist-permissions = { module = "com.google.accompanist:accompanist-permiss
 androidx-collection-ktx = { module = "androidx.collection:collection-ktx", version.ref = "collectionKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-telecom = { module = "androidx.core:core-telecom", version.ref = "coreTelecom" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }

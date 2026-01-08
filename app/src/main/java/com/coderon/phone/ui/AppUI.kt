@@ -136,13 +136,14 @@ fun MyApp() {
 
         /* -------------------- SEARCH -------------------- */
         composable(Screen.Search.route) {
-            SearchScreen(
-                navController = navController,
-                contacts = allContacts,
-                logs = filteredCallLogs,
-                onSearch = ::updateSearchQuery,
-                onBack = { navController.popBackStack() }
-            )
+            ScaffoldScreen(navController) {
+                SearchScreen(
+                    navController = navController,
+                    contacts = allContacts,
+                    logs = filteredCallLogs,
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
 
         /* -------------------- ADD CONTACT -------------------- */
@@ -182,8 +183,8 @@ fun MyApp() {
                 ),
                 callLogs = callLogsForNumber,
                 navController = navController,
-                onEditClick = {},
-                onDeleteClick = {}
+//                onEditClick = {},
+//                onDeleteClick = {}
             )
         }
 

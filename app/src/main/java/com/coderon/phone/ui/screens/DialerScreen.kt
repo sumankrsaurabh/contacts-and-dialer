@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -25,7 +28,6 @@ import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +49,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.utils.ActionsMenuTop
+import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.initiateCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,17 +111,10 @@ fun DialerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(background)
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(bottom = 100.dp)
     ) {
-
-        /* ---------- TOP BAR ---------- */
-
-        Spacer(Modifier.height(8.dp))
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            ActionsMenuTop(navController = navController)
-        }
+        
 
         /* ---------- TYPED NUMBER ---------- */
 
@@ -221,7 +217,7 @@ fun DialerScreen(
                         initiateCall(navController.context, dialedNumber)
                     }
                 },
-                modifier = Modifier.size(76.dp),
+                modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = Color(0xFF34C759),
                     contentColor = Color.White
@@ -298,7 +294,7 @@ private fun DialPad(
 
                     Box(
                         modifier = Modifier
-                            .size(76.dp)
+                            .size(72.dp)
                             .graphicsLayer {
                                 scaleX = scale.value
                                 scaleY = scale.value
@@ -344,11 +340,13 @@ private fun DialPad(
 @Preview(showBackground = true)
 @Composable
 fun DialerPreviewLight() {
-    DialerScreen(
-        navController = rememberNavController(),
-        filterContact = MutableStateFlow(emptyMap()),
-        filterCallLog = MutableStateFlow(emptyList()),
-        updateSearchQuery = {},
-        playTones = {}
-    )
+    ScaffoldScreen(rememberNavController()) {
+        DialerScreen(
+            navController = rememberNavController(),
+            filterContact = MutableStateFlow(emptyMap()),
+            filterCallLog = MutableStateFlow(emptyList()),
+            updateSearchQuery = {},
+            playTones = {}
+        )
+    }
 }

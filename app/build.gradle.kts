@@ -71,7 +71,8 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
-
+// DataStore Preferences
+    implementation(libs.androidx.datastore.preferences)
     implementation(libs.accompanist.permissions)
 
     implementation(libs.insert.koin.koin.androidx.compose)
