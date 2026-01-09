@@ -114,7 +114,7 @@ fun DialerScreen(
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(bottom = 100.dp)
     ) {
-        
+
 
         /* ---------- TYPED NUMBER ---------- */
 
