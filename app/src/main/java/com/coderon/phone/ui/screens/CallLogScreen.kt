@@ -154,7 +154,10 @@ fun CallLogScreen(
 
                 items(groupedLogs, key = { it.contentColor.id }) { group ->
                     SamsungPillRow(
-                        group = group, contentColor = contentColor, subContentColor = subContentColor, pillColor = rowBackgroundColor
+                        group = group,
+                        contentColor = contentColor,
+                        subContentColor = subContentColor,
+                        pillColor = rowBackgroundColor
                     ) {
                         navController.navigate(
                             Screen.CallDetails.createRoute(group.phoneNumber)
@@ -171,7 +174,11 @@ fun CallLogScreen(
 @SuppressLint("MissingPermission")
 @Composable
 private fun SamsungPillRow(
-    group: GroupedCallLog, contentColor: Color, subContentColor: Color, pillColor: Color, onClick: () -> Unit
+    group: GroupedCallLog,
+    contentColor: Color,
+    subContentColor: Color,
+    pillColor: Color,
+    onClick: () -> Unit
 ) {
     val icon = when (group.callType) {
         CallType.INCOMING -> R.drawable.ic_call_incoming
@@ -223,6 +230,16 @@ private fun SamsungPillRow(
                 Text(
                     text = group.callTime.formatTime(), fontSize = 13.sp, color = subContentColor
                 )
+
+                Spacer(Modifier.width(6.dp))
+
+                Text(
+                    text = "SIM" + group.simSlot.toString(),
+                    fontSize = 13.sp,
+                    color = subContentColor
+                )
+
+
             }
         }
     }
@@ -271,6 +288,7 @@ private data class GroupedCallLog(val mockCallLogs: List<CallLog>) {
     val callType get() = contentColor.callType
     val callTime get() = contentColor.callTime
     val contact get() = contentColor.contact
+    val simSlot get() = contentColor.simSlot
 }
 
 @Composable
@@ -315,12 +333,18 @@ private fun PreviewSamsungPillCallLog() {
 
     val mockCallLogs = List(12) { logIndex ->
         CallLog(
-            id = logIndex.toLong(), phoneNumber = "98765432$logIndex", callType = when (logIndex % 3) {
+            id = logIndex.toLong(),
+            phoneNumber = "98765432$logIndex",
+            callType = when (logIndex % 3) {
                 0 -> CallType.INCOMING
                 1 -> CallType.OUTGOING
                 else -> CallType.MISSED
-            }, callTime = System.currentTimeMillis() - logIndex * 3_600_000L, contact = Contact(
-                id = "$logIndex", displayName = mockContactNames[logIndex % mockContactNames.size], profilePictureUrl = null
+            },
+            callTime = System.currentTimeMillis() - logIndex * 3_600_000L,
+            contact = Contact(
+                id = "$logIndex",
+                displayName = mockContactNames[logIndex % mockContactNames.size],
+                profilePictureUrl = null
             )
         )
     }
