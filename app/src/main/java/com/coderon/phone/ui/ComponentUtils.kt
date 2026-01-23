@@ -1,9 +1,13 @@
 package com.coderon.phone.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -61,8 +65,29 @@ fun Text(
     )
 }
 
+
+fun Modifier.surfaceBackground(): Modifier {
+    return this.background(
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFFBBD2C5),
+                Color(0xFF536976),
+                Color(0xFF292E49),
+//                Color(0xFF26A69A),
+            )
+
+        )
+    )
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun TextPreview() {
-    com.coderon.phone.ui.Text("Hello World")
+    Box(
+        modifier = Modifier
+            .surfaceBackground()
+            .fillMaxSize()
+    ) {
+        com.coderon.phone.ui.Text("Hello World")
+    }
 }

@@ -4,39 +4,28 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -51,7 +40,6 @@ import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
-import kotlinx.coroutines.launch
 
 /* ------------------------------------------------ */
 /* ---------------- CONTACTS SCREEN ---------------- */
@@ -63,12 +51,12 @@ fun ContactsScreen(
     navController: NavController
 ) {
     val isDark = isSystemInDarkTheme()
-    val background = if (isDark) Color.Black else Color.White
-    val primaryText = if (isDark) Color.White else Color.Black
-    val secondaryText = primaryText.copy(alpha = 0.6f)
+    val bg = if (isDark) Color(0xFF0E0E0E) else Color(0xFFF4F4F4)
+    val pill = if (isDark) Color(0xFF1F1F1F) else Color.White
+    val primary = if (isDark) Color.White else Color.Black
+    val secondary = primary.copy(alpha = 0.6f)
 
     val allContacts = remember(contacts) { contacts.values.flatten() }
-    val duplicates = remember(allContacts) { findDuplicateContacts(allContacts) }
 
     val grouped = remember(allContacts) {
         allContacts
@@ -77,59 +65,43 @@ fun ContactsScreen(
             .toSortedMap()
     }
 
-    val listState = rememberLazyListState()
-    val letterPositions = remember { mutableStateMapOf<Char, Int>() }
-
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(background)
-            .windowInsetsPadding(WindowInsets.statusBars)
+            .background(bg)
     ) {
 
+        /* ---------- HEADER ---------- */
+        Text(
+            text = "Contacts",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = primary,
+            modifier = Modifier.padding(20.dp)
+        )
+
+        /* ---------- LIST ---------- */
         LazyColumn(
-            state = listState,
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
-
-            var currentIndex = 0
-
-            /* -------- TITLE -------- */
-            item {
-                Text(
-                    text = "Contacts",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = primaryText,
-                    modifier = Modifier.padding(16.dp)
-                )
-                currentIndex++
-            }
-
-            /* -------- DUPLICATES -------- */
-            if (duplicates.isNotEmpty()) {
-                item {
-                    SmartDuplicatesRow(
-                        count = duplicates.distinctBy { it.displayName }.size
-                    )
-                }
-                currentIndex++
-            }
-
-            /* -------- CONTACT SECTIONS -------- */
             grouped.forEach { (letter, list) ->
 
                 item {
-                    letterPositions[letter] = currentIndex
-                    LetterHeader(letter, secondaryText)
+                    Text(
+                        text = letter.toString(),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = secondary,
+                        modifier = Modifier.padding(start = 20.dp, bottom = 8.dp)
+                    )
                 }
-                currentIndex++
 
                 items(list, key = { it.id }) { contact ->
-                    ContactRow(
+                    SamsungContactPill(
                         contact = contact,
-                        primaryText = primaryText,
-                        secondaryText = secondaryText
+                        pillColor = pill,
+                        primary = primary,
+                        secondary = secondary
                     ) {
                         navController.navigate(
                             Screen.CallDetails.createRoute(
@@ -137,30 +109,23 @@ fun ContactsScreen(
                             )
                         )
                     }
-                    currentIndex++
                 }
             }
         }
-
-        AlphabetIndexBar(
-            letters = grouped.keys.toList(),
-            listState = listState,
-            letterPositions = letterPositions,
-            modifier = Modifier.align(Alignment.CenterEnd)
-        )
     }
 }
 
 /* ------------------------------------------------ */
-/* ---------------- CONTACT ROW ------------------- */
+/* ---------------- SAMSUNG PILL ROW --------------- */
 /* ------------------------------------------------ */
 
 @SuppressLint("MissingPermission")
 @Composable
-private fun ContactRow(
+private fun SamsungContactPill(
     contact: Contact,
-    primaryText: Color,
-    secondaryText: Color,
+    pillColor: Color,
+    primary: Color,
+    secondary: Color,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -168,8 +133,11 @@ private fun ContactRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(50))
+            .background(pillColor)
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
 
@@ -183,22 +151,23 @@ private fun ContactRow(
                 ),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
+                    .size(42.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(primaryText.copy(alpha = 0.12f)),
+                    .background(primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = contact.displayName.first().uppercaseChar().toString(),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
-                    color = primaryText
+                    color = primary
                 )
             }
         }
@@ -210,14 +179,14 @@ private fun ContactRow(
                 text = contact.displayName,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = primaryText
+                color = primary
             )
 
             contact.phoneNumbers.firstOrNull()?.let {
                 Text(
                     text = it.number,
                     fontSize = 13.sp,
-                    color = secondaryText
+                    color = secondary
                 )
             }
         }
@@ -225,99 +194,12 @@ private fun ContactRow(
 }
 
 /* ------------------------------------------------ */
-/* ---------------- DUPLICATES ROW ---------------- */
-/* ------------------------------------------------ */
-
-@Composable
-private fun SmartDuplicatesRow(count: Int) {
-    Text(
-        text = "$count Duplicate${if (count > 1) "s" else ""} Found",
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Medium,
-        color = Color(0xFF0A84FF),
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-    )
-}
-
-/* ------------------------------------------------ */
-/* ---------------- LETTER HEADER ----------------- */
-/* ------------------------------------------------ */
-
-@Composable
-private fun LetterHeader(letter: Char, color: Color) {
-    Text(
-        text = letter.toString(),
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Medium,
-        color = color,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-    )
-}
-
-/* ------------------------------------------------ */
-/* ---------------- ALPHABET INDEX ---------------- */
-/* ------------------------------------------------ */
-
-@Composable
-private fun AlphabetIndexBar(
-    letters: List<Char>,
-    listState: LazyListState,
-    letterPositions: Map<Char, Int>,
-    modifier: Modifier
-) {
-    var letterHeight by remember { mutableFloatStateOf(0f) }
-    val scope = rememberCoroutineScope()
-
-    Column(
-        modifier = modifier
-            .padding(end = 4.dp)
-            .pointerInput(letters) {
-                detectVerticalDragGestures { change, _ ->
-                    val index =
-                        (change.position.y / letterHeight)
-                            .toInt()
-                            .coerceIn(0, letters.lastIndex)
-
-                    val letter = letters[index]
-                    letterPositions[letter]?.let {
-                        scope.launch { listState.scrollToItem(it) }
-                    }
-                }
-            },
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        letters.forEach {
-            Text(
-                text = it.toString(),
-                fontSize = 11.sp,
-                color = Color(0xFF0A84FF),
-                modifier = Modifier
-                    .padding(vertical = 1.dp)
-                    .onGloballyPositioned {
-                        letterHeight = it.size.height.toFloat()
-                    }
-            )
-        }
-    }
-}
-
-/* ------------------------------------------------ */
-/* ---------------- DUPLICATE LOGIC ---------------- */
-/* ------------------------------------------------ */
-
-private fun findDuplicateContacts(contacts: List<Contact>): List<Contact> =
-    contacts
-        .groupBy { it.displayName.lowercase() }
-        .filter { it.value.size > 1 }
-        .flatMap { it.value }
-
-/* ------------------------------------------------ */
 /* ---------------- PREVIEW ----------------------- */
 /* ------------------------------------------------ */
 
 @Preview(showBackground = true)
 @Composable
-private fun PreviewContactsIOS() {
+private fun PreviewSamsungContacts() {
     val contacts = listOf(
         Contact("1", "Simple Alpaca", phoneNumbers = listOf(PhoneNumber("123"))),
         Contact("2", "Simple Alpaca", phoneNumbers = listOf(PhoneNumber("456"))),

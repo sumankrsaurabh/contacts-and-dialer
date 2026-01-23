@@ -28,21 +28,13 @@ data class CallLog(
 )
 
 fun defaultCallLog(
-    phoneNumber: String = "7808140285",
-    callType: CallType = CallType.OUTGOING
+    phoneNumber: String = "7808140285", callType: CallType = CallType.OUTGOING
 ): CallLog {
     return CallLog(
-        phoneNumber = phoneNumber,
-        callType = callType
+        phoneNumber = phoneNumber, callType = callType
     )
 }
 
 enum class CallType {
-    INCOMING,
-    OUTGOING,
-    MISSED,
-    REJECTED,
-    BLOCKED,
-    VOICEMAIL,
-    UNKNOWN
+    INCOMING, OUTGOING, MISSED, REJECTED, BLOCKED, VOICEMAIL, UNKNOWN
 }

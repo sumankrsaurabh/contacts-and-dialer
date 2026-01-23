@@ -15,13 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -40,7 +40,7 @@ import com.coderon.phone.ui.Screen
 import com.coderon.phone.ui.Text
 
 /* ------------------------------------------------
-   ROOT CONTAINER (DARK/LIGHT SAFE)
+   ROOT CONTAINER
 ------------------------------------------------ */
 
 @Composable
@@ -53,16 +53,10 @@ fun ScaffoldScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        /* ---------- MAIN CONTENT ---------- */
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-//                .padding(bottom = if (showBottomBar) 96.dp else 0.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             content()
         }
 
-        /* ---------- BOTTOM FADE ---------- */
         if (showBottomBar) {
             Box(
                 modifier = Modifier
@@ -71,7 +65,7 @@ fun ScaffoldScreen(
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(
+                            listOf(
                                 Color.Transparent,
                                 if (isDark)
                                     Color.Black.copy(alpha = 0.9f)
@@ -83,7 +77,6 @@ fun ScaffoldScreen(
             )
         }
 
-        /* ---------- NAV BAR ---------- */
         if (showBottomBar) {
             IosSegmentedBottomBar(
                 navController = navController,
@@ -94,7 +87,7 @@ fun ScaffoldScreen(
 }
 
 /* ------------------------------------------------
-   iOS SEGMENTED NAV BAR (DARK/LIGHT)
+   iOS SEGMENTED NAV BAR (FIXED)
 ------------------------------------------------ */
 
 @Composable
@@ -128,17 +121,25 @@ fun IosSegmentedBottomBar(
             .padding(bottom = 12.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-
         Row(verticalAlignment = Alignment.CenterVertically) {
 
             /* ---------- SEGMENTED PILL ---------- */
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(pillBg)
-                    .padding(6.dp)
             ) {
+
+                // ✅ BACKGROUND BLUR ONLY
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .blur(24.dp)
+                        .background(pillBg)
+                )
+
+                // ORIGINAL CONTENT (CLEAR)
                 Row(
+                    modifier = Modifier.padding(6.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -158,6 +159,10 @@ fun IosSegmentedBottomBar(
                                     )
                                     navController.navigate(item.screen.route) {
                                         launchSingleTop = true
+                                        restoreState = true
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
                                     }
                                 },
                             contentAlignment = Alignment.Center
@@ -187,25 +192,39 @@ fun IosSegmentedBottomBar(
             /* ---------- SEARCH BUTTON ---------- */
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (isDark) Color(0xFF2C2C2E) else Color.White
-                    )
-                    .noRippleClickable {
-                        haptic.performHapticFeedback(
-                            HapticFeedbackType.TextHandleMove
-                        )
-                        navController.navigate(Screen.Search.route)
-                    },
-                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.search),
-                    contentDescription = "Search",
-                    tint = inactive,
-                    modifier = Modifier.size(20.dp)
+
+                // ✅ BLUR BACKGROUND ONLY
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .blur(24.dp)
+                        .background(
+                            if (isDark) Color(0xFF2C2C2E) else Color.White
+                        )
                 )
+
+                // CLEAR ICON
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .noRippleClickable {
+                            haptic.performHapticFeedback(
+                                HapticFeedbackType.TextHandleMove
+                            )
+                            navController.navigate(Screen.Search.route)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.search),
+                        contentDescription = "Search",
+                        tint = inactive,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -228,7 +247,7 @@ private data class BottomNavigationItem(
 )
 
 /* ------------------------------------------------
-   NO RIPPLE (iOS)
+   NO RIPPLE CLICK
 ------------------------------------------------ */
 
 private fun Modifier.noRippleClickable(onClick: () -> Unit) =
@@ -249,13 +268,6 @@ private fun PerfectIosNavPreview() {
         navController = rememberNavController(),
         showBottomBar = true
     ) {
-        LazyColumn {
-            items(30) {
-                Text(
-                    text = "Scrollable content $it",
-                    modifier = Modifier.padding(8.dp)
-                )
-            }
-        }
+
     }
 }

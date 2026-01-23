@@ -3,7 +3,6 @@ package com.coderon.phone.ui.screens
 import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -23,17 +22,15 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,9 +60,7 @@ import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import kotlinx.coroutines.flow.first
 
-/* ------------------------------------------------ */
-/* ---------------- DATASTORE --------------------- */
-/* ------------------------------------------------ */
+/* ------------------------------------------------ *//* DATASTORE                                        *//* ------------------------------------------------ */
 
 private val Context.dataStore by preferencesDataStore("call_log_prefs")
 private val FILTER_KEY = stringPreferencesKey("call_filter")
@@ -74,121 +69,96 @@ private enum class CallFilter {
     ALL, MISSED_TODAY, LAST_7_DAYS
 }
 
-/* ------------------------------------------------ */
-/* ---------------- CALL LOG SCREEN --------------- */
-/* ------------------------------------------------ */
+/* ------------------------------------------------ *//* MAIN SCREEN                                      *//* ------------------------------------------------ */
 
 @Composable
 fun CallLogScreen(
-    callLogs: List<CallLog>,
-    navController: NavController,
-    onDeleteCalls: (List<Long>) -> Unit = {}
+    callLogs: List<CallLog>, navController: NavController
 ) {
     val context = LocalContext.current
-    rememberCoroutineScope()
 
     var filter by remember { mutableStateOf(CallFilter.ALL) }
-    var editMode by remember { mutableStateOf(false) }
-    val selectedIds = remember { mutableStateListOf<Long>() }
 
-    /* ---------- Restore Filter ---------- */
     LaunchedEffect(Unit) {
-        val saved = context.dataStore.data.first()[FILTER_KEY]
-        filter = CallFilter.valueOf(saved ?: CallFilter.ALL.name)
+        val savedFilterName = context.dataStore.data.first()[FILTER_KEY]
+        filter = CallFilter.valueOf(savedFilterName ?: CallFilter.ALL.name)
     }
 
-    /* ---------- Persist Filter ---------- */
     LaunchedEffect(filter) {
-        context.dataStore.edit {
-            it[FILTER_KEY] = filter.name
-        }
+        context.dataStore.edit { it[FILTER_KEY] = filter.name }
     }
 
     val filteredLogs = remember(callLogs, filter) {
         when (filter) {
             CallFilter.ALL -> callLogs
-            CallFilter.MISSED_TODAY ->
-                callLogs.filter {
-                    it.callType == CallType.MISSED &&
-                            it.callTime >= System.currentTimeMillis() - 24 * 60 * 60 * 1000
-                }
+            CallFilter.MISSED_TODAY -> callLogs.filter {
+                it.callType == CallType.MISSED && it.callTime >= System.currentTimeMillis() - 86_400_000
+            }
 
-            CallFilter.LAST_7_DAYS ->
-                callLogs.filter {
-                    it.callTime >= System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000
-                }
+            CallFilter.LAST_7_DAYS -> callLogs.filter {
+                it.callTime >= System.currentTimeMillis() - 604_800_000
+            }
         }
     }
 
-    val groupedByDate = filteredLogs
-        .sortedByDescending { it.callTime }
-        .groupBy { it.callTime.formatDate() }
+    val callLogsByDate =
+        filteredLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
 
     val isDark = isSystemInDarkTheme()
-    val bg = if (isDark) Color(0xFF121212) else Color(0xFFF5F5F5)
-    val primary = if (isDark) Color.White else Color.Black
-    val secondary = primary.copy(alpha = 0.6f)
+    val backgroundColor = if (isDark) Color(0xFF0E0E0E) else Color(0xFFF4F4F4)
+    val rowBackgroundColor = if (isDark) Color(0xFF1F1F1F) else Color.White
+    val contentColor = if (isDark) Color.White else Color.Black
+    val subContentColor = contentColor.copy(alpha = 0.6f)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(bg)
+            .background(backgroundColor)
             .windowInsetsPadding(WindowInsets.statusBars)
     ) {
 
-        Spacer(Modifier.height(8.dp))
+        /* ---------- HEADER ---------- */
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "Calls", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = contentColor
+            )
 
-        /* ---------- TOP BAR ---------- */
-        TopBarIOS(
-            filter = filter,
-            editMode = editMode,
-            selectedCount = selectedIds.size,
-            onFilterChange = { filter = it },
-            onEditToggle = {
-                editMode = !editMode
-                if (!editMode) selectedIds.clear()
-            },
-            onDelete = {
-                onDeleteCalls(selectedIds.toList())
-                selectedIds.clear()
-                editMode = false
-            }
-        )
+            Spacer(Modifier.height(8.dp))
+
+            FilterChip(filter) { filter = it }
+        }
 
         /* ---------- LIST ---------- */
         LazyColumn(
-            contentPadding = PaddingValues(bottom = 120.dp)
+            contentPadding = PaddingValues(
+                start = 12.dp, end = 12.dp, bottom = 120.dp
+            )
         ) {
-            groupedByDate.forEach { (date, logs) ->
+            callLogsByDate.forEach { (date, logs) ->
 
                 item {
-                    DateHeaderIOS(date, secondary)
+                    Text(
+                        text = date,
+                        fontSize = 14.sp,
+                        color = subContentColor,
+                        modifier = Modifier.padding(12.dp)
+                    )
                 }
 
-                val grouped = logs
-                    .groupBy { it.contact?.displayName ?: it.phoneNumber }
+                val groupedLogs = logs.groupBy { it.contact?.displayName ?: it.phoneNumber }
                     .map { GroupedCallLog(it.value) }
 
-                items(grouped, key = { it.primary.id }) { group ->
-                    val selected = selectedIds.contains(group.primary.id)
-
-                    CallLogRow(
-                        log = group,
-                        editMode = editMode,
-                        selected = selected,
-                        primaryText = primary,
-                        secondaryText = secondary
+                items(groupedLogs, key = { it.contentColor.id }) { group ->
+                    SamsungPillRow(
+                        group = group, contentColor = contentColor, subContentColor = subContentColor, pillColor = rowBackgroundColor
                     ) {
-                        if (editMode) {
-                            if (selected)
-                                selectedIds.remove(group.primary.id)
-                            else
-                                selectedIds.add(group.primary.id)
-                        } else {
-                            navController.navigate(
-                                Screen.CallDetails.createRoute(group.phoneNumber)
-                            )
-                        }
+                        navController.navigate(
+                            Screen.CallDetails.createRoute(group.phoneNumber)
+                        )
                     }
                 }
             }
@@ -196,211 +166,120 @@ fun CallLogScreen(
     }
 }
 
-/* ------------------------------------------------ */
-/* ---------------- TOP BAR ----------------------- */
-/* ------------------------------------------------ */
-
-@Composable
-private fun TopBarIOS(
-    filter: CallFilter,
-    editMode: Boolean,
-    selectedCount: Int,
-    onFilterChange: (CallFilter) -> Unit,
-    onEditToggle: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = if (editMode) "$selectedCount Selected" else "Calls",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        Text(
-            text = if (editMode) "Done" else "Edit",
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .clickable { onEditToggle() },
-            color = Color(0xFF007AFF),
-            fontSize = 17.sp
-        )
-
-        if (!editMode) {
-            FilterMenu(
-                filter = filter,
-                onFilterChange = onFilterChange,
-                modifier = Modifier.align(Alignment.CenterEnd)
-            )
-        } else {
-            Text(
-                text = "Delete",
-                color = Color.Red,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .clickable(enabled = selectedCount > 0) { onDelete() }
-            )
-        }
-    }
-}
-
-/* ------------------------------------------------ */
-/* ---------------- FILTER MENU ------------------- */
-/* ------------------------------------------------ */
-
-@Composable
-private fun FilterMenu(
-    filter: CallFilter,
-    onFilterChange: (CallFilter) -> Unit,
-    modifier: Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(modifier) {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                painter = painterResource(R.drawable.ic_filter),
-                contentDescription = "Filter"
-            )
-        }
-
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("All") },
-                onClick = { onFilterChange(CallFilter.ALL); expanded = false }
-            )
-            DropdownMenuItem(
-                text = { Text("Missed Today") },
-                onClick = { onFilterChange(CallFilter.MISSED_TODAY); expanded = false }
-            )
-            DropdownMenuItem(
-                text = { Text("Last 7 Days") },
-                onClick = { onFilterChange(CallFilter.LAST_7_DAYS); expanded = false }
-            )
-        }
-    }
-}
-
-/* ------------------------------------------------ */
-/* ---------------- ROW + MODELS ------------------ */
-/* ------------------------------------------------ */
-
-private data class GroupedCallLog(val logs: List<CallLog>) {
-    val primary = logs.first()
-    val count = logs.size
-    val phoneNumber get() = primary.phoneNumber
-    val callTime get() = primary.callTime
-    val callType get() = primary.callType
-    val contact get() = primary.contact
-}
-
-@Composable
-private fun DateHeaderIOS(date: String, color: Color) {
-    Text(
-        text = date,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Medium,
-        color = color,
-        modifier = Modifier.padding(16.dp)
-    )
-}
+/* ------------------------------------------------ *//* SAMSUNG PILL ROW                                 *//* ------------------------------------------------ */
 
 @SuppressLint("MissingPermission")
 @Composable
-private fun CallLogRow(
-    log: GroupedCallLog,
-    editMode: Boolean,
-    selected: Boolean,
-    primaryText: Color,
-    secondaryText: Color,
-    onClick: () -> Unit
+private fun SamsungPillRow(
+    group: GroupedCallLog, contentColor: Color, subContentColor: Color, pillColor: Color, onClick: () -> Unit
 ) {
+    val icon = when (group.callType) {
+        CallType.INCOMING -> R.drawable.ic_call_incoming
+
+        CallType.OUTGOING -> R.drawable.ic_call_outgoing
+
+        CallType.MISSED -> R.drawable.ic_call_missed
+
+        else -> R.drawable.call
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .clip(RoundedCornerShape(50))
+            .background(pillColor)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        if (editMode) {
-            SelectionDot(selected)
-            Spacer(Modifier.width(12.dp))
-        }
+        verticalAlignment = Alignment.CenterVertically) {
 
         ProfileAvatar(
-            name = log.contact?.displayName ?: log.phoneNumber,
-            photoUrl = log.contact?.profilePictureUrl
+            name = group.contact?.displayName ?: group.phoneNumber,
+            photoUrl = group.contact?.profilePictureUrl
         )
 
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
 
         Column(Modifier.weight(1f)) {
-            Row {
-                Text(
-                    text = log.contact?.displayName ?: log.phoneNumber,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp,
-                    color = if (log.callType == CallType.MISSED)
-                        Color.Red else primaryText
-                )
-                if (log.count > 1) {
-                    Text(" (${log.count})", color = secondaryText)
-                }
-            }
-            Text(
-                text = log.callType.name.lowercase()
-                    .replaceFirstChar { it.uppercase() },
-                fontSize = 12.sp,
-                color = secondaryText
-            )
-        }
 
-        Text(
-            text = log.callTime.formatTime(),
-            fontSize = 13.sp,
-            color = secondaryText
-        )
+            Text(
+                text = group.contact?.displayName ?: group.phoneNumber,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (group.callType == CallType.MISSED) Color(0xFFD32F2F) else contentColor
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp)
+                )
+
+                Spacer(Modifier.width(6.dp))
+
+                Text(
+                    text = group.callTime.formatTime(), fontSize = 13.sp, color = subContentColor
+                )
+            }
+        }
     }
 }
 
-/* ------------------------------------------------ */
-/* ---------------- UI HELPERS -------------------- */
-/* ------------------------------------------------ */
+/* ------------------------------------------------ *//* FILTER CHIP                                      *//* ------------------------------------------------ */
 
 @Composable
-private fun SelectionDot(selected: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(22.dp)
-            .clip(CircleShape)
-            .border(1.5.dp, Color.Gray, CircleShape)
-            .background(if (selected) Color(0xFF007AFF) else Color.Transparent),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Icon(
-                painter = painterResource(R.drawable.ic_check),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(14.dp)
+private fun FilterChip(
+    filter: CallFilter, onChange: (CallFilter) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFE0E0E0))
+                .clickable { expanded = true }
+                .padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                text = when (filter) {
+                    CallFilter.ALL -> "All"
+                    CallFilter.MISSED_TODAY -> "Missed today"
+                    CallFilter.LAST_7_DAYS -> "Last 7 days"
+                }, fontSize = 14.sp
             )
         }
+
+        DropdownMenu(expanded, { expanded = false }) {
+            CallFilter.values().forEach {
+                DropdownMenuItem(text = { Text(it.name.replace("_", " ")) }, onClick = {
+                    onChange(it)
+                    expanded = false
+                })
+            }
+        }
     }
+}
+
+/* ------------------------------------------------ *//* HELPERS                                          *//* ------------------------------------------------ */
+
+private data class GroupedCallLog(val mockCallLogs: List<CallLog>) {
+    val contentColor = mockCallLogs.first()
+    val phoneNumber get() = contentColor.phoneNumber
+    val callType get() = contentColor.callType
+    val callTime get() = contentColor.callTime
+    val contact get() = contentColor.contact
 }
 
 @Composable
 private fun ProfileAvatar(name: String, photoUrl: String?) {
     Box(
         modifier = Modifier
-            .size(42.dp)
+            .size(48.dp)
             .clip(CircleShape)
-            .background(Color.Gray.copy(alpha = 0.25f)),
-        contentAlignment = Alignment.Center
+            .background(Color.Gray.copy(alpha = 0.25f)), contentAlignment = Alignment.Center
     ) {
         if (!photoUrl.isNullOrBlank()) {
             AsyncImage(
@@ -420,46 +299,35 @@ private fun ProfileAvatar(name: String, photoUrl: String?) {
     }
 }
 
-/* ------------------------------------------------ */
-/* ---------------- PREVIEW ----------------------- */
-/* ------------------------------------------------ */
+/* ------------------------------------------------ *//* PREVIEW                                          *//* ------------------------------------------------ */
 
 @PreviewLightDark
 @Composable
-private fun PreviewCallLogIOS() {
-
-    val names = listOf(
-        "John Appleseed", "Alice Johnson", "Brian Lee", "Catherine Smith",
-        "David Miller", "Emma Wilson", "Frank Thomas", "Grace Kim",
-        "Henry Brown", "Ivy Anderson", "Jack White", "Katherine Moore",
-        "Liam Harris", "Mia Clark", "Noah Lewis", "Olivia Walker",
-        "Paul Young", "Quinn Scott", "Rachel Green", "Samuel King"
+private fun PreviewSamsungPillCallLog() {
+    val mockContactNames = listOf(
+        "John Appleseed",
+        "Alice Johnson",
+        "Brian Lee",
+        "Catherine Smith",
+        "David Miller",
+        "Emma Wilson"
     )
 
-    val logs = List(20) { i ->
+    val mockCallLogs = List(12) { logIndex ->
         CallLog(
-            id = i.toLong(),
-            phoneNumber = "98${70 + i}54${100 + i}",
-            callType = when (i % 3) {
+            id = logIndex.toLong(), phoneNumber = "98765432$logIndex", callType = when (logIndex % 3) {
                 0 -> CallType.INCOMING
                 1 -> CallType.OUTGOING
                 else -> CallType.MISSED
-            },
-            callTime = System.currentTimeMillis() - i * 3_600_000L,
-            contact = Contact(
-                id = "$i",
-                displayName = names[i],
-                profilePictureUrl = null
+            }, callTime = System.currentTimeMillis() - logIndex * 3_600_000L, contact = Contact(
+                id = "$logIndex", displayName = mockContactNames[logIndex % mockContactNames.size], profilePictureUrl = null
             )
         )
     }
 
-    ScaffoldScreen(
-        navController = rememberNavController()
-    ) {
+    ScaffoldScreen(navController = rememberNavController()) {
         CallLogScreen(
-            callLogs = logs,
-            navController = rememberNavController()
+            callLogs = mockCallLogs, navController = rememberNavController()
         )
     }
 }

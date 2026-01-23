@@ -4,11 +4,10 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -23,8 +22,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -37,11 +34,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,46 +78,18 @@ fun DialerScreen(
     val contacts by filterContact.collectAsStateWithLifecycle()
     val callLogs by filterCallLog.collectAsStateWithLifecycle(emptyList())
 
-    val isDark = isSystemInDarkTheme()
-    val background = if (isDark) Color.Black else Color.White
-    val textColor = if (isDark) Color.White else Color.Black
-    val secondaryText = textColor.copy(alpha = 0.6f)
-
-    /* -------- Suggestions (Contacts + Recents) -------- */
-
-    val suggestions = remember(dialedNumber, contacts, callLogs) {
-        if (dialedNumber.isBlank()) return@remember emptyList()
-
-        val map = linkedMapOf<String, Any>()
-
-        callLogs
-            .groupBy { it.phoneNumber }
-            .mapNotNull { it.value.maxByOrNull { log -> log.callTime } }
-            .filter { it.phoneNumber.contains(dialedNumber) }
-            .forEach { map[it.phoneNumber] = it }
-
-        contacts.values.flatten().forEach { contact ->
-            val number = contact.phoneNumbers.firstOrNull()?.number ?: return@forEach
-            if (number.contains(dialedNumber)) {
-                map.putIfAbsent(number, contact)
-            }
-        }
-
-        map.values.toList()
-    }
+    val textColor = Color.White
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(background)
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(bottom = 100.dp)
     ) {
 
+        Spacer(Modifier.height(24.dp))
 
         /* ---------- TYPED NUMBER ---------- */
-
-        Spacer(Modifier.height(24.dp))
         Text(
             text = dialedNumber.ifBlank { " " },
             fontSize = 40.sp,
@@ -129,88 +100,91 @@ fun DialerScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        /* ---------- SUGGESTIONS (REMAINING SPACE ONLY) ---------- */
+        /* ---------- SUGGESTIONS ---------- */
+        val suggestions = remember(dialedNumber, contacts, callLogs) {
+            if (dialedNumber.isBlank()) emptyList()
+            else {
+                val map = linkedMapOf<String, Any>()
 
-        Box(
+                callLogs
+                    .groupBy { it.phoneNumber }
+                    .mapNotNull { it.value.maxByOrNull { log -> log.callTime } }
+                    .filter { it.phoneNumber.contains(dialedNumber) }
+                    .forEach { map[it.phoneNumber] = it }
+
+                contacts.values.flatten().forEach { contact ->
+                    val number = contact.phoneNumbers.firstOrNull()?.number ?: return@forEach
+                    if (number.contains(dialedNumber)) {
+                        map.putIfAbsent(number, contact)
+                    }
+                }
+
+                map.values.toList()
+            }
+        }
+
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .padding(horizontal = 24.dp)
         ) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = suggestions.isNotEmpty()
-            ) {
-                LazyColumn(
+            items(suggestions) { item ->
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(suggestions) { item ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    dialedNumber = when (item) {
-                                        is CallLogEntry -> item.phoneNumber
-                                        is Contact -> item.phoneNumbers.first().number
-                                        else -> dialedNumber
-                                    }
-                                }
-                                .padding(vertical = 10.dp)
-                        ) {
-                            Text(
-                                text = when (item) {
-                                    is Contact -> item.displayName
-                                    is CallLogEntry ->
-                                        item.contact?.displayName ?: item.phoneNumber
-
-                                    else -> ""
-                                },
-                                fontSize = 16.sp,
-                                color = textColor
-                            )
-                            Text(
-                                text = when (item) {
-                                    is Contact -> item.phoneNumbers.first().number
-                                    is CallLogEntry -> item.phoneNumber
-                                    else -> ""
-                                },
-                                fontSize = 14.sp,
-                                color = secondaryText
-                            )
+                        .fillMaxWidth()
+                        .clickable {
+                            dialedNumber = when (item) {
+                                is CallLogEntry -> item.phoneNumber
+                                is Contact -> item.phoneNumbers.first().number
+                                else -> dialedNumber
+                            }
                         }
-                    }
+                        .padding(vertical = 10.dp)
+                ) {
+                    Text(
+                        text = when (item) {
+                            is Contact -> item.displayName
+                            is CallLogEntry -> item.contact?.displayName ?: item.phoneNumber
+                            else -> ""
+                        },
+                        fontSize = 16.sp,
+                        color = textColor
+                    )
+
+                    Text(
+                        text = when (item) {
+                            is Contact -> item.phoneNumbers.first().number
+                            is CallLogEntry -> item.phoneNumber
+                            else -> ""
+                        },
+                        fontSize = 14.sp,
+                        color = textColor.copy(alpha = 0.6f)
+                    )
                 }
             }
         }
 
-        /* ---------- KEYPAD (BOTTOM FIXED) ---------- */
-
+        /* ---------- KEYPAD ---------- */
         DialPad(
             playTones = playTones,
             onDigitPress = {
-                if (dialedNumber.length < 15) dialedNumber += it
+                if (dialedNumber.length < 15) {
+                    dialedNumber += it
+                }
             }
         )
 
         Spacer(Modifier.height(20.dp))
 
         /* ---------- CALL + DELETE ---------- */
-
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Spacer(Modifier.width(56.dp))
 
-            Box(
-                modifier = Modifier
-                    .size(56.dp),
-                contentAlignment = Alignment.Center
-            ) {}
-            Spacer(Modifier.width(24.dp))
             FilledIconButton(
                 onClick = {
                     if (dialedNumber.isNotBlank()) {
@@ -230,25 +204,36 @@ fun DialerScreen(
                     modifier = Modifier.size(34.dp)
                 )
             }
+
             Spacer(Modifier.width(24.dp))
+
             Box(
                 modifier = Modifier
                     .size(56.dp)
                     .background(
-                        if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA),
+                        Color.White.copy(
+                            alpha = if (dialedNumber.isEmpty()) 0.08f else 0.15f
+                        ),
                         CircleShape
                     )
-                    .clickable { dialedNumber = dialedNumber.dropLast(1) },
+                    .combinedClickable(
+                        enabled = dialedNumber.isNotEmpty(),
+                        onClick = {
+                            dialedNumber = dialedNumber.dropLast(1)
+                        },
+                        onLongClick = {
+                            dialedNumber = ""
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.AutoMirrored.Outlined.Backspace,
+                    painter = painterResource(R.drawable.delete),
                     contentDescription = "Delete",
-                    tint = textColor,
+                    tint = Color.White,
                     modifier = Modifier.size(22.dp)
                 )
             }
-
         }
     }
 }
@@ -262,22 +247,18 @@ private fun DialPad(
     playTones: (Char) -> Unit,
     onDigitPress: (String) -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val keyColor = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)
-    val textColor = if (isDark) Color.White else Color.Black
-    val letterColor = textColor.copy(alpha = 0.7f)
-
     val digitLetters = mapOf(
         "1" to "",
         "2" to "ABC", "3" to "DEF",
         "4" to "GHI", "5" to "JKL", "6" to "MNO",
         "7" to "PQRS", "8" to "TUV", "9" to "WXYZ",
-        "*" to "",
-        "0" to "+",
-        "#" to ""
+        "0" to "+"
     )
 
-    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         listOf(
             listOf("1", "2", "3"),
             listOf("4", "5", "6"),
@@ -289,22 +270,35 @@ private fun DialPad(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 row.forEach { digit ->
+                    if (digit.isEmpty()) {
+                        Spacer(Modifier.size(76.dp))
+                        return@forEach
+                    }
+
                     val scale = remember { Animatable(1f) }
                     val scope = rememberCoroutineScope()
 
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(76.dp)
                             .graphicsLayer {
                                 scaleX = scale.value
                                 scaleY = scale.value
                             }
-                            .background(keyColor, CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.28f),
+                                        Color.White.copy(alpha = 0.22f)
+                                    )
+                                ),
+                                CircleShape
+                            )
                             .clickable {
                                 onDigitPress(digit)
                                 playTones(digit.first())
                                 scope.launch {
-                                    scale.animateTo(0.9f, spring())
+                                    scale.animateTo(0.94f, spring())
                                     scale.animateTo(1f, spring())
                                 }
                             },
@@ -315,14 +309,16 @@ private fun DialPad(
                                 text = digit,
                                 fontSize = 30.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = textColor
+                                color = Color.White.copy(alpha = 0.9f)
                             )
-                            if (digitLetters[digit]?.isNotEmpty() == true) {
+
+                            digitLetters[digit]?.takeIf { it.isNotEmpty() }?.let {
+                                Spacer(Modifier.height(2.dp))
                                 Text(
-                                    text = digitLetters[digit]!!,
-                                    fontSize = 12.sp,
+                                    text = it,
+                                    fontSize = 11.sp,
                                     letterSpacing = 1.sp,
-                                    color = letterColor
+                                    color = Color.White.copy(alpha = 0.65f)
                                 )
                             }
                         }
@@ -337,9 +333,12 @@ private fun DialPad(
 /* -------------------- PREVIEW ------------------- */
 /* ------------------------------------------------ */
 
-@Preview(showBackground = true)
+@Preview(
+    showBackground = true
+)
+@PreviewLightDark
 @Composable
-fun DialerPreviewLight() {
+fun DialerPreview() {
     ScaffoldScreen(rememberNavController()) {
         DialerScreen(
             navController = rememberNavController(),
