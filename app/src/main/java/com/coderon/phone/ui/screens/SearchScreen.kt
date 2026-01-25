@@ -47,6 +47,7 @@ import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R.drawable
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
 
@@ -177,9 +178,12 @@ fun SearchScreen(
                             name = contact.displayName,
                             subtitle = contact.phoneNumbers.firstOrNull()?.number,
                             photoUrl = contact.profilePictureUrl,
-                            onClick = {
+                            onRowClick = {
                                 navController.navigate("contact_details/${contact.phoneNumbers.firstOrNull()?.number}")
-                            }
+                            },
+                            onInfoClick = {
+                                navController.navigate("contact_details/${contact.phoneNumbers.firstOrNull()?.number}")
+                            },
                         )
                     }
                 }
@@ -190,13 +194,15 @@ fun SearchScreen(
                         SectionHeader("RECENTS")
                     }
                     items(filteredLogs) { log ->
-                        HybridContactRow(
+                        HybridCallLogPill(
                             name = log.contact?.displayName ?: log.phoneNumber,
-                            subtitle = log.phoneNumber,
-                            photoUrl = log.contact?.profilePictureUrl,
-                            onClick = {
-                                navController.navigate("contact_details/${log.phoneNumber}")
-                            }
+                            phoneNumber = log.phoneNumber,
+                            callType = log.callType,
+                            callTime = log.callTime,
+                            simSlot = log.simSlot,
+                            contact = log.contact,
+                            onRowClick = { navController.navigate("call_details/${log.phoneNumber}") },
+                            onInfoClick = { navController.navigate("call_details/${log.phoneNumber}") },
                         )
                     }
                 }

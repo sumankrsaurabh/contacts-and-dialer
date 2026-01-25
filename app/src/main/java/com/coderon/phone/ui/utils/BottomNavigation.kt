@@ -1,5 +1,6 @@
 package com.coderon.phone.ui.utils
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -13,16 +14,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -48,7 +49,6 @@ fun ScaffoldScreen(
     showBottomBar: Boolean = true,
     content: @Composable () -> Unit
 ) {
-
     Box(modifier = Modifier.fillMaxSize()) {
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -56,6 +56,22 @@ fun ScaffoldScreen(
         }
 
         if (showBottomBar) {
+            // Gradient fade to soften the area behind the floating dock
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
+                            )
+                        )
+                    )
+            )
+
             IosSegmentedBottomBar(
                 navController = navController,
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -65,7 +81,7 @@ fun ScaffoldScreen(
 }
 
 /* ------------------------------------------------
-   iOS SEGMENTED NAV BAR (FIXED)
+   HYBRID BOTTOM DOCK (iOS + OneUI 8 + M3)
 ------------------------------------------------ */
 
 @Composable
@@ -74,123 +90,83 @@ fun IosSegmentedBottomBar(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val backStack = navController.currentBackStackEntryAsState().value
-    val currentRoute = backStack?.destination?.route ?: Screen.Recent.route
-
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Keypad.route
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp),
+            .padding(bottom = 24.dp, start = 16.dp, end = 16.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Surface(
+            modifier = Modifier
+                .height(72.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(36.dp), // Super Rounded OneUI 8 / modern iOS style
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+            shadowElevation = 12.dp,
+            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)) // iOS Glass Rim
         ) {
-
-            /* ---------- SEGMENTED PILL ---------- */
-            Box(
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                bottomNavItems.forEach { item ->
+                    val isSelected = currentRoute == item.screen.route
+                    val tint = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    }
 
-                // ✅ BACKGROUND BLUR & SURFACE COLOR
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(24.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f))
-                )
-
-                // ORIGINAL CONTENT (CLEAR)
-                Row(
-                    modifier = Modifier.padding(6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    bottomNavItems.forEach { item ->
-                        val selected = currentRoute == item.screen.route
-                        val tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                        val itemBg = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
-
-                        Box(
-                            modifier = Modifier
-                                .width(80.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(itemBg)
-                                .padding(vertical = 8.dp)
-                                .noRippleClickable {
-                                    haptic.performHapticFeedback(
-                                        HapticFeedbackType.TextHandleMove
-                                    )
+                    Box(
+                        modifier = Modifier
+                            .height(52.dp)
+                            .weight(1f)
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                                else Color.Transparent
+                            )
+                            .noRippleClickable {
+                                if (!isSelected) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     navController.navigate(item.screen.route) {
-                                        launchSingleTop = true
-                                        restoreState = true
                                         popUpTo(navController.graph.startDestinationId) {
                                             saveState = true
                                         }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                },
-                            contentAlignment = Alignment.Center
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    painter = painterResource(item.icon),
-                                    contentDescription = item.label,
-                                    tint = tint,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                            Icon(
+                                painter = painterResource(item.icon),
+                                contentDescription = item.label,
+                                tint = tint,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            if (isSelected) {
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = item.label,
                                     fontSize = 10.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    fontWeight = FontWeight.Bold,
                                     color = tint
                                 )
                             }
                         }
                     }
-                }
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            /* ---------- SEARCH BUTTON ---------- */
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-            ) {
-
-                // ✅ BLUR BACKGROUND & M3 CONTAINER COLOR
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(24.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
-                        )
-                )
-
-                // CLEAR ICON
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .noRippleClickable {
-                            haptic.performHapticFeedback(
-                                HapticFeedbackType.TextHandleMove
-                            )
-                            navController.navigate(Screen.Search.route)
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.search),
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
                 }
             }
         }
@@ -203,8 +179,9 @@ fun IosSegmentedBottomBar(
 
 private val bottomNavItems = listOf(
     BottomNavigationItem(Screen.Keypad, "Keypad", R.drawable.ic_dialpad),
-    BottomNavigationItem(Screen.Recent, "Calls", R.drawable.ic_recent),
-    BottomNavigationItem(Screen.Contacts, "Lists", R.drawable.ic_contacts),
+    BottomNavigationItem(Screen.Recent, "Recents", R.drawable.ic_recent),
+    BottomNavigationItem(Screen.Contacts, "Contacts", R.drawable.ic_contacts),
+    BottomNavigationItem(Screen.Search, "Search", R.drawable.search),
 )
 
 private data class BottomNavigationItem(

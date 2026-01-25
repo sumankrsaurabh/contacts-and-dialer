@@ -2,7 +2,6 @@
 
 package com.coderon.phone.ui.screens
 
-import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -13,15 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -46,10 +38,10 @@ import com.coderon.phone.data.helpers.formatDate
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridSegmentedPicker
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.theme.PhoneTheme
 import kotlinx.coroutines.flow.first
 
@@ -98,7 +90,8 @@ fun CallLogScreen(
         }
     }
 
-    val callLogsByDate = filteredLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
+    val callLogsByDate =
+        filteredLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
 
     Scaffold(
         containerColor = colorScheme.background,
@@ -111,26 +104,26 @@ fun CallLogScreen(
                         .blur(24.dp)
                         .background(colorScheme.background.copy(alpha = 0.65f))
                 )
-
-                LargeTopAppBar(
-                    title = {
-                        Text("Recents", fontWeight = FontWeight.Bold, fontSize = 32.sp)
-                    },
-                    actions = {
-                        IconButton(onClick = { /* More actions */ }) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = colorScheme.primary)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.9f)
-                    )
-                )
+//
+//                LargeTopAppBar(
+//                    title = {
+//                        Text("Recents", fontWeight = FontWeight.Bold, fontSize = 32.sp)
+//                    },
+//                    actions = {
+//                        IconButton(onClick = { /* More actions */ }) {
+//                            Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = colorScheme.primary)
+//                        }
+//                    },
+//                    colors = TopAppBarDefaults.topAppBarColors(
+//                        containerColor = Color.Transparent,
+//                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.9f)
+//                    )
+//                )
             }
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-            
+
             // iOS/OneUI 8 Segmented Picker
             Box(
                 modifier = Modifier

@@ -18,14 +18,12 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,23 +80,24 @@ fun DialerScreen(
             .fillMaxSize()
             .background(colorScheme.background)
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(bottom = 100.dp)
+            .padding(bottom = 104.dp)
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
 
-        /* ---------- REDESIGNED DIALED TEXT STYLE ---------- */
+        /* ---------- REDESIGNED DIALED TEXT (iOS / OneUI 8 Mix) ---------- */
         Text(
             text = dialedNumber.ifBlank { " " },
-            fontSize = 44.sp,
+            fontSize = 48.sp,
             fontWeight = FontWeight.Bold,
-            color = colorScheme.primary,
+            color = colorScheme.onSurface,
+            textAlign = TextAlign.Center,
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
+                .fillMaxWidth()
                 .padding(horizontal = 24.dp),
             maxLines = 1
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
         val suggestions = remember(dialedNumber, contacts, callLogs) {
             if (dialedNumber.isBlank()) emptyList()
@@ -121,13 +121,12 @@ fun DialerScreen(
             }
         }
 
-        /* ---------- REDESIGNED SUGGESTION ITEMS ---------- */
+        /* ---------- REDESIGNED SUGGESTIONS (Pill-style like CallLogs) ---------- */
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 12.dp)
         ) {
             if (suggestions.isNotEmpty()) {
@@ -141,54 +140,38 @@ fun DialerScreen(
                     )
                 }
 
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(32.dp),
-                        color = colorScheme.surfaceContainerLow
-                    ) {
-                        Column {
-                            suggestions.forEachIndexed { index, item ->
-                                when (item) {
-                                    is CallLogEntry -> {
-                                        HybridCallLogPill(
-                                            name = item.contact?.displayName ?: item.phoneNumber,
-                                            phoneNumber = item.phoneNumber,
-                                            callType = item.callType,
-                                            callTime = item.callTime,
-                                            simSlot = item.simSlot,
-                                            contact = item.contact,
-                                            onRowClick = { dialedNumber = item.phoneNumber },
-                                            onInfoClick = {
-                                                navController.navigate(
-                                                    Screen.CallDetails.createRoute(
-                                                        item.phoneNumber
-                                                    )
-                                                )
-                                            }
-                                        )
-                                    }
-
-                                    is Contact -> {
-                                        HybridContactRow(
-                                            name = item.displayName,
-                                            subtitle = item.phoneNumbers.firstOrNull()?.number,
-                                            photoUrl = item.profilePictureUrl,
-                                            onClick = {
-                                                dialedNumber =
-                                                    item.phoneNumbers.firstOrNull()?.number ?: ""
-                                            }
-                                        )
-                                    }
+                items(suggestions) { item ->
+                    when (item) {
+                        is CallLogEntry -> {
+                            HybridCallLogPill(
+                                name = item.contact?.displayName ?: item.phoneNumber,
+                                phoneNumber = item.phoneNumber,
+                                callType = item.callType,
+                                callTime = item.callTime,
+                                simSlot = item.simSlot,
+                                contact = item.contact,
+                                onRowClick = { dialedNumber = item.phoneNumber },
+                                onInfoClick = {
+                                    navController.navigate(Screen.CallDetails.createRoute(item.phoneNumber))
                                 }
-                                if (index < suggestions.size - 1) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(start = 74.dp),
-                                        thickness = 0.5.dp,
-                                        color = colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            )
+                        }
+
+                        is Contact -> {
+                            val contactNumber = item.phoneNumbers.firstOrNull()?.number ?: ""
+                            HybridContactRow(
+                                name = item.displayName,
+                                subtitle = contactNumber,
+                                photoUrl = item.profilePictureUrl,
+                                onRowClick = { dialedNumber = contactNumber },
+                                onInfoClick = {
+                                    navController.navigate(
+                                        Screen.CallDetails.createRoute(
+                                            contactNumber
+                                        )
                                     )
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -222,7 +205,7 @@ fun DialerScreen(
                 modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
                 shape = CircleShape
             ) {
