@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.coderon.phone.call.ui.screens.incallui
 
 import android.telecom.CallAudioState
@@ -5,6 +7,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,9 +18,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Dialpad
+import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,20 +38,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.coderon.phone.R
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 import com.coderon.phone.ui.utils.extentions.State
 
 /* ------------------------------------------------
-   ANDROID ONGOING CALL · iOS STYLE
+   ONGOING CALL – iOS + OneUI 8 + M3 HYBRID
 ------------------------------------------------ */
 
 @Composable
@@ -62,216 +83,290 @@ fun OngoingCallScreen(
 ) {
     var showKeypad by remember { mutableStateOf(false) }
 
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        // Shared Dynamic Background
+        OneUi8DynamicBackground()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-
-        /* ---------- BACKGROUND ---------- */
-//        AsyncImage(
-//            model = ImageRequest.Builder(LocalContext.current)
-//                .data(profilePictureUrl ?: R.drawable.background_incallui)
-//                .crossfade(true)
-//                .build(),
-//            contentDescription = null,
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .blur(22.dp),
-//            contentScale = ContentScale.Crop
-//        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
-        )
-
-        /* ---------- CONTENT ---------- */
+        /* ---------- MAIN CONTENT ---------- */
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 64.dp, bottom = 48.dp),
+                .statusBarsPadding()
+                .padding(vertical = 64.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            /* ---------- CALL INFO ---------- */
+            /* ---------- IDENTITY SECTION (OneUI 8 Reachability) ---------- */
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            ) {
+                // Info Badge (M3 / OneUI 8)
+                Surface(
+                    color = Color.White.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.padding(bottom = 32.dp)
+                ) {
+                    Text(
+                        text = "$simInfo • $callType",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
 
-
-            Text(
-                text = contactName.ifBlank { contactPhoneNumber },
-                fontSize = 28.sp,
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
-
-            if (contactName.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = contactPhoneNumber,
-                    fontSize = 18.sp,
-                    color = Color.White.copy(0.75f)
+                // Avatar with Soft Glass Rim
+                OngoingCallAvatar(
+                    name = contactName.ifBlank { contactPhoneNumber },
+                    photoUrl = profilePictureUrl
                 )
+
+                Spacer(Modifier.height(36.dp))
+
+                Text(
+                    text = contactName.ifBlank { contactPhoneNumber },
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 40.sp
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                // Time Duration Pill (iOS style)
+                Surface(
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text(
+                        text = callDuration,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
+                    )
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                callDuration, fontSize = 16.sp, color = Color.White.copy(0.85f),
-                modifier = Modifier
-                    .background(Color.White.copy(.25f), CircleShape)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
 
             Spacer(Modifier.weight(1f))
 
-            /* ---------- BUTTON GRID ---------- */
+            /* ---------- CONTROLS (iOS Grid + OneUI 8 Shapes) ---------- */
             AnimatedVisibility(
                 visible = !showKeypad,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(32.dp)) {
-
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(32.dp)
+                ) {
+                    // Control Grid Row 1
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        ActionButton(
-                            icon = R.drawable.volume_high,
+                        InCallActionCircle(
+                            icon = Icons.Rounded.MicOff,
+                            label = "Mute",
+                            active = isMuted,
+                            onClick = onToggleMute
+                        )
+                        InCallActionCircle(
+                            icon = Icons.Rounded.Dialpad,
+                            label = "Keypad",
+                            active = false,
+                            onClick = { showKeypad = true }
+                        )
+                        InCallActionCircle(
+                            icon = Icons.AutoMirrored.Rounded.VolumeUp,
                             label = "Speaker",
                             active = currentAudioRoute == CallAudioState.ROUTE_SPEAKER,
                             onClick = onToggleSpeaker
                         )
+                    }
 
-                        ActionButton(
-                            icon = R.drawable.bluetooth,
+                    // Control Grid Row 2
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        InCallActionCircle(
+                            icon = Icons.Rounded.Bluetooth,
                             label = "Bluetooth",
                             active = currentAudioRoute == CallAudioState.ROUTE_BLUETOOTH,
                             enabled = bluetoothDeviceConnected,
                             onClick = onToggleBluetooth
                         )
-
-                        ActionButton(
-                            icon = R.drawable.mute,
-                            label = "Mute",
-                            active = isMuted,
-                            onClick = onToggleMute
+                        InCallActionCircle(
+                            icon = Icons.Rounded.Pause,
+                            label = "Hold",
+                            active = state == State.HOLD,
+                            onClick = onToggleHold
                         )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        ActionButton(
-                            icon = R.drawable.plus,
+                        InCallActionCircle(
+                            icon = Icons.Rounded.MoreVert,
                             label = "More",
                             active = false,
                             onClick = {}
                         )
-
-                        EndCallButton(onClick = onEndCall)
-
-                        ActionButton(
-                            icon = R.drawable.keypad,
-                            label = "Keypad",
-                            active = showKeypad,
-                            onClick = { showKeypad = true }
-                        )
                     }
+
+                    Spacer(Modifier.height(40.dp))
+
+                    // End Call (Prominent iOS Red)
+                    EndCallButton(onClick = onEndCall)
                 }
             }
 
-            /* ---------- KEYPAD ---------- */
+            /* ---------- KEYPAD OVERLAY ---------- */
             AnimatedVisibility(
                 visible = showKeypad,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                DialPad { playDfmTones(it) }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    OngoingDialPad { playDfmTones(it) }
+                    Spacer(Modifier.height(48.dp))
+                    // iOS-style text button to hide keypad
+                    Text(
+                        "Hide",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.1f))
+                            .clickable { showKeypad = false }
+                            .padding(horizontal = 32.dp, vertical = 12.dp)
+                    )
+                }
             }
         }
     }
 }
 
-/* ------------------------------------------------
-   ACTION BUTTON
------------------------------------------------- */
+@Composable
+private fun OngoingCallAvatar(name: String, photoUrl: String?) {
+    Box(contentAlignment = Alignment.Center) {
+        // Glass Rim
+        Surface(
+            modifier = Modifier.size(136.dp),
+            shape = CircleShape,
+            color = Color.White.copy(alpha = 0.08f)
+        ) {}
+        Surface(
+            modifier = Modifier
+                .size(120.dp)
+                .clip(CircleShape),
+            color = Color.White.copy(alpha = 0.12f)
+        ) {
+            if (!photoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = name.firstOrNull()?.uppercase() ?: "?",
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Light,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
-private fun ActionButton(
-    icon: Int,
+private fun InCallActionCircle(
+    icon: ImageVector,
     label: String,
     active: Boolean,
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(
-            enabled = enabled,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.alpha(if (enabled) 1f else 0.4f)
+    ) {
+        Surface(
             onClick = onClick,
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(
-                    if (active) Color.White else Color.White.copy(alpha = 0.18f)
-                )
+            enabled = enabled,
+            modifier = Modifier.size(72.dp),
+            shape = CircleShape,
+            color = if (active) Color.White else Color.White.copy(alpha = 0.15f)
         ) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = label,
-                tint = if (active) Color.Black else Color.White,
-                modifier = Modifier.size(28.dp)
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (active) Color.Black else Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
-        Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 14.sp, color = Color.White)
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = Color.White.copy(alpha = 0.85f),
+            fontWeight = FontWeight.Medium
+        )
     }
 }
-
-/* ------------------------------------------------
-   END CALL
------------------------------------------------- */
 
 @Composable
 private fun EndCallButton(onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFFF3B30))
-        ) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(80.dp),
+        shape = CircleShape,
+        color = Color(0xFFFF3B30), // iOS Red
+        shadowElevation = 12.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
             Icon(
                 painter = painterResource(R.drawable.end_call),
-                contentDescription = "End",
+                contentDescription = "End Call",
                 tint = Color.White,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(38.dp)
             )
         }
-        Spacer(Modifier.height(6.dp))
-        Text("End", fontSize = 14.sp, color = Color.White)
     }
 }
 
-/* ------------------------------------------------
-   DIAL PAD (DTMF)
------------------------------------------------- */
-
 @Composable
-private fun DialPad(onDigit: (Char) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+private fun OngoingDialPad(onDigit: (Char) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         listOf("123", "456", "789", "*0#").forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 row.forEach { digit ->
-                    IconButton(
+                    Surface(
                         onClick = { onDigit(digit) },
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.18f))
+                        modifier = Modifier.size(76.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.15f)
                     ) {
-                        Text(digit.toString(), fontSize = 24.sp, color = Color.White)
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(digit.toString(), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Normal)
+                        }
                     }
                 }
             }
@@ -279,12 +374,12 @@ private fun DialPad(onDigit: (Char) -> Unit) {
     }
 }
 
-@Preview
+@Preview(showBackground = true)
 @Composable
 private fun OngoingCallScreenPreview() {
     PhoneTheme {
         OngoingCallScreen(
-            contactName = "John Doe",
+            contactName = "Sarah Johnson",
             contactPhoneNumber = "+1 234 567 8900",
             state = State.ACTIVE,
             currentAudioRoute = CallAudioState.ROUTE_EARPIECE,
