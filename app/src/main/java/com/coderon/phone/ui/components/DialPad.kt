@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -21,14 +19,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
+@PreviewLightDark
 @Composable
 fun DialPad(
-    playTones: (Char) -> Unit,
-    onDigitPress: (String) -> Unit
+    playTones: (Char) -> Unit = {},
+    onDigitPress: (String) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val digitLetters = mapOf(
@@ -40,7 +40,7 @@ fun DialPad(
     )
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(22.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         listOf(
@@ -54,30 +54,25 @@ fun DialPad(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 row.forEach { digit ->
-                    if (digit.isEmpty()) {
-                        Spacer(Modifier.size(76.dp))
-                        return@forEach
-                    }
-
                     val scale = remember { Animatable(1f) }
                     val scope = rememberCoroutineScope()
 
                     Box(
                         modifier = Modifier
-                            .size(76.dp)
+                            .size(72.dp)
                             .graphicsLayer {
                                 scaleX = scale.value
                                 scaleY = scale.value
                             }
                             .background(
-                                colorScheme.surfaceVariant,
+                                colorScheme.surfaceContainerHigh,
                                 CircleShape
                             )
                             .clickable {
                                 onDigitPress(digit)
                                 playTones(digit.first())
                                 scope.launch {
-                                    scale.animateTo(0.94f, spring())
+                                    scale.animateTo(0.92f, spring())
                                     scale.animateTo(1f, spring())
                                 }
                             },
@@ -86,18 +81,18 @@ fun DialPad(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = digit,
-                                fontSize = 30.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onSurfaceVariant
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colorScheme.onSurface
                             )
 
                             digitLetters[digit]?.takeIf { it.isNotEmpty() }?.let {
-                                Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = it,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp,
-                                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
                             }
                         }

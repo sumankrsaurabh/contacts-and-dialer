@@ -1,11 +1,11 @@
 package com.coderon.phone.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,12 +18,14 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,20 +34,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
+import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.DialPad
+import com.coderon.phone.ui.components.HybridCallLogPill
+import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.initiateCall
 import kotlinx.coroutines.flow.Flow
@@ -69,7 +74,6 @@ fun DialerScreen(
 
     val contacts by filterContact.collectAsStateWithLifecycle()
     val callLogs by filterCallLog.collectAsStateWithLifecycle(emptyList())
-
     val colorScheme = MaterialTheme.colorScheme
 
     Column(
@@ -79,21 +83,22 @@ fun DialerScreen(
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(bottom = 100.dp)
     ) {
+        Spacer(Modifier.height(16.dp))
 
-        Spacer(Modifier.height(24.dp))
-
-        /* ---------- TYPED NUMBER ---------- */
+        /* ---------- REDESIGNED DIALED TEXT STYLE ---------- */
         Text(
             text = dialedNumber.ifBlank { " " },
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Medium,
-            color = colorScheme.onBackground,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
+            fontSize = 44.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorScheme.primary,
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(horizontal = 24.dp),
+            maxLines = 1
         )
 
         Spacer(Modifier.height(12.dp))
 
-        /* ---------- SUGGESTIONS ---------- */
         val suggestions = remember(dialedNumber, contacts, callLogs) {
             if (dialedNumber.isBlank()) emptyList()
             else {
@@ -116,49 +121,80 @@ fun DialerScreen(
             }
         }
 
+        /* ---------- REDESIGNED SUGGESTION ITEMS ---------- */
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
-            items(suggestions) { item ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            dialedNumber = when (item) {
-                                is CallLogEntry -> item.phoneNumber
-                                is Contact -> item.phoneNumbers.first().number
-                                else -> dialedNumber
+            if (suggestions.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "SUGGESTIONS",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                    )
+                }
+
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(32.dp),
+                        color = colorScheme.surfaceContainerLow
+                    ) {
+                        Column {
+                            suggestions.forEachIndexed { index, item ->
+                                when (item) {
+                                    is CallLogEntry -> {
+                                        HybridCallLogPill(
+                                            name = item.contact?.displayName ?: item.phoneNumber,
+                                            phoneNumber = item.phoneNumber,
+                                            callType = item.callType,
+                                            callTime = item.callTime,
+                                            simSlot = item.simSlot,
+                                            contact = item.contact,
+                                            onRowClick = { dialedNumber = item.phoneNumber },
+                                            onInfoClick = {
+                                                navController.navigate(
+                                                    Screen.CallDetails.createRoute(
+                                                        item.phoneNumber
+                                                    )
+                                                )
+                                            }
+                                        )
+                                    }
+
+                                    is Contact -> {
+                                        HybridContactRow(
+                                            name = item.displayName,
+                                            subtitle = item.phoneNumbers.firstOrNull()?.number,
+                                            photoUrl = item.profilePictureUrl,
+                                            onClick = {
+                                                dialedNumber =
+                                                    item.phoneNumbers.firstOrNull()?.number ?: ""
+                                            }
+                                        )
+                                    }
+                                }
+                                if (index < suggestions.size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 74.dp),
+                                        thickness = 0.5.dp,
+                                        color = colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
+                                }
                             }
                         }
-                        .padding(vertical = 10.dp)
-                ) {
-                    Text(
-                        text = when (item) {
-                            is Contact -> item.displayName
-                            is CallLogEntry -> item.contact?.displayName ?: item.phoneNumber
-                            else -> ""
-                        },
-                        fontSize = 16.sp,
-                        color = colorScheme.onSurface
-                    )
-
-                    Text(
-                        text = when (item) {
-                            is Contact -> item.phoneNumbers.first().number
-                            is CallLogEntry -> item.phoneNumber
-                            else -> ""
-                        },
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurfaceVariant
-                    )
+                    }
                 }
             }
         }
 
-        /* ---------- KEYPAD ---------- */
         DialPad(
             playTones = playTones,
             onDigitPress = {
@@ -170,10 +206,9 @@ fun DialerScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        /* ---------- CALL + DELETE ---------- */
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Spacer(Modifier.width(56.dp))
@@ -186,8 +221,8 @@ fun DialerScreen(
                 },
                 modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = Color(0xFF34C759),
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 shape = CircleShape
             ) {
@@ -197,8 +232,6 @@ fun DialerScreen(
                     modifier = Modifier.size(34.dp)
                 )
             }
-
-            Spacer(Modifier.width(24.dp))
 
             Box(
                 modifier = Modifier
@@ -211,12 +244,8 @@ fun DialerScreen(
                     )
                     .combinedClickable(
                         enabled = dialedNumber.isNotEmpty(),
-                        onClick = {
-                            dialedNumber = dialedNumber.dropLast(1)
-                        },
-                        onLongClick = {
-                            dialedNumber = ""
-                        }
+                        onClick = { dialedNumber = dialedNumber.dropLast(1) },
+                        onLongClick = { dialedNumber = "" }
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -231,15 +260,45 @@ fun DialerScreen(
     }
 }
 
+/* ---------------- PREVIEW DATA ---------------- */
+
+private fun previewContacts(): Map<Char, List<Contact>> {
+    val contacts = (1..10).map {
+        Contact(
+            id = it.toString(),
+            displayName = "Contact $it",
+            phoneNumbers = listOf(
+                PhoneNumber(
+                    number = "98765432$it",
+                )
+            )
+        )
+    }
+    return contacts.groupBy { it.displayName.first() }
+}
+
+private fun previewCallLogs(): List<CallLogEntry> {
+    return (1..10).map {
+        CallLogEntry(
+            id = it.toLong(),
+            phoneNumber = "98765432$it",
+            callTime = System.currentTimeMillis() - it * 60_000L,
+            contact = null,
+            callType = CallType.INCOMING,
+        )
+    }
+}
+
+/* ---------------- PREVIEW ---------------- */
+
 @Preview(showBackground = true)
-@PreviewLightDark
 @Composable
 fun DialerPreview() {
     ScaffoldScreen(rememberNavController()) {
         DialerScreen(
             navController = rememberNavController(),
-            filterContact = MutableStateFlow(emptyMap()),
-            filterCallLog = MutableStateFlow(emptyList()),
+            filterContact = MutableStateFlow(previewContacts()),
+            filterCallLog = MutableStateFlow(previewCallLogs()),
             updateSearchQuery = {},
             playTones = {}
         )
