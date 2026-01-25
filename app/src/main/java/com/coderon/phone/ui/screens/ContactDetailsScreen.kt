@@ -54,7 +54,7 @@ import com.coderon.phone.data.helpers.formatTime
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.theme.PhoneTheme
 
 @Composable

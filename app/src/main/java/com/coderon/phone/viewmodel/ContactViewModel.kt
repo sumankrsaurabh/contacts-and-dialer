@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
-import com.coderon.phone.domain.repository.ContactRepository
+import com.coderon.phone.domain.usecase.GetContactsUseCase
+import com.coderon.phone.domain.usecase.SaveContactUseCase
+import com.coderon.phone.domain.usecase.UpdateContactUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,24 +17,17 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ContactViewModel(
-    private val contactRepository: ContactRepository
+    private val getContactsUseCase: GetContactsUseCase,
+    private val saveContactUseCase: SaveContactUseCase,
+    private val updateContactUseCase: UpdateContactUseCase
 ) : ViewModel() {
 
-    // ----------------------------------
-    // RAW CONTACTS
-    // ----------------------------------
     private val _allContacts = MutableStateFlow<List<Contact>>(emptyList())
     val allContacts: StateFlow<List<Contact>> = _allContacts.asStateFlow()
 
-    // ----------------------------------
-    // SEARCH QUERY
-    // ----------------------------------
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // ----------------------------------
-    // GROUPED CONTACTS (A–Z)
-    // ----------------------------------
     val groupedContacts: StateFlow<Map<Char, List<Contact>>> =
         combine(_allContacts, _searchQuery) { contacts, query ->
             val filtered = if (query.isBlank()) {
@@ -57,33 +52,24 @@ class ContactViewModel(
             initialValue = emptyMap()
         )
 
-    // ----------------------------------
-    // INIT
-    // ----------------------------------
     init {
         refreshContacts()
     }
 
-    // ----------------------------------
-    // LOAD CONTACTS
-    // ----------------------------------
     fun refreshContacts() {
         viewModelScope.launch(Dispatchers.IO) {
-            val contacts = contactRepository.getContacts()
+            val contacts = getContactsUseCase()
             _allContacts.value = contacts
         }
     }
 
-    // ----------------------------------
-    // ADD CONTACT (MULTI NUMBER READY)
-    // ----------------------------------
     fun saveContact(
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
         profilePictureUri: String?
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            contactRepository.addContact(
+            saveContactUseCase(
                 displayName = displayName,
                 phoneNumbers = phoneNumbers,
                 profilePictureUri = profilePictureUri
@@ -92,9 +78,6 @@ class ContactViewModel(
         }
     }
 
-    // ----------------------------------
-    // UPDATE CONTACT
-    // ----------------------------------
     fun updateContact(
         contactId: String,
         displayName: String,
@@ -102,7 +85,7 @@ class ContactViewModel(
         profilePictureUri: String?
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            contactRepository.updateContact(
+            updateContactUseCase(
                 contactId = contactId,
                 displayName = displayName,
                 phoneNumbers = phoneNumbers,
@@ -112,18 +95,12 @@ class ContactViewModel(
         }
     }
 
-    // ----------------------------------
-    // FIND CONTACT BY NUMBER
-    // ----------------------------------
     fun getContactByPhoneNumber(phoneNumber: String): Contact? {
         return _allContacts.value.firstOrNull { contact ->
             contact.phoneNumbers.any { it.number == phoneNumber }
         }
     }
 
-    // ----------------------------------
-    // SEARCH
-    // ----------------------------------
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }

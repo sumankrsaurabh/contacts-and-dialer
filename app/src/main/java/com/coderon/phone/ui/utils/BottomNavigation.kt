@@ -35,8 +35,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
-import com.coderon.phone.ui.Screen
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.components.Text
 
 /* ------------------------------------------------
    ROOT CONTAINER

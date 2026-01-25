@@ -3,20 +3,15 @@
 package com.coderon.phone.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -32,29 +27,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import coil.compose.AsyncImage
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
-import com.coderon.phone.ui.Screen
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.components.HybridContactRow
+import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.theme.PhoneTheme
-
-/* ------------------------------------------------ */
-/* ---------------- CONTACTS SCREEN ---------------- */
-/* ------------------------------------------------ */
 
 @Composable
 fun ContactsScreen(
@@ -76,7 +63,6 @@ fun ContactsScreen(
         containerColor = colorScheme.background,
         topBar = {
             Box {
-                // iOS Blur Background
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -86,12 +72,12 @@ fun ContactsScreen(
 
                 LargeTopAppBar(
                     title = {
-                        Text("Contacts", fontWeight = FontWeight.Bold, fontSize = 32.sp)
+                        Text(text = "Contacts", fontWeight = FontWeight.Bold, fontSize = 32.sp)
                     },
                     navigationIcon = {
                         TextButton(onClick = { /* iOS Groups */ }) {
                             Text(
-                                "Groups",
+                                text = "Groups",
                                 color = colorScheme.primary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -123,7 +109,6 @@ fun ContactsScreen(
                 end = 16.dp
             )
         ) {
-            // My Card (iOS Style)
             item {
                 Spacer(Modifier.height(16.dp))
                 HybridContactRow(
@@ -148,7 +133,7 @@ fun ContactsScreen(
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(32.dp), // OneUI 8 Super Rounding
+                        shape = RoundedCornerShape(32.dp),
                         color = colorScheme.surfaceContainerLow
                     ) {
                         Column {
@@ -180,97 +165,6 @@ fun ContactsScreen(
         }
     }
 }
-
-/* ------------------------------------------------ */
-/* ---------------- HYBRID CONTACT ROW ----------- */
-/* ------------------------------------------------ */
-
-@Composable
-private fun HybridContactRow(
-    name: String,
-    subtitle: String? = null,
-    photoUrl: String? = null,
-    isMyCard: Boolean = false,
-    onClick: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ContactAvatar(
-            name = name,
-            photoUrl = photoUrl,
-            size = if (isMyCard) 60.dp else 42.dp
-        )
-
-        Spacer(Modifier.width(16.dp))
-
-        Column {
-            Text(
-                text = name,
-                fontSize = if (isMyCard) 18.sp else 17.sp,
-                fontWeight = if (isMyCard) FontWeight.SemiBold else FontWeight.Medium,
-                color = colorScheme.onSurface
-            )
-
-            subtitle?.let {
-                Text(
-                    text = it,
-                    fontSize = 13.sp,
-                    color = colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ContactAvatar(
-    name: String,
-    photoUrl: String?,
-    size: androidx.compose.ui.unit.Dp = 42.dp
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        colorScheme.secondaryContainer,
-                        colorScheme.primaryContainer.copy(alpha = 0.7f)
-                    )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (!photoUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = photoUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Text(
-                text = name.firstOrNull()?.uppercase() ?: "?",
-                fontSize = (size.value * 0.4).sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onPrimaryContainer
-            )
-        }
-    }
-}
-
-/* ------------------------------------------------ */
-/* ---------------- PREVIEW ----------------------- */
-/* ------------------------------------------------ */
 
 @Preview(showBackground = true)
 @Composable

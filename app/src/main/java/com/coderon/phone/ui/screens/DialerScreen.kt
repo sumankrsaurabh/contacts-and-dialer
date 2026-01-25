@@ -1,7 +1,5 @@
 package com.coderon.phone.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -31,12 +29,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -48,18 +44,14 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.components.DialPad
+import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.initiateCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import com.coderon.phone.data.model.CallLog as CallLogEntry
-
-/* ------------------------------------------------ */
-/* -------------------- SCREEN -------------------- */
-/* ------------------------------------------------ */
 
 @Composable
 fun DialerScreen(
@@ -238,97 +230,6 @@ fun DialerScreen(
         }
     }
 }
-
-/* ------------------------------------------------ */
-/* -------------------- DIAL PAD ------------------ */
-/* ------------------------------------------------ */
-
-@Composable
-private fun DialPad(
-    playTones: (Char) -> Unit,
-    onDigitPress: (String) -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    val digitLetters = mapOf(
-        "1" to "",
-        "2" to "ABC", "3" to "DEF",
-        "4" to "GHI", "5" to "JKL", "6" to "MNO",
-        "7" to "PQRS", "8" to "TUV", "9" to "WXYZ",
-        "0" to "+"
-    )
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        listOf(
-            listOf("1", "2", "3"),
-            listOf("4", "5", "6"),
-            listOf("7", "8", "9"),
-            listOf("*", "0", "#")
-        ).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                row.forEach { digit ->
-                    if (digit.isEmpty()) {
-                        Spacer(Modifier.size(76.dp))
-                        return@forEach
-                    }
-
-                    val scale = remember { Animatable(1f) }
-                    val scope = rememberCoroutineScope()
-
-                    Box(
-                        modifier = Modifier
-                            .size(76.dp)
-                            .graphicsLayer {
-                                scaleX = scale.value
-                                scaleY = scale.value
-                            }
-                            .background(
-                                colorScheme.surfaceVariant,
-                                CircleShape
-                            )
-                            .clickable {
-                                onDigitPress(digit)
-                                playTones(digit.first())
-                                scope.launch {
-                                    scale.animateTo(0.94f, spring())
-                                    scale.animateTo(1f, spring())
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = digit,
-                                fontSize = 30.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onSurfaceVariant
-                            )
-
-                            digitLetters[digit]?.takeIf { it.isNotEmpty() }?.let {
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    text = it,
-                                    fontSize = 11.sp,
-                                    letterSpacing = 1.sp,
-                                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/* ------------------------------------------------ */
-/* -------------------- PREVIEW ------------------- */
-/* ------------------------------------------------ */
 
 @Preview(showBackground = true)
 @PreviewLightDark

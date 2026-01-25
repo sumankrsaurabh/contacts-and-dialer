@@ -9,7 +9,7 @@ import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.utils.extentions.AudioRoute
 
 @Composable

@@ -15,11 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -30,7 +28,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,11 +47,8 @@ import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R.drawable
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.ui.Text
-
-/* ------------------------------------------------ */
-/* ---------------- SEARCH SCREEN ----------------- */
-/* ------------------------------------------------ */
+import com.coderon.phone.ui.components.HybridContactRow
+import com.coderon.phone.ui.components.Text
 
 @Composable
 fun SearchScreen(
@@ -95,13 +89,12 @@ fun SearchScreen(
                 .fillMaxWidth()
                 .padding(top = 16.dp, bottom = 8.dp)
         ) {
-            // iOS style blur or subtle background
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .height(56.dp)
-                    .clip(RoundedCornerShape(32.dp)) // OneUI 8 / iOS pill style
+                    .clip(RoundedCornerShape(32.dp))
                     .background(colorScheme.surfaceContainerHigh)
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -158,7 +151,7 @@ fun SearchScreen(
             }
         }
 
-        /* ---------- RESULTS (OneUI 8 / iOS Hybrid) ---------- */
+        /* ---------- RESULTS ---------- */
 
         if (query.isEmpty()) {
             EmptySearchState("Search to find contacts or calls")
@@ -180,9 +173,10 @@ fun SearchScreen(
                         SectionHeader("CONTACTS")
                     }
                     items(filteredContacts) { contact ->
-                        SearchResultPill(
-                            title = contact.displayName,
+                        HybridContactRow(
+                            name = contact.displayName,
                             subtitle = contact.phoneNumbers.firstOrNull()?.number,
+                            photoUrl = contact.profilePictureUrl,
                             onClick = {
                                 navController.navigate("contact_details/${contact.phoneNumbers.firstOrNull()?.number}")
                             }
@@ -196,9 +190,10 @@ fun SearchScreen(
                         SectionHeader("RECENTS")
                     }
                     items(filteredLogs) { log ->
-                        SearchResultPill(
-                            title = log.contact?.displayName ?: log.phoneNumber,
+                        HybridContactRow(
+                            name = log.contact?.displayName ?: log.phoneNumber,
                             subtitle = log.phoneNumber,
+                            photoUrl = log.contact?.profilePictureUrl,
                             onClick = {
                                 navController.navigate("contact_details/${log.phoneNumber}")
                             }
@@ -210,10 +205,6 @@ fun SearchScreen(
     }
 }
 
-/* ------------------------------------------------ */
-/* ---------------- UI COMPONENTS ----------------- */
-/* ------------------------------------------------ */
-
 @Composable
 private fun SectionHeader(text: String) {
     Text(
@@ -223,62 +214,6 @@ private fun SectionHeader(text: String) {
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
         modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 8.dp)
     )
-}
-
-@Composable
-private fun SearchResultPill(
-    title: String,
-    subtitle: String?,
-    onClick: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(28.dp), // OneUI 8 rounded style
-        color = colorScheme.surfaceContainerLow,
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = title.firstOrNull()?.uppercase() ?: "?",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(Modifier.width(16.dp))
-
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = colorScheme.onSurface
-                )
-                subtitle?.let {
-                    Text(
-                        text = it,
-                        fontSize = 13.sp,
-                        color = colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
 }
 
 @Composable
