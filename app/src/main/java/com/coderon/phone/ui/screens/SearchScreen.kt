@@ -1,8 +1,8 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.coderon.phone.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,11 +20,17 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,20 +39,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.coderon.phone.R
+import com.coderon.phone.R.drawable
 import com.coderon.phone.data.model.CallLog
-import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.Text
-import com.coderon.phone.ui.utils.ScaffoldScreen
 
 /* ------------------------------------------------ */
 /* ---------------- SEARCH SCREEN ----------------- */
@@ -59,12 +63,7 @@ fun SearchScreen(
     logs: List<CallLog> = emptyList(),
     onBack: () -> Unit = { navController.popBackStack() }
 ) {
-    val isDark = isSystemInDarkTheme()
-    val bg = if (isDark) Color.Black else Color.White
-    val primary = if (isDark) Color.White else Color.Black
-    val secondary = primary.copy(alpha = 0.6f)
-    val searchBg = if (isDark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
-
+    val colorScheme = MaterialTheme.colorScheme
     var query by remember { mutableStateOf("") }
 
     val filteredContacts = remember(query, contacts) {
@@ -86,107 +85,124 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(bg)
+            .background(colorScheme.background)
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(top = 12.dp)
     ) {
 
-        /* ---------- SEARCH BAR ---------- */
-
-        Row(
+        /* ---------- HYBRID SEARCH HEADER ---------- */
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .clip(CircleShape)
-                .background(searchBg)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(top = 16.dp, bottom = 8.dp)
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Back",
-                    tint = secondary
+            // iOS style blur or subtle background
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(32.dp)) // OneUI 8 / iOS pill style
+                    .background(colorScheme.surfaceContainerHigh)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = colorScheme.primary
+                    )
+                }
+
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 17.sp,
+                        color = colorScheme.onSurface,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (query.isEmpty()) {
+                            Text(
+                                text = "Search name or number",
+                                fontSize = 17.sp,
+                                color = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                        inner()
+                    }
                 )
-            }
 
-            Spacer(Modifier.width(6.dp))
-
-            BasicTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    fontSize = 16.sp,
-                    color = primary
-                ),
-                modifier = Modifier.weight(1f),
-                decorationBox = { inner ->
-                    if (query.isEmpty()) {
-                        Text(
-                            text = "Search",
-                            fontSize = 16.sp,
-                            color = secondary
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { query = "" }) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Clear",
+                            tint = colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    inner()
+                } else {
+                    Icon(
+                        painterResource(drawable.search),
+                        contentDescription = null,
+                        tint = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(22.dp)
+                    )
                 }
-            )
-
-            if (query.isNotEmpty()) {
-                Icon(
-                    painter = painterResource(R.drawable.search),
-                    contentDescription = null,
-                    tint = secondary,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
 
-        Spacer(Modifier.height(12.dp))
-
-        /* ---------- RESULTS ---------- */
+        /* ---------- RESULTS (OneUI 8 / iOS Hybrid) ---------- */
 
         if (query.isEmpty()) {
-            EmptySearchState(primary)
+            EmptySearchState("Search to find contacts or calls")
+        } else if (filteredContacts.isEmpty() && filteredLogs.isEmpty()) {
+            EmptySearchState("No results found for \"$query\"")
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 32.dp)
+                contentPadding = PaddingValues(
+                    top = 8.dp,
+                    bottom = 48.dp,
+                    start = 16.dp,
+                    end = 16.dp
+                )
             ) {
 
                 if (filteredContacts.isNotEmpty()) {
                     item {
-                        SectionHeader("Contacts", secondary)
+                        SectionHeader("CONTACTS")
                     }
                     items(filteredContacts) { contact ->
-                        SimpleRow(
+                        SearchResultPill(
                             title = contact.displayName,
                             subtitle = contact.phoneNumbers.firstOrNull()?.number,
-                            primary = primary,
-                            secondary = secondary
+                            onClick = {
+                                navController.navigate("contact_details/${contact.phoneNumbers.firstOrNull()?.number}")
+                            }
                         )
                     }
                 }
 
                 if (filteredLogs.isNotEmpty()) {
                     item {
-                        SectionHeader("Recents", secondary)
+                        Spacer(Modifier.height(16.dp))
+                        SectionHeader("RECENTS")
                     }
                     items(filteredLogs) { log ->
-                        SimpleRow(
+                        SearchResultPill(
                             title = log.contact?.displayName ?: log.phoneNumber,
-                            subtitle = log.callType.name.lowercase()
-                                .replaceFirstChar { it.uppercase() },
-                            primary = primary,
-                            secondary = secondary
+                            subtitle = log.phoneNumber,
+                            onClick = {
+                                navController.navigate("contact_details/${log.phoneNumber}")
+                            }
                         )
-                    }
-                }
-
-                if (filteredContacts.isEmpty() && filteredLogs.isEmpty()) {
-                    item {
-                        EmptySearchState(primary)
                     }
                 }
             }
@@ -195,85 +211,106 @@ fun SearchScreen(
 }
 
 /* ------------------------------------------------ */
-/* ---------------- UI PARTS ---------------------- */
+/* ---------------- UI COMPONENTS ----------------- */
 /* ------------------------------------------------ */
 
 @Composable
-private fun SectionHeader(text: String, color: Color) {
+private fun SectionHeader(text: String) {
     Text(
         text = text,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Medium,
-        color = color,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+        modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 8.dp)
     )
 }
 
 @Composable
-private fun SimpleRow(
+private fun SearchResultPill(
     title: String,
     subtitle: String?,
-    primary: Color,
-    secondary: Color
+    onClick: () -> Unit
 ) {
-    Column(
+    val colorScheme = MaterialTheme.colorScheme
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(28.dp), // OneUI 8 rounded style
+        color = colorScheme.surfaceContainerLow,
+        onClick = onClick
     ) {
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            color = primary
-        )
-        subtitle?.let {
-            Text(
-                text = it,
-                fontSize = 13.sp,
-                color = secondary
-            )
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = title.firstOrNull()?.uppercase() ?: "?",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colorScheme.onSurface
+                )
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        fontSize = 13.sp,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun EmptySearchState(color: Color) {
+private fun EmptySearchState(message: String) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 100.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "No Results",
-            fontSize = 16.sp,
-            color = color.copy(alpha = 0.6f)
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Rounded.Search,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = message,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
-/* ------------------------------------------------ */
-/* ---------------- PREVIEW ----------------------- */
-/* ------------------------------------------------ */
-
 @Preview(showBackground = true)
 @Composable
-private fun PreviewSearchIOS() {
-    ScaffoldScreen(rememberNavController()) {
+private fun PreviewSearchHybrid() {
     SearchScreen(
-        navController = rememberNavController(),
-        contacts = listOf(
-            Contact("1", "Alice Johnson"),
-            Contact("2", "Brian Lee")
-        ),
-        logs = listOf(
-            CallLog(
-                id = 1,
-                phoneNumber = "9876543210",
-                callType = CallType.INCOMING,
-                callTime = System.currentTimeMillis(),
-                contact = Contact("3", "John Appleseed")
-            )
-        )
-    )}
+        navController = rememberNavController()
+    )
 }

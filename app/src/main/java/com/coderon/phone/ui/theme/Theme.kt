@@ -2,35 +2,40 @@ package com.coderon.phone.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+fun oneUiLightScheme(
+    accent: Color
+): ColorScheme = lightColorScheme(
+    background = OneUiColors.LightBackground,
+    surface = OneUiColors.LightSurface,
+    onSurface = OneUiColors.LightOnSurface,
+    onSurfaceVariant = OneUiColors.LightOnSurfaceSubtle,
+    primary = accent,
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    error = OneUiColors.Error
 )
+
+fun oneUiDarkScheme(
+    accent: Color
+): ColorScheme = darkColorScheme(
+    background = OneUiColors.DarkBackground,
+    surface = OneUiColors.DarkSurface,
+    onSurface = OneUiColors.DarkOnSurface,
+    onSurfaceVariant = OneUiColors.DarkOnSurfaceSubtle,
+    primary = accent,
+    onPrimary = Color.Black,
+    error = OneUiColors.Error
+)
+
 
 @Composable
 fun PhoneTheme(
@@ -45,8 +50,8 @@ fun PhoneTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> oneUiDarkScheme(OneUiColors.Ancient)
+        else -> oneUiLightScheme(OneUiColors.Ancient)
     }
 
     MaterialTheme(

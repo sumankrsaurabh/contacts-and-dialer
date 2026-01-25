@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,7 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -60,7 +60,9 @@ import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import kotlinx.coroutines.flow.first
 
-/* ------------------------------------------------ *//* DATASTORE                                        *//* ------------------------------------------------ */
+/* ------------------------------------------------ */
+/* DATASTORE                                        */
+/* ------------------------------------------------ */
 
 private val Context.dataStore by preferencesDataStore("call_log_prefs")
 private val FILTER_KEY = stringPreferencesKey("call_filter")
@@ -69,7 +71,9 @@ private enum class CallFilter {
     ALL, MISSED_TODAY, LAST_7_DAYS
 }
 
-/* ------------------------------------------------ *//* MAIN SCREEN                                      *//* ------------------------------------------------ */
+/* ------------------------------------------------ */
+/* MAIN SCREEN                                      */
+/* ------------------------------------------------ */
 
 @Composable
 fun CallLogScreen(
@@ -81,7 +85,11 @@ fun CallLogScreen(
 
     LaunchedEffect(Unit) {
         val savedFilterName = context.dataStore.data.first()[FILTER_KEY]
-        filter = CallFilter.valueOf(savedFilterName ?: CallFilter.ALL.name)
+        filter = try {
+            CallFilter.valueOf(savedFilterName ?: CallFilter.ALL.name)
+        } catch (e: Exception) {
+            CallFilter.ALL
+        }
     }
 
     LaunchedEffect(filter) {
@@ -104,16 +112,12 @@ fun CallLogScreen(
     val callLogsByDate =
         filteredLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
 
-    val isDark = isSystemInDarkTheme()
-    val backgroundColor = if (isDark) Color(0xFF0E0E0E) else Color(0xFFF4F4F4)
-    val rowBackgroundColor = if (isDark) Color(0xFF1F1F1F) else Color.White
-    val contentColor = if (isDark) Color.White else Color.Black
-    val subContentColor = contentColor.copy(alpha = 0.6f)
+    val colorScheme = MaterialTheme.colorScheme
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(colorScheme.background)
             .windowInsetsPadding(WindowInsets.statusBars)
     ) {
 
@@ -124,7 +128,10 @@ fun CallLogScreen(
                 .padding(20.dp)
         ) {
             Text(
-                text = "Calls", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = contentColor
+                text = "Calls",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onBackground
             )
 
             Spacer(Modifier.height(8.dp))
@@ -144,7 +151,7 @@ fun CallLogScreen(
                     Text(
                         text = date,
                         fontSize = 14.sp,
-                        color = subContentColor,
+                        color = colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(12.dp)
                     )
                 }
@@ -152,12 +159,9 @@ fun CallLogScreen(
                 val groupedLogs = logs.groupBy { it.contact?.displayName ?: it.phoneNumber }
                     .map { GroupedCallLog(it.value) }
 
-                items(groupedLogs, key = { it.contentColor.id }) { group ->
+                items(groupedLogs, key = { it.log.id }) { group ->
                     SamsungPillRow(
-                        group = group,
-                        contentColor = contentColor,
-                        subContentColor = subContentColor,
-                        pillColor = rowBackgroundColor
+                        group = group
                     ) {
                         navController.navigate(
                             Screen.CallDetails.createRoute(group.phoneNumber)
@@ -169,24 +173,22 @@ fun CallLogScreen(
     }
 }
 
-/* ------------------------------------------------ *//* SAMSUNG PILL ROW                                 *//* ------------------------------------------------ */
+/* ------------------------------------------------ */
+/* SAMSUNG PILL ROW                                 */
+/* ------------------------------------------------ */
 
 @SuppressLint("MissingPermission")
 @Composable
 private fun SamsungPillRow(
     group: GroupedCallLog,
-    contentColor: Color,
-    subContentColor: Color,
-    pillColor: Color,
     onClick: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    
     val icon = when (group.callType) {
         CallType.INCOMING -> R.drawable.ic_call_incoming
-
         CallType.OUTGOING -> R.drawable.ic_call_outgoing
-
         CallType.MISSED -> R.drawable.ic_call_missed
-
         else -> R.drawable.call
     }
 
@@ -195,7 +197,7 @@ private fun SamsungPillRow(
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             .clip(RoundedCornerShape(50))
-            .background(pillColor)
+            .background(colorScheme.surfaceContainer)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically) {
@@ -213,22 +215,24 @@ private fun SamsungPillRow(
                 text = group.contact?.displayName ?: group.phoneNumber,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (group.callType == CallType.MISSED) Color(0xFFD32F2F) else contentColor
+                color = if (group.callType == CallType.MISSED) colorScheme.error else colorScheme.onSurface
             )
 
-            Spacer(Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     painter = painterResource(icon),
                     contentDescription = null,
+                    tint = if (group.callType == CallType.MISSED) colorScheme.error else colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(14.dp)
                 )
 
                 Spacer(Modifier.width(6.dp))
 
                 Text(
-                    text = group.callTime.formatTime(), fontSize = 13.sp, color = subContentColor
+                    text = group.callTime.formatTime(),
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurfaceVariant
                 )
 
                 Spacer(Modifier.width(6.dp))
@@ -236,28 +240,29 @@ private fun SamsungPillRow(
                 Text(
                     text = "SIM" + group.simSlot.toString(),
                     fontSize = 13.sp,
-                    color = subContentColor
+                    color = colorScheme.onSurfaceVariant
                 )
-
-
             }
         }
     }
 }
 
-/* ------------------------------------------------ *//* FILTER CHIP                                      *//* ------------------------------------------------ */
+/* ------------------------------------------------ */
+/* FILTER CHIP                                      */
+/* ------------------------------------------------ */
 
 @Composable
 private fun FilterChip(
     filter: CallFilter, onChange: (CallFilter) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val colorScheme = MaterialTheme.colorScheme
 
     Box {
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
-                .background(Color(0xFFE0E0E0))
+                .background(colorScheme.surfaceVariant)
                 .clickable { expanded = true }
                 .padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(
@@ -265,39 +270,53 @@ private fun FilterChip(
                     CallFilter.ALL -> "All"
                     CallFilter.MISSED_TODAY -> "Missed today"
                     CallFilter.LAST_7_DAYS -> "Last 7 days"
-                }, fontSize = 14.sp
+                },
+                fontSize = 14.sp,
+                color = colorScheme.onSurfaceVariant
             )
         }
 
         DropdownMenu(expanded, { expanded = false }) {
-            CallFilter.values().forEach {
-                DropdownMenuItem(text = { Text(it.name.replace("_", " ")) }, onClick = {
-                    onChange(it)
-                    expanded = false
-                })
+            CallFilter.entries.forEach {
+                DropdownMenuItem(
+                    text = { Text(it.name.replace("_", " ")) },
+                    onClick = {
+                        onChange(it)
+                        expanded = false
+                    }
+                )
             }
         }
     }
 }
 
-/* ------------------------------------------------ *//* HELPERS                                          *//* ------------------------------------------------ */
+/* ------------------------------------------------ */
+/* HELPERS                                          */
+/* ------------------------------------------------ */
 
-private data class GroupedCallLog(val mockCallLogs: List<CallLog>) {
-    val contentColor = mockCallLogs.first()
-    val phoneNumber get() = contentColor.phoneNumber
-    val callType get() = contentColor.callType
-    val callTime get() = contentColor.callTime
-    val contact get() = contentColor.contact
-    val simSlot get() = contentColor.simSlot
+private data class GroupedCallLog(val logs: List<CallLog>) {
+    val log = logs.first()
+    val phoneNumber get() = log.phoneNumber
+    val callType get() = log.callType
+    val callTime get() = log.callTime
+    val contact get() = log.contact
+    val simSlot get() = log.simSlot
 }
 
 @Composable
-private fun ProfileAvatar(name: String, photoUrl: String?) {
+fun ProfileAvatar(name: String, photoUrl: String?) {
+    val colorScheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .background(Color.Gray.copy(alpha = 0.25f)), contentAlignment = Alignment.Center
+            .background(Brush.verticalGradient(
+                listOf(
+                    colorScheme.secondary.copy(.5f),
+                    colorScheme.primary.copy(.5f)
+                )
+            )),
+        contentAlignment = Alignment.Center
     ) {
         if (!photoUrl.isNullOrBlank()) {
             AsyncImage(
@@ -309,15 +328,17 @@ private fun ProfileAvatar(name: String, photoUrl: String?) {
         } else {
             Text(
                 text = name.firstOrNull()?.uppercase() ?: "?",
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White
+                color = colorScheme.onSecondary
             )
         }
     }
 }
 
-/* ------------------------------------------------ *//* PREVIEW                                          *//* ------------------------------------------------ */
+/* ------------------------------------------------ */
+/* PREVIEW                                          */
+/* ------------------------------------------------ */
 
 @PreviewLightDark
 @Composable

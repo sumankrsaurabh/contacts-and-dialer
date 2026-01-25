@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,7 +35,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -78,11 +78,12 @@ fun DialerScreen(
     val contacts by filterContact.collectAsStateWithLifecycle()
     val callLogs by filterCallLog.collectAsStateWithLifecycle(emptyList())
 
-    val textColor = Color.White
+    val colorScheme = MaterialTheme.colorScheme
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(colorScheme.background)
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(bottom = 100.dp)
     ) {
@@ -94,7 +95,7 @@ fun DialerScreen(
             text = dialedNumber.ifBlank { " " },
             fontSize = 40.sp,
             fontWeight = FontWeight.Medium,
-            color = textColor,
+            color = colorScheme.onBackground,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
@@ -149,7 +150,7 @@ fun DialerScreen(
                             else -> ""
                         },
                         fontSize = 16.sp,
-                        color = textColor
+                        color = colorScheme.onSurface
                     )
 
                     Text(
@@ -159,7 +160,7 @@ fun DialerScreen(
                             else -> ""
                         },
                         fontSize = 14.sp,
-                        color = textColor.copy(alpha = 0.6f)
+                        color = colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -211,8 +212,8 @@ fun DialerScreen(
                 modifier = Modifier
                     .size(56.dp)
                     .background(
-                        Color.White.copy(
-                            alpha = if (dialedNumber.isEmpty()) 0.08f else 0.15f
+                        colorScheme.surfaceVariant.copy(
+                            alpha = if (dialedNumber.isEmpty()) 0.4f else 1f
                         ),
                         CircleShape
                     )
@@ -230,7 +231,7 @@ fun DialerScreen(
                 Icon(
                     painter = painterResource(R.drawable.delete),
                     contentDescription = "Delete",
-                    tint = Color.White,
+                    tint = colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -247,6 +248,7 @@ private fun DialPad(
     playTones: (Char) -> Unit,
     onDigitPress: (String) -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     val digitLetters = mapOf(
         "1" to "",
         "2" to "ABC", "3" to "DEF",
@@ -286,12 +288,7 @@ private fun DialPad(
                                 scaleY = scale.value
                             }
                             .background(
-                                Brush.radialGradient(
-                                    listOf(
-                                        Color.White.copy(alpha = 0.28f),
-                                        Color.White.copy(alpha = 0.22f)
-                                    )
-                                ),
+                                colorScheme.surfaceVariant,
                                 CircleShape
                             )
                             .clickable {
@@ -309,7 +306,7 @@ private fun DialPad(
                                 text = digit,
                                 fontSize = 30.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White.copy(alpha = 0.9f)
+                                color = colorScheme.onSurfaceVariant
                             )
 
                             digitLetters[digit]?.takeIf { it.isNotEmpty() }?.let {
@@ -318,7 +315,7 @@ private fun DialPad(
                                     text = it,
                                     fontSize = 11.sp,
                                     letterSpacing = 1.sp,
-                                    color = Color.White.copy(alpha = 0.65f)
+                                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                             }
                         }
@@ -333,9 +330,7 @@ private fun DialPad(
 /* -------------------- PREVIEW ------------------- */
 /* ------------------------------------------------ */
 
-@Preview(
-    showBackground = true
-)
+@Preview(showBackground = true)
 @PreviewLightDark
 @Composable
 fun DialerPreview() {

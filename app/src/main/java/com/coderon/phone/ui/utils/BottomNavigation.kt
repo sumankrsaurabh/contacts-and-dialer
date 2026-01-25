@@ -3,7 +3,6 @@ package com.coderon.phone.ui.utils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -49,32 +48,11 @@ fun ScaffoldScreen(
     showBottomBar: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
 
     Box(modifier = Modifier.fillMaxSize()) {
 
         Box(modifier = Modifier.fillMaxSize()) {
             content()
-        }
-
-        if (showBottomBar) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(96.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Transparent,
-                                if (isDark)
-                                    Color.Black.copy(alpha = 0.9f)
-                                else
-                                    Color.White.copy(alpha = 0.9f)
-                            )
-                        )
-                    )
-            )
         }
 
         if (showBottomBar) {
@@ -95,25 +73,10 @@ fun IosSegmentedBottomBar(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
     val haptic = LocalHapticFeedback.current
-
     val backStack = navController.currentBackStackEntryAsState().value
     val currentRoute = backStack?.destination?.route ?: Screen.Recent.route
 
-    val iosBlue = Color(0xFF0A84FF)
-
-    val inactive = if (isDark)
-        Color.White.copy(alpha = 0.55f)
-    else
-        Color(0xFF8E8E93)
-
-    val pillBg = if (isDark)
-        Color(0xFF1C1C1E).copy(alpha = 0.75f)
-    else
-        Color.White.copy(alpha = 0.72f)
-
-    val highlight = iosBlue.copy(alpha = if (isDark) 0.22f else 0.12f)
 
     Box(
         modifier = modifier
@@ -121,7 +84,10 @@ fun IosSegmentedBottomBar(
             .padding(bottom = 12.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
 
             /* ---------- SEGMENTED PILL ---------- */
             Box(
@@ -129,30 +95,31 @@ fun IosSegmentedBottomBar(
                     .clip(RoundedCornerShape(50))
             ) {
 
-                // ✅ BACKGROUND BLUR ONLY
+                // ✅ BACKGROUND BLUR & SURFACE COLOR
                 Box(
                     modifier = Modifier
                         .matchParentSize()
                         .blur(24.dp)
-                        .background(pillBg)
+                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f))
                 )
 
                 // ORIGINAL CONTENT (CLEAR)
                 Row(
                     modifier = Modifier.padding(6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     bottomNavItems.forEach { item ->
                         val selected = currentRoute == item.screen.route
-                        val tint = if (selected) iosBlue else inactive
+                        val tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        val itemBg = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
 
                         Box(
                             modifier = Modifier
-                                .width(72.dp)
+                                .width(80.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(if (selected) highlight else Color.Transparent)
-                                .padding(vertical = 6.dp)
+                                .background(itemBg)
+                                .padding(vertical = 8.dp)
                                 .noRippleClickable {
                                     haptic.performHapticFeedback(
                                         HapticFeedbackType.TextHandleMove
@@ -178,7 +145,7 @@ fun IosSegmentedBottomBar(
                                 Text(
                                     text = item.label,
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                     color = tint
                                 )
                             }
@@ -196,13 +163,13 @@ fun IosSegmentedBottomBar(
                     .clip(CircleShape)
             ) {
 
-                // ✅ BLUR BACKGROUND ONLY
+                // ✅ BLUR BACKGROUND & M3 CONTAINER COLOR
                 Box(
                     modifier = Modifier
                         .matchParentSize()
                         .blur(24.dp)
                         .background(
-                            if (isDark) Color(0xFF2C2C2E) else Color.White
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
                         )
                 )
 
@@ -221,8 +188,8 @@ fun IosSegmentedBottomBar(
                     Icon(
                         painter = painterResource(R.drawable.search),
                         contentDescription = "Search",
-                        tint = inactive,
-                        modifier = Modifier.size(20.dp)
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
