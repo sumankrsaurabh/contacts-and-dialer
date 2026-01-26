@@ -3,6 +3,7 @@
 package com.coderon.phone.ui.screens
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -68,21 +69,45 @@ import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.data.model.PhoneNumberType
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.components.HybridAlertDialog
+import com.coderon.phone.ui.components.Text
 
 @Composable
 fun AddContactScreen(
     navController: NavController? = null,
+    initialPhoneNumber: String? = null,
     onSaveContact: (Contact) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
-    val phoneNumbers = remember { mutableStateListOf(PhoneNumber("", PhoneNumberType.MOBILE)) }
+    val phoneNumbers = remember { 
+        mutableStateListOf(PhoneNumber(initialPhoneNumber ?: "", PhoneNumberType.MOBILE)) 
+    }
     val emailAddresses = remember { mutableStateListOf("") }
     var photoUri by remember { mutableStateOf<Uri?>(null) }
     var isFavorite by remember { mutableStateOf(false) }
+
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    val hasChanges = firstName.isNotBlank() || 
+                     lastName.isNotBlank() || 
+                     phoneNumbers.any { it.number.isNotBlank() && it.number != initialPhoneNumber } ||
+                     emailAddresses.any { it.isNotBlank() } ||
+                     photoUri != null
+
+    val handleBack = {
+        if (hasChanges) {
+            showDiscardDialog = true
+        } else {
+            navController?.popBackStack()
+        }
+    }
+
+    BackHandler(enabled = true) {
+        handleBack()
+    }
 
     val context = LocalContext.current
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
@@ -106,7 +131,7 @@ fun AddContactScreen(
                     },
                     navigationIcon = {
                         TextButton(
-                            onClick = { navController?.popBackStack() },
+                            onClick = { handleBack() },
                             modifier = Modifier.padding(start = 8.dp)
                         ) {
                             Text("Cancel", color = colorScheme.primary, fontSize = 17.sp)
@@ -147,186 +172,202 @@ fun AddContactScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.surfaceContainerHigh)
-                        .clickable { imagePicker.launch("image/*") },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (photoUri != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(
-                                ImageRequest.Builder(context)
-                                    .data(photoUri)
-                                    .crossfade(true)
-                                    .build()
-                            ),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.CameraAlt,
-                                contentDescription = "Add Photo",
-                                tint = colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .background(colorScheme.surfaceContainerHigh)
+                            .clickable { imagePicker.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (photoUri != null) {
+                            Image(
+                                painter = rememberAsyncImagePainter(
+                                    ImageRequest.Builder(context)
+                                        .data(photoUri)
+                                        .crossfade(true)
+                                        .build()
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
-                            Text(
-                                "Add Photo",
-                                fontSize = 12.sp,
-                                color = colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(32.dp))
-            }
-
-            item {
-                SectionContainer {
-                    HybridInputField(
-                        label = "First name",
-                        value = firstName,
-                        onValueChange = { firstName = it }
-                    )
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    HybridInputField(
-                        label = "Last name",
-                        value = lastName,
-                        onValueChange = { lastName = it }
-                    )
-                }
-                Spacer(Modifier.height(24.dp))
-            }
-
-            item {
-                Text(
-                    "Phone",
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, bottom = 8.dp),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.primary
-                )
-            }
-
-            itemsIndexed(phoneNumbers) { index, phone ->
-                SectionContainer {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        var expanded by remember { mutableStateOf(false) }
-                        Box(modifier = Modifier.padding(start = 20.dp).clickable { expanded = true }) {
-                            Text(phone.type.name.lowercase().replaceFirstChar { it.uppercase() }, color = colorScheme.primary, fontSize = 14.sp)
-                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                PhoneNumberType.entries.forEach { type ->
-                                    DropdownMenuItem(
-                                        text = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                                        onClick = {
-                                            phoneNumbers[index] = phone.copy(type = type)
-                                            expanded = false
-                                        }
-                                    )
-                                }
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.CameraAlt,
+                                    contentDescription = "Add Photo",
+                                    tint = colorScheme.primary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Text(
+                                    "Add Photo",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
+                    }
+                    Spacer(Modifier.height(32.dp))
+                }
+
+                item {
+                    SectionContainer {
                         HybridInputField(
-                            label = "",
-                            value = phone.number,
-                            keyboardType = KeyboardType.Phone,
-                            onValueChange = { phoneNumbers[index] = phone.copy(number = it) },
-                            modifier = Modifier.weight(1f)
+                            label = "First name",
+                            value = firstName,
+                            onValueChange = { firstName = it }
                         )
-                        if (phoneNumbers.size > 1) {
-                            Icon(
-                                Icons.Default.RemoveCircle,
-                                contentDescription = "Remove",
-                                tint = Color.Red,
-                                modifier = Modifier.padding(end = 16.dp).clickable { phoneNumbers.removeAt(index) }
+                        HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        HybridInputField(
+                            label = "Last name",
+                            value = lastName,
+                            onValueChange = { lastName = it }
+                        )
+                    }
+                    Spacer(Modifier.height(24.dp))
+                }
+
+                item {
+                    Text(
+                        "Phone",
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, bottom = 8.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    )
+                }
+
+                itemsIndexed(phoneNumbers) { index, phone ->
+                    SectionContainer {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            var expanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.padding(start = 20.dp).clickable { expanded = true }) {
+                                Text(phone.type.name.lowercase().replaceFirstChar { it.uppercase() }, color = colorScheme.primary, fontSize = 14.sp)
+                                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                    PhoneNumberType.entries.forEach { type ->
+                                        DropdownMenuItem(
+                                            text = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                            onClick = {
+                                                phoneNumbers[index] = phone.copy(type = type)
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            HybridInputField(
+                                label = "",
+                                value = phone.number,
+                                keyboardType = KeyboardType.Phone,
+                                onValueChange = { phoneNumbers[index] = phone.copy(number = it) },
+                                modifier = Modifier.weight(1f)
                             )
+                            if (phoneNumbers.size > 1) {
+                                Icon(
+                                    Icons.Default.RemoveCircle,
+                                    contentDescription = "Remove",
+                                    tint = Color.Red,
+                                    modifier = Modifier.padding(end = 16.dp).clickable { phoneNumbers.removeAt(index) }
+                                )
+                            }
                         }
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
-                Spacer(Modifier.height(8.dp))
-            }
-            
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { phoneNumbers.add(PhoneNumber("", PhoneNumberType.MOBILE)) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.AddCircle, contentDescription = null, tint = Color(0xFF34C759))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Add phone", color = colorScheme.onSurface, fontSize = 16.sp)
-                }
-            }
-
-            item {
-                Text(
-                    "Email",
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, bottom = 8.dp),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.primary
-                )
-            }
-
-            itemsIndexed(emailAddresses) { index, email ->
-                SectionContainer {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        HybridInputField(
-                            label = "Email",
-                            value = email,
-                            keyboardType = KeyboardType.Email,
-                            onValueChange = { emailAddresses[index] = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (emailAddresses.size > 1) {
-                            Icon(
-                                Icons.Default.RemoveCircle,
-                                contentDescription = "Remove",
-                                tint = Color.Red,
-                                modifier = Modifier.padding(end = 16.dp).clickable { emailAddresses.removeAt(index) }
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { emailAddresses.add("") },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.AddCircle, contentDescription = null, tint = Color(0xFF34C759))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Add email", color = colorScheme.onSurface, fontSize = 16.sp)
-                }
-            }
-
-            item {
-                SectionContainer {
+                
+                item {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { phoneNumbers.add(PhoneNumber("", PhoneNumberType.MOBILE)) },
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Favorite", fontSize = 16.sp)
-                        Switch(checked = isFavorite, onCheckedChange = { isFavorite = it })
+                        Icon(Icons.Default.AddCircle, contentDescription = null, tint = Color(0xFF34C759))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add phone", color = colorScheme.onSurface, fontSize = 16.sp)
                     }
                 }
-                Spacer(Modifier.height(48.dp))
+
+                item {
+                    Text(
+                        "Email",
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, bottom = 8.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    )
+                }
+
+                itemsIndexed(emailAddresses) { index, email ->
+                    SectionContainer {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            HybridInputField(
+                                label = "Email",
+                                value = email,
+                                keyboardType = KeyboardType.Email,
+                                onValueChange = { emailAddresses[index] = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (emailAddresses.size > 1) {
+                                Icon(
+                                    Icons.Default.RemoveCircle,
+                                    contentDescription = "Remove",
+                                    tint = Color.Red,
+                                    modifier = Modifier.padding(end = 16.dp).clickable { emailAddresses.removeAt(index) }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp).clickable { emailAddresses.add("") },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AddCircle, contentDescription = null, tint = Color(0xFF34C759))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add email", color = colorScheme.onSurface, fontSize = 16.sp)
+                    }
+                }
+
+                item {
+                    SectionContainer {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Favorite", fontSize = 16.sp)
+                            Switch(checked = isFavorite, onCheckedChange = { isFavorite = it })
+                        }
+                    }
+                    Spacer(Modifier.height(48.dp))
+                }
+            }
+
+            if (showDiscardDialog) {
+                HybridAlertDialog(
+                    title = "Discard Changes?",
+                    message = "Are you sure you want to discard this contact? Your changes will not be saved.",
+                    confirmText = "Discard",
+                    confirmColor = Color.Red,
+                    onConfirm = {
+                        showDiscardDialog = false
+                        navController?.popBackStack()
+                    },
+                    onDismiss = { showDiscardDialog = false }
+                )
             }
         }
     }

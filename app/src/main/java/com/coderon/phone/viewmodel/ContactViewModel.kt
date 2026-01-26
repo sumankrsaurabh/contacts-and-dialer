@@ -64,15 +64,23 @@ class ContactViewModel(
     }
 
     fun saveContact(
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             saveContactUseCase(
+                firstName = firstName,
+                lastName = lastName,
                 displayName = displayName,
                 phoneNumbers = phoneNumbers,
-                profilePictureUri = profilePictureUri
+                emailAddresses = emailAddresses,
+                profilePictureUri = profilePictureUri,
+                isFavorite = isFavorite
             )
             refreshContacts()
         }
@@ -80,19 +88,40 @@ class ContactViewModel(
 
     fun updateContact(
         contactId: String,
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             updateContactUseCase(
                 contactId = contactId,
+                firstName = firstName,
+                lastName = lastName,
                 displayName = displayName,
                 phoneNumbers = phoneNumbers,
-                profilePictureUri = profilePictureUri
+                emailAddresses = emailAddresses,
+                profilePictureUri = profilePictureUri,
+                isFavorite = isFavorite
             )
             refreshContacts()
         }
+    }
+
+    fun toggleFavorite(contact: Contact) {
+        updateContact(
+            contactId = contact.id,
+            firstName = contact.firstName,
+            lastName = contact.lastName,
+            displayName = contact.displayName,
+            phoneNumbers = contact.phoneNumbers,
+            emailAddresses = contact.emailAddresses,
+            profilePictureUri = contact.profilePictureUrl,
+            isFavorite = !contact.isFavorite
+        )
     }
 
     fun getContactByPhoneNumber(phoneNumber: String): Contact? {

@@ -30,53 +30,43 @@ fun getDefaultDialerIntent(context: Context): Intent? {
 }
 
 @SuppressLint("MissingPermission")
-fun getHandleToUse(
-    context: Context, intent: Intent?, onHandleSelected: (PhoneAccountHandle?) -> Unit
+fun getAvailableSims(context: Context): List<PhoneAccountHandle> {
+    val telecomManager = context.getSystemService(TelecomManager::class.java)
+    return telecomManager.callCapablePhoneAccounts
+}
+
+@SuppressLint("MissingPermission")
+fun initiateCall(
+    context: Context,
+    phoneNumber: String,
+    onSimSelectionRequired: (List<PhoneAccountHandle>) -> Unit
 ) {
     val telecomManager = context.getSystemService(TelecomManager::class.java)
     val availableAccounts = telecomManager.callCapablePhoneAccounts
     val defaultAccount = telecomManager.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL)
 
     when {
-        // Use the explicit phone account from the intent if provided
-        intent?.hasExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE) == true -> {
-            onHandleSelected(intent.getParcelableExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE))
-        }
-        // If there's a system default phone account, use it
         defaultAccount != null -> {
-            onHandleSelected(defaultAccount)
+            placeCall(context, phoneNumber, defaultAccount)
         }
-        // If only one SIM is available, use it
         availableAccounts.size == 1 -> {
-            onHandleSelected(availableAccounts.firstOrNull())
+            placeCall(context, phoneNumber, availableAccounts[0])
         }
-        // If multiple SIMs exist, prompt user for selection
         availableAccounts.size > 1 -> {
-            onHandleSelected(null) // Let the UI handle SIM selection
+            onSimSelectionRequired(availableAccounts)
         }
-        // No SIMs found
         else -> {
-            onHandleSelected(null)
+            Toast.makeText(context, "No SIM available", Toast.LENGTH_SHORT).show()
         }
     }
 }
 
-
-fun initiateCall(context: Context, phoneNumber: String) {
-    getHandleToUse(context, null) { selectedHandle ->
-        if (selectedHandle != null) {
-            placeCall(context, phoneNumber, selectedHandle)
-        } else {
-            Toast.makeText(context, "No SIM selected", Toast.LENGTH_SHORT).show()
-        }
-    }
-}
-
+@SuppressLint("MissingPermission")
 fun placeCall(context: Context, phoneNumber: String, handle: PhoneAccountHandle) {
-    val telecomManager = context.getSystemService(TelecomManager::class.java)
     val uri = Uri.fromParts("tel", phoneNumber, null)
     val callIntent = Intent(Intent.ACTION_CALL, uri).apply {
-        putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle) // Use the selected SIM
+        putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     try {
         context.startActivity(callIntent)

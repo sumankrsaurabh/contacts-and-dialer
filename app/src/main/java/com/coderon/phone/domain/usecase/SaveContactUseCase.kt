@@ -5,8 +5,20 @@ import com.coderon.phone.domain.repository.ContactRepository
 
 class SaveContactUseCase(private val contactRepository: ContactRepository) {
     suspend operator fun invoke(
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
-    ) = contactRepository.addContact(displayName, phoneNumbers, profilePictureUri)
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
+    ) = contactRepository.addContact(
+        firstName = firstName,
+        lastName = lastName,
+        displayName = displayName,
+        phoneNumbers = phoneNumbers,
+        emailAddresses = emailAddresses,
+        profilePictureUri = profilePictureUri,
+        isFavorite = isFavorite
+    )
 }

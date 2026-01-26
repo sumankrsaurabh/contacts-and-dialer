@@ -6,8 +6,21 @@ import com.coderon.phone.domain.repository.ContactRepository
 class UpdateContactUseCase(private val contactRepository: ContactRepository) {
     suspend operator fun invoke(
         contactId: String,
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
-    ) = contactRepository.updateContact(contactId, displayName, phoneNumbers, profilePictureUri)
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
+    ) = contactRepository.updateContact(
+        contactId = contactId,
+        firstName = firstName,
+        lastName = lastName,
+        displayName = displayName,
+        phoneNumbers = phoneNumbers,
+        emailAddresses = emailAddresses,
+        profilePictureUri = profilePictureUri,
+        isFavorite = isFavorite
+    )
 }

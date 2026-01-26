@@ -1,10 +1,12 @@
 package com.coderon.phone.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.navArgument
 import com.coderon.phone.call.ui.screens.incallui.CallScreen
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
@@ -58,7 +60,7 @@ fun AppNavHost(
             ScaffoldScreen(navController) {
                 CallLogScreen(
                     callLogs = filteredCallLogs,
-                    navController = navController
+                    navController = navController,
                 )
             }
         }
@@ -86,8 +88,32 @@ fun AppNavHost(
         }
 
         /* -------------------- ADD CONTACT -------------------- */
-        composable(Screen.AddContact.route) {
-            AddContactScreen()
+        composable(
+            route = Screen.AddContact.route,
+            arguments = listOf(
+                navArgument("number") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val number = backStackEntry.arguments?.getString("number")
+            AddContactScreen(
+                navController = navController,
+                initialPhoneNumber = number,
+                onSaveContact = { contact ->
+                    contactViewModel.saveContact(
+                        firstName = contact.firstName,
+                        lastName = contact.lastName,
+                        displayName = contact.displayName,
+                        phoneNumbers = contact.phoneNumbers,
+                        emailAddresses = contact.emailAddresses,
+                        profilePictureUri = contact.profilePictureUrl,
+                        isFavorite = contact.isFavorite
+                    )
+                }
+            )
         }
 
         /* -------------------- CONTACT DETAILS -------------------- */
@@ -117,7 +143,7 @@ fun AppNavHost(
                     )
                 ),
                 callLogs = callLogsForNumber,
-                navController = navController
+                navController = navController,
             )
         }
 

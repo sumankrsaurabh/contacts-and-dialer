@@ -24,47 +24,61 @@ class ContactRepositoryImpl(
         val contactMap = linkedMapOf<String, MutableContactBuilder>()
 
         val cursor = contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            CONTACT_PROJECTION,
+            ContactsContract.Data.CONTENT_URI,
+            null,
             null,
             null,
             "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
         )
 
         cursor?.use {
-            val idIndex =
-                it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
-            val nameIndex =
-                it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-            val numberIndex =
-                it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
-            val typeIndex =
-                it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.TYPE)
-            val photoIndex =
-                it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Photo.PHOTO_URI)
+            val idIndex = it.getColumnIndexOrThrow(ContactsContract.Data.CONTACT_ID)
+            val nameIndex = it.getColumnIndexOrThrow(ContactsContract.Data.DISPLAY_NAME)
+            val mimeTypeIndex = it.getColumnIndexOrThrow(ContactsContract.Data.MIMETYPE)
+            val photoIndex = it.getColumnIndexOrThrow(ContactsContract.Data.PHOTO_URI)
+            val starredIndex = it.getColumnIndexOrThrow(ContactsContract.Data.STARRED)
 
             while (it.moveToNext()) {
                 val id = it.getString(idIndex)
                 val name = it.getString(nameIndex) ?: "Unknown"
-                val number = it.getString(numberIndex) ?: continue
-                val type = it.getInt(typeIndex)
+                val mimeType = it.getString(mimeTypeIndex)
                 val photoUri = it.getString(photoIndex)
+                val isFavorite = it.getInt(starredIndex) == 1
 
                 val builder = contactMap.getOrPut(id) {
                     MutableContactBuilder(
                         id = id,
                         displayName = name,
-                        photoUri = photoUri
+                        photoUri = photoUri,
+                        isFavorite = isFavorite
                     )
                 }
 
-                builder.phoneNumbers.add(
-                    PhoneNumber(
-                        number = number,
-                        type = mapPhoneType(type),
-                        isPrimary = builder.phoneNumbers.isEmpty()
-                    )
-                )
+                when (mimeType) {
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> {
+                        val number = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                        val type = it.getInt(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.TYPE))
+                        if (number != null) {
+                            builder.phoneNumbers.add(
+                                PhoneNumber(
+                                    number = number,
+                                    type = mapPhoneType(type),
+                                    isPrimary = builder.phoneNumbers.isEmpty()
+                                )
+                            )
+                        }
+                    }
+                    ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE -> {
+                        val email = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Email.ADDRESS))
+                        if (email != null) {
+                            builder.emailAddresses.add(email)
+                        }
+                    }
+                    ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE -> {
+                        builder.firstName = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME))
+                        builder.lastName = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME))
+                    }
+                }
             }
         }
 
@@ -83,9 +97,13 @@ class ContactRepositoryImpl(
     // ADD CONTACT (MULTI NUMBER)
     // ------------------------------------------------
     override suspend fun addContact(
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
     ): Unit = withContext(Dispatchers.IO) {
 
         val ops = ArrayList<ContentProviderOperation>()
@@ -94,6 +112,7 @@ class ContactRepositoryImpl(
         ops += ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
             .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
             .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+            .withValue(ContactsContract.RawContacts.STARRED, if (isFavorite) 1 else 0)
             .build()
 
         // Name
@@ -103,10 +122,9 @@ class ContactRepositoryImpl(
                 ContactsContract.Data.MIMETYPE,
                 ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
             )
-            .withValue(
-                ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME,
-                displayName
-            )
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, displayName)
             .build()
 
         // Phone numbers
@@ -122,6 +140,19 @@ class ContactRepositoryImpl(
                     ContactsContract.CommonDataKinds.Phone.TYPE,
                     mapPhoneTypeToSystem(phone.type)
                 )
+                .build()
+        }
+
+        // Email addresses
+        emailAddresses.forEach { email ->
+            ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(
+                    ContactsContract.Data.MIMETYPE,
+                    ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE
+                )
+                .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_MOBILE)
                 .build()
         }
 
@@ -148,12 +179,22 @@ class ContactRepositoryImpl(
     // ------------------------------------------------
     override suspend fun updateContact(
         contactId: String,
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
     ): Unit = withContext(Dispatchers.IO) {
 
         val ops = ArrayList<ContentProviderOperation>()
+
+        // Update starred status
+        ops += ContentProviderOperation.newUpdate(ContactsContract.Contacts.CONTENT_URI)
+            .withSelection("${ContactsContract.Contacts._ID}=?", arrayOf(contactId))
+            .withValue(ContactsContract.Contacts.STARRED, if (isFavorite) 1 else 0)
+            .build()
 
         // Update name
         ops += ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
@@ -164,10 +205,9 @@ class ContactRepositoryImpl(
                     ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
                 )
             )
-            .withValue(
-                ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME,
-                displayName
-            )
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, displayName)
             .build()
 
         // Remove old numbers
@@ -194,6 +234,29 @@ class ContactRepositoryImpl(
                     ContactsContract.CommonDataKinds.Phone.TYPE,
                     mapPhoneTypeToSystem(phone.type)
                 )
+                .build()
+        }
+
+        // Remove old emails
+        ops += ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+            .withSelection(
+                "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+                arrayOf(
+                    contactId,
+                    ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE
+                )
+            )
+            .build()
+
+        // Insert new emails
+        emailAddresses.forEach { email ->
+            ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValue(
+                    ContactsContract.Data.MIMETYPE,
+                    ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE
+                )
+                .withValue(ContactsContract.Data.CONTACT_ID, contactId)
+                .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
                 .build()
         }
 
@@ -254,16 +317,6 @@ class ContactRepositoryImpl(
         } catch (e: Exception) {
             null
         }
-
-    companion object {
-        private val CONTACT_PROJECTION = arrayOf(
-            ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER,
-            ContactsContract.CommonDataKinds.Phone.TYPE,
-            ContactsContract.CommonDataKinds.Photo.PHOTO_URI
-        )
-    }
 }
 
 /* ------------------------------------------------
@@ -273,14 +326,22 @@ class ContactRepositoryImpl(
 private class MutableContactBuilder(
     val id: String,
     val displayName: String,
-    val photoUri: String?
+    val photoUri: String?,
+    val isFavorite: Boolean
 ) {
+    var firstName: String? = null
+    var lastName: String? = null
     val phoneNumbers = mutableListOf<PhoneNumber>()
+    val emailAddresses = mutableListOf<String>()
 
     fun build(): Contact = Contact(
         id = id,
         displayName = displayName,
+        firstName = firstName,
+        lastName = lastName,
         profilePictureUrl = photoUri,
-        phoneNumbers = phoneNumbers
+        phoneNumbers = phoneNumbers,
+        emailAddresses = emailAddresses,
+        isFavorite = isFavorite
     )
 }

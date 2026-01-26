@@ -1,6 +1,8 @@
 package com.coderon.phone.ui.screens
 
+import android.telecom.PhoneAccountHandle
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,7 +54,9 @@ import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.utils.ScaffoldScreen
+import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
+import com.coderon.phone.utils.placeCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,6 +71,11 @@ fun DialerScreen(
     playTones: (Char) -> Unit
 ) {
     var dialedNumber by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    // SIM Selection State
+    var showSimDialog by remember { mutableStateOf(false) }
+    var availableSims by remember { mutableStateOf<List<PhoneAccountHandle>>(emptyList()) }
 
     LaunchedEffect(dialedNumber) {
         updateSearchQuery(dialedNumber)
@@ -75,170 +85,214 @@ fun DialerScreen(
     val callLogs by filterCallLog.collectAsStateWithLifecycle(emptyList())
     val colorScheme = MaterialTheme.colorScheme
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colorScheme.background)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(bottom = 104.dp)
-    ) {
-        Spacer(Modifier.height(24.dp))
-
-        /* ---------- REDESIGNED DIALED TEXT (iOS / OneUI 8 Mix) ---------- */
-        Text(
-            text = dialedNumber.ifBlank { " " },
-            fontSize = 48.sp,
-            fontWeight = FontWeight.Bold,
-            color = colorScheme.onSurface,
-            textAlign = TextAlign.Center,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            maxLines = 1
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        val suggestions = remember(dialedNumber, contacts, callLogs) {
-            if (dialedNumber.isBlank()) emptyList()
-            else {
-                val map = linkedMapOf<String, Any>()
-
-                callLogs
-                    .groupBy { it.phoneNumber }
-                    .mapNotNull { it.value.maxByOrNull { log -> log.callTime } }
-                    .filter { it.phoneNumber.contains(dialedNumber) }
-                    .forEach { map[it.phoneNumber] = it }
-
-                contacts.values.flatten().forEach { contact ->
-                    val number = contact.phoneNumbers.firstOrNull()?.number ?: return@forEach
-                    if (number.contains(dialedNumber)) {
-                        map.putIfAbsent(number, contact)
-                    }
-                }
-
-                map.values.toList()
-            }
-        }
-
-        /* ---------- REDESIGNED SUGGESTIONS (Pill-style like CallLogs) ---------- */
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
+                .fillMaxSize()
+                .background(colorScheme.background)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(bottom = 104.dp)
         ) {
-            if (suggestions.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "SUGGESTIONS",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
-                    )
-                }
+            Spacer(Modifier.height(24.dp))
 
-                items(suggestions) { item ->
-                    when (item) {
-                        is CallLogEntry -> {
-                            HybridCallLogPill(
-                                name = item.contact?.displayName ?: item.phoneNumber,
-                                phoneNumber = item.phoneNumber,
-                                callType = item.callType,
-                                callTime = item.callTime,
-                                simSlot = item.simSlot,
-                                contact = item.contact,
-                                onRowClick = { dialedNumber = item.phoneNumber },
-                                onInfoClick = {
-                                    navController.navigate(Screen.CallDetails.createRoute(item.phoneNumber))
-                                }
-                            )
-                        }
-
-                        is Contact -> {
-                            val contactNumber = item.phoneNumbers.firstOrNull()?.number ?: ""
-                            HybridContactRow(
-                                name = item.displayName,
-                                subtitle = contactNumber,
-                                photoUrl = item.profilePictureUrl,
-                                onRowClick = { dialedNumber = contactNumber },
-                                onInfoClick = {
-                                    navController.navigate(
-                                        Screen.CallDetails.createRoute(
-                                            contactNumber
-                                        )
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        DialPad(
-            playTones = playTones,
-            onDigitPress = {
-                if (dialedNumber.length < 15) {
-                    dialedNumber += it
-                }
-            }
-        )
-
-        Spacer(Modifier.height(20.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Spacer(Modifier.width(56.dp))
-
-            FilledIconButton(
-                onClick = {
-                    if (dialedNumber.isNotBlank()) {
-                        initiateCall(navController.context, dialedNumber)
-                    }
-                },
-                modifier = Modifier.size(72.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                shape = CircleShape
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.call),
-                    contentDescription = "Call",
-                    modifier = Modifier.size(34.dp)
-                )
-            }
-
-            Box(
+            /* ---------- REDESIGNED DIALED TEXT (iOS / OneUI 8 Mix) ---------- */
+            Text(
+                text = dialedNumber.ifBlank { " " },
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .size(56.dp)
-                    .background(
-                        colorScheme.surfaceVariant.copy(
-                            alpha = if (dialedNumber.isEmpty()) 0.4f else 1f
-                        ),
-                        CircleShape
-                    )
-                    .combinedClickable(
-                        enabled = dialedNumber.isNotEmpty(),
-                        onClick = { dialedNumber = dialedNumber.dropLast(1) },
-                        onLongClick = { dialedNumber = "" }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.delete),
-                    contentDescription = "Delete",
-                    tint = colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                maxLines = 1
+            )
+
+            if (dialedNumber.isNotBlank()) {
+                Text(
+                    text = "Add to Contacts",
+                    color = colorScheme.primary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable {
+                            navController.navigate(Screen.AddContact.createRoute(dialedNumber))
+                        }
                 )
+            } else {
+                Spacer(Modifier.height(37.dp))
             }
+
+            Spacer(Modifier.height(8.dp))
+
+            val suggestions = remember(dialedNumber, contacts, callLogs) {
+                if (dialedNumber.isBlank()) emptyList()
+                else {
+                    val map = linkedMapOf<String, Any>()
+
+                    callLogs
+                        .groupBy { it.phoneNumber }
+                        .mapNotNull { it.value.maxByOrNull { log -> log.callTime } }
+                        .filter { it.phoneNumber.contains(dialedNumber) }
+                        .forEach { map[it.phoneNumber] = it }
+
+                    contacts.values.flatten().forEach { contact ->
+                        val number = contact.phoneNumbers.firstOrNull()?.number ?: return@forEach
+                        if (number.contains(dialedNumber)) {
+                            map.putIfAbsent(number, contact)
+                        }
+                    }
+
+                    map.values.toList()
+                }
+            }
+
+            /* ---------- REDESIGNED SUGGESTIONS ---------- */
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 12.dp)
+            ) {
+                if (suggestions.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "SUGGESTIONS",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                        )
+                    }
+
+                    items(suggestions) { item ->
+                        when (item) {
+                            is CallLogEntry -> {
+                                HybridCallLogPill(
+                                    name = item.contact?.displayName ?: item.phoneNumber,
+                                    phoneNumber = item.phoneNumber,
+                                    callType = item.callType,
+                                    callTime = item.callTime,
+                                    simSlot = item.simSlot,
+                                    contact = item.contact,
+                                    onRowClick = {
+                                        initiateCall(context, item.phoneNumber) { sims ->
+                                            availableSims = sims
+                                            showSimDialog = true
+                                        }
+                                    },
+                                    onInfoClick = {
+                                        navController.navigate(Screen.CallDetails.createRoute(item.phoneNumber))
+                                    }
+                                )
+                            }
+
+                            is Contact -> {
+                                val contactNumber = item.phoneNumbers.firstOrNull()?.number ?: ""
+                                HybridContactRow(
+                                    name = item.displayName,
+                                    subtitle = contactNumber,
+                                    photoUrl = item.profilePictureUrl,
+                                    onRowClick = {
+                                        initiateCall(context, contactNumber) { sims ->
+                                            availableSims = sims
+                                            showSimDialog = true
+                                        }
+                                    },
+                                    onInfoClick = {
+                                        navController.navigate(
+                                            Screen.CallDetails.createRoute(
+                                                contactNumber
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            DialPad(
+                playTones = playTones,
+                onDigitPress = {
+                    if (dialedNumber.length < 15) {
+                        dialedNumber += it
+                    }
+                }
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(Modifier.width(56.dp))
+
+                FilledIconButton(
+                    onClick = {
+                        if (dialedNumber.isNotBlank()) {
+                            initiateCall(context, dialedNumber) { sims ->
+                                availableSims = sims
+                                showSimDialog = true
+                            }
+                        }
+                    },
+                    modifier = Modifier.size(72.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.call),
+                        contentDescription = "Call",
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(
+                            colorScheme.surfaceVariant.copy(
+                                alpha = if (dialedNumber.isEmpty()) 0.4f else 1f
+                            ),
+                            CircleShape
+                        )
+                        .combinedClickable(
+                            enabled = dialedNumber.isNotEmpty(),
+                            onClick = { dialedNumber = dialedNumber.dropLast(1) },
+                            onLongClick = { dialedNumber = "" }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.delete),
+                        contentDescription = "Delete",
+                        tint = colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+
+        if (showSimDialog) {
+            SimSelectionDialog(
+                availableAccounts = availableSims,
+                onSimSelected = { handle ->
+                    showSimDialog = false
+                    placeCall(context, dialedNumber, handle)
+                },
+                onDismiss = { showSimDialog = false }
+            )
         }
     }
 }

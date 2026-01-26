@@ -3,6 +3,7 @@
 package com.coderon.phone.ui.screens
 
 import android.content.Context
+import android.telecom.PhoneAccountHandle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,9 +13,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -38,11 +46,15 @@ import com.coderon.phone.data.helpers.formatDate
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.ui.components.HybridAlertDialog
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridSegmentedPicker
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.initiateCall
+import com.coderon.phone.utils.placeCall
 import kotlinx.coroutines.flow.first
 
 /* ------------------------------------------------ */
@@ -62,17 +74,27 @@ private enum class CallFilter {
 
 @Composable
 fun CallLogScreen(
-    callLogs: List<CallLog>, navController: NavController
+    callLogs: List<CallLog>,
+    navController: NavController,
+    onDeleteAllLogs: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var filter by remember { mutableStateOf(CallFilter.ALL) }
     val colorScheme = MaterialTheme.colorScheme
 
+    // SIM Selection State
+    var showSimDialog by remember { mutableStateOf(false) }
+    var availableSims by remember { mutableStateOf<List<PhoneAccountHandle>>(emptyList()) }
+    var phoneNumberToDial by remember { mutableStateOf("") }
+
+    // Confirmation State
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         val savedFilterName = context.dataStore.data.first()[FILTER_KEY]
         filter = try {
             CallFilter.valueOf(savedFilterName ?: CallFilter.ALL.name)
-        } catch (e: Exception) {
+        } catch (ignored: Exception) {
             CallFilter.ALL
         }
     }
@@ -93,90 +115,129 @@ fun CallLogScreen(
     val callLogsByDate =
         filteredLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
 
-    Scaffold(
-        containerColor = colorScheme.background,
-        topBar = {
-            Box {
-                // iOS Blur Background Effect
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(24.dp)
-                        .background(colorScheme.background.copy(alpha = 0.65f))
-                )
-//
-//                LargeTopAppBar(
-//                    title = {
-//                        Text("Recents", fontWeight = FontWeight.Bold, fontSize = 32.sp)
-//                    },
-//                    actions = {
-//                        IconButton(onClick = { /* More actions */ }) {
-//                            Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = colorScheme.primary)
-//                        }
-//                    },
-//                    colors = TopAppBarDefaults.topAppBarColors(
-//                        containerColor = Color.Transparent,
-//                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.9f)
-//                    )
-//                )
-            }
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = colorScheme.background,
+            topBar = {
+                Box {
+                    // iOS Blur Background Effect
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .blur(24.dp)
+                            .background(colorScheme.background.copy(alpha = 0.65f))
+                    )
 
-            // iOS/OneUI 8 Segmented Picker
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                HybridSegmentedPicker(
-                    options = CallFilter.entries.toTypedArray(),
-                    selectedOption = filter,
-                    onOptionSelected = { filter = it },
-                    labelProvider = { if (it == CallFilter.ALL) "All" else "Missed" }
-                )
-            }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 100.dp, start = 16.dp, end = 16.dp)
-            ) {
-                callLogsByDate.forEach { (date, logs) ->
-                    item {
-                        Text(
-                            text = date.uppercase(),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(start = 14.dp, top = 24.dp, bottom = 10.dp)
-                        )
-                    }
-
-                    val groupedLogs = logs.groupBy { it.contact?.displayName ?: it.phoneNumber }
-                        .map { GroupedCallLog(it.value) }
-
-                    items(groupedLogs, key = { it.log.id }) { group ->
-                        HybridCallLogPill(
-                            name = group.contact?.displayName ?: group.phoneNumber,
-                            phoneNumber = group.phoneNumber,
-                            callType = group.callType,
-                            callTime = group.callTime,
-                            simSlot = group.simSlot,
-                            contact = group.contact,
-                            onRowClick = {
-                                // iOS style: click row to call
-                            },
-                            onInfoClick = {
-                                navController.navigate(
-                                    Screen.CallDetails.createRoute(group.phoneNumber)
+                    TopAppBar(
+                        title = {
+                            Text("Recents", fontWeight = FontWeight.Bold, fontSize = 32.sp)
+                        },
+                        actions = {
+                            IconButton(onClick = { showDeleteConfirmation = true }) {
+                                Icon(
+                                    Icons.Rounded.DeleteSweep,
+                                    contentDescription = "Clear All",
+                                    tint = colorScheme.primary
                                 )
                             }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.9f)
                         )
+                    )
+                }
+            }
+        ) { innerPadding ->
+            Column(modifier = Modifier.padding(innerPadding)) {
+
+                // iOS/OneUI 8 Segmented Picker
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    HybridSegmentedPicker(
+                        options = CallFilter.entries.toTypedArray(),
+                        selectedOption = filter,
+                        onOptionSelected = { filter = it },
+                        labelProvider = { if (it == CallFilter.ALL) "All" else "Missed" }
+                    )
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp, start = 16.dp, end = 16.dp)
+                ) {
+                    callLogsByDate.forEach { (date, logs) ->
+                        item {
+                            Text(
+                                text = date.uppercase(),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(
+                                    start = 14.dp,
+                                    top = 24.dp,
+                                    bottom = 10.dp
+                                )
+                            )
+                        }
+
+                        val groupedLogs = logs.groupBy { it.id } // Using id as unique key for now
+                            .map { GroupedCallLog(it.value) }
+
+                        items(groupedLogs, key = { it.log.id }) { group ->
+                            HybridCallLogPill(
+                                name = group.contact?.displayName ?: group.phoneNumber,
+                                phoneNumber = group.phoneNumber,
+                                callType = group.callType,
+                                callTime = group.callTime,
+                                simSlot = group.simSlot,
+                                contact = group.contact,
+                                onRowClick = {
+                                    initiateCall(context, group.phoneNumber) { sims ->
+                                        availableSims = sims
+                                        phoneNumberToDial = group.phoneNumber
+                                        showSimDialog = true
+                                    }
+                                },
+                                onInfoClick = {
+                                    navController.navigate(
+                                        Screen.CallDetails.createRoute(group.phoneNumber)
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        if (showSimDialog) {
+            SimSelectionDialog(
+                availableAccounts = availableSims,
+                onSimSelected = { handle ->
+                    showSimDialog = false
+                    placeCall(context, phoneNumberToDial, handle)
+                },
+                onDismiss = { showSimDialog = false }
+            )
+        }
+
+        if (showDeleteConfirmation) {
+            HybridAlertDialog(
+                title = "Clear All Recents?",
+                message = "Are you sure you want to delete all call logs? This action cannot be undone.",
+                confirmText = "Clear All",
+                confirmColor = Color.Red,
+                onConfirm = {
+                    onDeleteAllLogs()
+                    showDeleteConfirmation = false
+                },
+                onDismiss = { showDeleteConfirmation = false }
+            )
         }
     }
 }

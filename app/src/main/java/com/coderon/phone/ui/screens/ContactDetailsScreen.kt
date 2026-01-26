@@ -61,7 +61,8 @@ import com.coderon.phone.ui.theme.PhoneTheme
 fun ContactDetailsScreen(
     contact: Contact,
     callLogs: List<CallLog>,
-    navController: NavController
+    navController: NavController,
+    onToggleFavorite: (Contact) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
@@ -180,7 +181,7 @@ fun ContactDetailsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(32.dp),
                     color = colorScheme.surfaceContainerLow,
-                    onClick = { /* Toggle Favorite */ }
+                    onClick = { onToggleFavorite(contact) }
                 ) {
                     Row(
                         modifier = Modifier.padding(20.dp),

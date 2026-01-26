@@ -10,16 +10,24 @@ interface ContactRepository {
     suspend fun getContact(contactId: String): Contact?
 
     suspend fun addContact(
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
     )
 
     suspend fun updateContact(
         contactId: String,
+        firstName: String?,
+        lastName: String?,
         displayName: String,
         phoneNumbers: List<PhoneNumber>,
-        profilePictureUri: String?
+        emailAddresses: List<String>,
+        profilePictureUri: String?,
+        isFavorite: Boolean
     )
 
     suspend fun deleteContact(contactId: String)
