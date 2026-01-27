@@ -14,6 +14,7 @@ data class CallSession(
     // Normalized caller info (UI-safe)
     val phoneNumber: String,
     val displayName: String? = null,
+    val profilePictureUrl: String? = null,
 
     // Flags
     val isIncoming: Boolean,

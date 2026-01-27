@@ -2,6 +2,7 @@ package com.coderon.phone.call.services
 
 import android.content.Intent
 import android.telecom.Call
+import android.telecom.CallAudioState
 import android.telecom.InCallService
 import com.coderon.phone.MainActivity
 import com.coderon.phone.notifications.CallNotificationManager
@@ -13,10 +14,6 @@ import com.coderon.phone.notifications.CallNotificationManager
  * - Forward Telecom callbacks to CallManager
  * - Maintain notification lifecycle
  * - Launch UI ONLY when instructed by domain state
- *
- * ❌ No business rules
- * ❌ No call logic
- * ❌ No UI decisions
  */
 class CallService : InCallService() {
 
@@ -41,6 +38,7 @@ class CallService : InCallService() {
             conferenceableCalls: MutableList<Call>
         ) {
             CallManager.onCallStateChanged(call, call.state)
+            syncNotification()
         }
     }
 
@@ -71,15 +69,25 @@ class CallService : InCallService() {
         CallManager.onCallRemoved(call)
 
         syncNotification()
+        
+        if (CallManager.uiState.value.hasNoCalls) {
+            CallManager.setService(null)
+        }
     }
 
     /* ---------------------------------------------------
        AUDIO STATE
     --------------------------------------------------- */
 
+    override fun onCallAudioStateChanged(audioState: CallAudioState) {
+        super.onCallAudioStateChanged(audioState)
+        CallManager.onAudioStateChanged(audioState)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         notificationManager.cancelNotification()
+        CallManager.setService(null)
     }
 
     /* ---------------------------------------------------
@@ -104,14 +112,14 @@ class CallService : InCallService() {
         if (!CallManager.uiState.value.shouldLaunchUi) return
 
         try {
-            startActivity(
-                Intent(this, MainActivity::class.java).apply {
-                    addFlags(
-                        Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    )
-                }
-            )
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP
+                )
+            }
+            startActivity(intent)
         } catch (_: Exception) {
             // Notification is fallback
         }

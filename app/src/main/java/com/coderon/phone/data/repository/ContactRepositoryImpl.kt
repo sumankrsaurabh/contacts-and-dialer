@@ -93,6 +93,25 @@ class ContactRepositoryImpl(
             getContacts().firstOrNull { it.id == contactId }
         }
 
+    override suspend fun getContactByNumber(phoneNumber: String): Contact? = withContext(Dispatchers.IO) {
+        val uri = Uri.withAppendedPath(
+            ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+            Uri.encode(phoneNumber)
+        )
+        val projection = arrayOf(
+            ContactsContract.PhoneLookup.CONTACT_ID,
+            ContactsContract.PhoneLookup.DISPLAY_NAME
+        )
+
+        contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.CONTACT_ID))
+                return@withContext getContact(contactId)
+            }
+        }
+        null
+    }
+
     // ------------------------------------------------
     // ADD CONTACT (MULTI NUMBER)
     // ------------------------------------------------

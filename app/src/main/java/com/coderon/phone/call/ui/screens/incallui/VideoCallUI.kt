@@ -1,143 +1,208 @@
 package com.coderon.phone.call.ui.screens.incallui
 
-import android.graphics.SurfaceTexture
-import android.telecom.Call
-import android.view.Surface
-import android.view.TextureView
-import android.view.TextureView.SurfaceTextureListener
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.VideocamOff
+import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.FlipCameraAndroid
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.VideocamOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 
 @Composable
-fun VideoCallUi(call: Call?) {
-    var isMicOn by remember { mutableStateOf(true) }
-    var isCameraOn by remember { mutableStateOf(true) }
+fun VideoCallUI(
+    contactName: String,
+    callDuration: String,
+    remoteVideoUrl: String? = null,
+    localVideoUrl: String? = null,
+    isMuted: Boolean,
+    isVideoEnabled: Boolean,
+    onEndCall: () -> Unit,
+    onToggleMute: () -> Unit,
+    onToggleVideo: () -> Unit,
+    onFlipCamera: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        
+        // Remote Video (Full Screen Placeholder)
+        if (remoteVideoUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(remoteVideoUrl)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            OneUi8DynamicBackground()
+        }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Other person's video feed
-        AndroidView(
-            factory = { context ->
-                TextureView(context).apply {
-                    surfaceTextureListener = object : SurfaceTextureListener {
-                        override fun onSurfaceTextureAvailable(
-                            texture: SurfaceTexture,
-                            width: Int,
-                            height: Int
-                        ) {
-                            val surface = Surface(texture)
-                            call?.videoCall?.setDisplaySurface(surface)
-                        }
-
-                        override fun onSurfaceTextureSizeChanged(
-                            texture: SurfaceTexture,
-                            width: Int,
-                            height: Int
-                        ) {
-                        }
-
-                        override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean =
-                            true
-
-                        override fun onSurfaceTextureUpdated(texture: SurfaceTexture) {}
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Small window for self-view
-        Box(
+        // Top Info
+        Column(
             modifier = Modifier
-                .size(120.dp)
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(top = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AndroidView(
-                factory = { context ->
-                    TextureView(context).apply {
-                        surfaceTextureListener = object : SurfaceTextureListener {
-                            override fun onSurfaceTextureAvailable(
-                                texture: SurfaceTexture,
-                                width: Int,
-                                height: Int
-                            ) {
-                                val surface = Surface(texture)
-                                call?.videoCall?.setPreviewSurface(surface)
-                            }
-
-                            override fun onSurfaceTextureSizeChanged(
-                                texture: SurfaceTexture,
-                                width: Int,
-                                height: Int
-                            ) {
-                            }
-
-                            override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean =
-                                true
-
-                            override fun onSurfaceTextureUpdated(texture: SurfaceTexture) {}
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
+            Text(
+                text = contactName,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = callDuration,
+                fontSize = 16.sp,
+                color = Color.White.copy(alpha = 0.8f)
             )
         }
 
-        // Controls
-        Row(
+        // Local Video Preview (Picture-in-Picture)
+        Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+                .align(Alignment.TopEnd)
+                .padding(top = 100.dp, end = 24.dp)
+                .size(120.dp, 180.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.DarkGray
         ) {
-            IconButton(onClick = {
-                isMicOn = !isMicOn
-//                call?.videoCall?.setMuted(!isMicOn)
-            }) {
-                Icon(
-                    imageVector = if (isMicOn) Icons.Default.Mic else Icons.Default.MicOff,
-                    contentDescription = "Toggle Microphone"
+            if (isVideoEnabled && localVideoUrl != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(localVideoUrl)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Rounded.VideocamOff,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+        }
+
+        // Bottom Controls
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 64.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Mute
+                VideoActionCircle(
+                    icon = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                    active = isMuted,
+                    onClick = onToggleMute
+                )
+
+                // End Call
+                Surface(
+                    onClick = onEndCall,
+                    modifier = Modifier.size(80.dp),
+                    shape = CircleShape,
+                    color = Color(0xFFFF3B30)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.CallEnd,
+                            contentDescription = "End",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
+
+                // Camera Toggle
+                VideoActionCircle(
+                    icon = if (isVideoEnabled) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff,
+                    active = !isVideoEnabled,
+                    onClick = onToggleVideo
                 )
             }
-            IconButton(onClick = {
-                isCameraOn = !isCameraOn
-                // Call does not support enabling/disabling camera directly
-                // Need to handle camera ID switching if required
-            }) {
-                Icon(
-                    imageVector = if (isCameraOn) Icons.Default.Videocam else Icons.Default.VideocamOff,
-                    contentDescription = "Toggle Camera"
-                )
+            
+            Spacer(Modifier.height(32.dp))
+            
+            // Flip Camera
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                Surface(
+                    onClick = onFlipCamera,
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.2f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.FlipCameraAndroid,
+                            contentDescription = "Flip",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-private fun VideoCallUiPreview() {
-    VideoCallUi(null) // Using null since preview can't pass a real Call object
+private fun VideoActionCircle(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(64.dp),
+        shape = CircleShape,
+        color = if (active) Color.White else Color.White.copy(alpha = 0.2f)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (active) Color.Black else Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
 }

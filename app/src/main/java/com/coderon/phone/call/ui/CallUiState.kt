@@ -5,11 +5,6 @@ import com.coderon.phone.call.domain.CallState
 
 /**
  * Single source of truth for Call UI.
- *
- * This state is:
- * - Produced ONLY by CallReducer
- * - Observed by UI & notification layer
- * - Immutable & predictable
  */
 data class CallUiState(
 
@@ -22,6 +17,7 @@ data class CallUiState(
 
     val isConference: Boolean = false,
     val isMuted: Boolean = false,
+    val isVideo: Boolean = false,
 
     /* ---------------- AUDIO ---------------- */
 
@@ -36,48 +32,31 @@ data class CallUiState(
     val screen: CallScreenType = CallScreenType.NONE
 ) {
 
-    /* ---------------------------------------------------
-       DERIVED UI HELPERS (NO REDUCER LOGIC)
-    --------------------------------------------------- */
-
     val hasNoCalls: Boolean
         get() = primaryCall == null && secondaryCall == null
-
-    val CallUiState.hasNoCalls: Boolean
-        get() = primaryCall == null && secondaryCall == null
-
 
     val isIncoming: Boolean
         get() = primaryCall?.state == CallState.RINGING
 
     val isOngoing: Boolean
-        get() = primaryCall?.state == CallState.ACTIVE
+        get() = primaryCall?.state == CallState.ACTIVE || primaryCall?.state == CallState.DIALING || primaryCall?.state == CallState.CONNECTING
 
     val isCallWaiting: Boolean
         get() = primaryCall != null && secondaryCall != null && !isConference
 
-    /**
-     * Used by CallService to decide if UI should launch
-     */
     val shouldLaunchUi: Boolean
-        get() = isIncoming || isOngoing || isCallWaiting || isConference
+        get() = primaryCall != null
 }
-
-/* ---------------------------------------------------
-   SCREEN TYPES
---------------------------------------------------- */
 
 enum class CallScreenType {
     INCOMING,
     ONGOING,
     CALL_WAITING,
     CONFERENCE,
+    TWO_CALLS,
+    VIDEO,
     NONE
 }
-
-/* ---------------------------------------------------
-   AUDIO ROUTES (UI-LEVEL, PLATFORM AGNOSTIC)
---------------------------------------------------- */
 
 enum class AudioRoute {
     EARPIECE,

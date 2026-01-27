@@ -1,20 +1,20 @@
 <resources>
     <string name="app_name">Phone</string>
-    <string name="speaker">speaker</string>
-    <string name="audio_route_earpiece">audio_route_earpiece\n</string>
-    <string name="audio_route_bluetooth">audio_route_bluetooth</string>
-    <string name="audio_route_wired_headset">audio_route_wired_headset</string>
-    <string name="audio_route_wired_or_earpiece">audio_route_wired_or_earpiece</string>
-    <string name="default_dialer_package_name">com.coderon.phone\n</string>
-    <string name="decline_call">end call\n</string>
-    <string name="accept_call">accept call</string>
-    <string name="is_calling">Ringing\n</string>
+    <string name="speaker">Speaker</string>
+    <string name="audio_route_earpiece">Earpiece</string>
+    <string name="audio_route_bluetooth">Bluetooth</string>
+    <string name="audio_route_wired_headset">Wired Headset</string>
+    <string name="audio_route_wired_or_earpiece">Phone</string>
+    <string name="default_dialer_package_name">com.coderon.phone</string>
+    <string name="decline_call">Decline</string>
+    <string name="accept_call">Accept</string>
+    <string name="is_calling">Ringing</string>
     <string name="dialing">Dialing</string>
     <string name="call_ended">Call ended</string>
     <string name="call_ending">Call ending</string>
-    <string name="ongoing_call">Outging call</string>
-    <string name="conference">confrence\n</string>
-    <string name="call_waiting">\nwaiting</string>
-    <string name="conference_call">conference\n</string>
-    <string name="unknown_caller">unknown</string>
+    <string name="ongoing_call">Ongoing call</string>
+    <string name="conference">Conference</string>
+    <string name="call_waiting">Call waiting</string>
+    <string name="conference_call">Conference call</string>
+    <string name="unknown_caller">Unknown</string>
 </resources>

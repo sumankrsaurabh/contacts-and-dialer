@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.telephony.TelephonyManager
 import com.coderon.phone.MainActivity
+import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.notifications.CallNotificationManager
 import com.coderon.phone.ui.utils.extentions.checkPermissions
 import com.coderon.phone.utils.Constants.ACCEPT_CALL
@@ -18,7 +19,7 @@ import kotlinx.coroutines.launch
 
 class CallReceiver : BroadcastReceiver() {
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(Dispatchers.Main)
 
     @SuppressLint("MissingPermission")
     override fun onReceive(context: Context, intent: Intent) {
@@ -38,19 +39,19 @@ class CallReceiver : BroadcastReceiver() {
                 }
             }
 
-            ACCEPT_CALL -> scope.launch { handleAcceptCall(context) }
-            DECLINE_CALL -> scope.launch { handleRejectCall(context) }
+            ACCEPT_CALL -> handleAcceptCall(context)
+            DECLINE_CALL -> handleRejectCall(context)
             ACTION_UPDATE_CALL_NOTIFICATION -> updateCallNotification(context)
         }
     }
 
-    private suspend fun handleAcceptCall(context: Context) {
-//        CallManager.acceptCall()
+    private fun handleAcceptCall(context: Context) {
+        CallManager.accept()
         updateCallNotification(context)
     }
 
-    private suspend fun handleRejectCall(context: Context) {
-//        CallManager.rejectCall()
+    private fun handleRejectCall(context: Context) {
+        CallManager.reject()
         updateCallNotification(context)
     }
 

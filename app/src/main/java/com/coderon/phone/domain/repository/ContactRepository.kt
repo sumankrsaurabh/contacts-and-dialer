@@ -9,6 +9,8 @@ interface ContactRepository {
 
     suspend fun getContact(contactId: String): Contact?
 
+    suspend fun getContactByNumber(phoneNumber: String): Contact?
+
     suspend fun addContact(
         firstName: String?,
         lastName: String?,

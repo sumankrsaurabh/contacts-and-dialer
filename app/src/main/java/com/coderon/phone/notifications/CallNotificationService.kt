@@ -7,9 +7,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import coil.ImageLoader
+import coil.request.ImageRequest
 import com.coderon.phone.MainActivity
 import com.coderon.phone.R
 import com.coderon.phone.call.services.CallManager
@@ -59,6 +63,11 @@ class CallNotificationManager(
         )
 
         notificationManager.notify(CALL_NOTIFICATION_ID, notification)
+
+        // Asynchronously update avatar if needed
+        uiState.primaryCall?.profilePictureUrl?.let { url ->
+            loadAvatarAndNotify(url, uiState, channelId, isIncoming, showOngoing)
+        }
     }
 
     fun cancelNotification() {
@@ -69,11 +78,13 @@ class CallNotificationManager(
        INTERNALS
     --------------------------------------------------- */
 
+    @SuppressLint("RemoteViewLayout")
     private fun buildNotification(
         uiState: CallUiState,
         channelId: String,
         isIncoming: Boolean,
-        showOngoing: Boolean
+        showOngoing: Boolean,
+        avatarBitmap: Bitmap? = null
     ): Notification {
 
         val callerName =
@@ -93,69 +104,91 @@ class CallNotificationManager(
             context,
             0,
             Intent(context, MainActivity::class.java).apply {
-                flags =
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             },
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        val collapsedView =
-            RemoteViews(context.packageName, R.layout.call_notification).apply {
+        val collapsedView = RemoteViews(context.packageName, R.layout.call_notification).apply {
+            setTextViewText(R.id.notification_caller_name, callerName)
+            setTextViewText(R.id.notification_call_status, context.getString(statusTextRes))
 
-                setTextViewText(
-                    R.id.notification_caller_name,
-                    callerName
-                )
-
-                setTextViewText(
-                    R.id.notification_call_status,
-                    context.getString(statusTextRes)
-                )
-
-                setViewVisibility(
-                    R.id.notification_accept_call,
-                    if (isIncoming) View.VISIBLE else View.GONE
-                )
-
-                setOnClickPendingIntent(
-                    R.id.notification_accept_call,
-                    actionPendingIntent(ACCEPT_CALL)
-                )
-
-                setOnClickPendingIntent(
-                    R.id.notification_decline_call,
-                    actionPendingIntent(DECLINE_CALL)
-                )
+            if (avatarBitmap != null) {
+                setImageViewBitmap(R.id.notification_avatar, avatarBitmap)
+            } else {
+                setImageViewResource(R.id.notification_avatar, R.drawable.profile_picture_call)
             }
+
+            // Handle Chronometer for ongoing calls
+            val showTimer = !isIncoming && uiState.callDurationSeconds > 0
+            if (showTimer) {
+                setViewVisibility(R.id.notification_call_status_divider, View.VISIBLE)
+                setViewVisibility(R.id.notification_chronometer, View.VISIBLE)
+                setChronometer(
+                    R.id.notification_chronometer,
+                    SystemClock.elapsedRealtime() - (uiState.callDurationSeconds * 1000),
+                    null,
+                    true
+                )
+            } else {
+                setViewVisibility(R.id.notification_call_status_divider, View.GONE)
+                setViewVisibility(R.id.notification_chronometer, View.GONE)
+            }
+
+            // Actions
+            setViewVisibility(
+                R.id.notification_accept_call,
+                if (isIncoming) View.VISIBLE else View.GONE
+            )
+            setOnClickPendingIntent(R.id.notification_accept_call, actionPendingIntent(ACCEPT_CALL))
+            setOnClickPendingIntent(
+                R.id.notification_decline_call,
+                actionPendingIntent(DECLINE_CALL)
+            )
+        }
 
         return NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.call)
             .setCategory(Notification.CATEGORY_CALL)
-            .setPriority(
-                if (isIncoming)
-                    NotificationCompat.PRIORITY_HIGH
-                else
-                    NotificationCompat.PRIORITY_DEFAULT
-            )
+            .setPriority(if (isIncoming) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
             .setOngoing(showOngoing || !isIncoming)
             .setSound(null)
             .setContentIntent(contentIntent)
             .setCustomContentView(collapsedView)
+            .setCustomBigContentView(collapsedView)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .apply {
-                if (!isIncoming && uiState.callDurationSeconds > 0) {
-                    setUsesChronometer(true)
-                    setWhen(
-                        System.currentTimeMillis() -
-                                uiState.callDurationSeconds * 1000
-                    )
-                }
                 if (isIncoming) {
                     setFullScreenIntent(contentIntent, true)
                 }
             }
             .build()
+    }
+
+    private fun loadAvatarAndNotify(
+        url: String,
+        uiState: CallUiState,
+        channelId: String,
+        isIncoming: Boolean,
+        showOngoing: Boolean
+    ) {
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .target { drawable ->
+                val bitmap = (drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                if (bitmap != null) {
+                    val notification = buildNotification(
+                        uiState = uiState,
+                        channelId = channelId,
+                        isIncoming = isIncoming,
+                        showOngoing = showOngoing,
+                        avatarBitmap = bitmap
+                    )
+                    notificationManager.notify(CALL_NOTIFICATION_ID, notification)
+                }
+            }
+            .build()
+        ImageLoader(context).enqueue(request)
     }
 
     private fun actionPendingIntent(action: String): PendingIntent {
@@ -175,24 +208,13 @@ class CallNotificationManager(
         isIncoming: Boolean
     ) {
         val importance =
-            if (isIncoming)
-                NotificationManager.IMPORTANCE_HIGH
-            else
-                NotificationManager.IMPORTANCE_DEFAULT
+            if (isIncoming) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
+        val channelName = if (isIncoming) "Incoming Calls" else "Ongoing Calls"
 
-        val channelName =
-            if (isIncoming) "Incoming Calls"
-            else "Ongoing Calls"
-
-        val channel = NotificationChannel(
-            channelId,
-            channelName,
-            importance
-        ).apply {
+        val channel = NotificationChannel(channelId, channelName, importance).apply {
             setSound(null, null)
             enableVibration(false)
         }
-
         notificationManager.createNotificationChannel(channel)
     }
 }

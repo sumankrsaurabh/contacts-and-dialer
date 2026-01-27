@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,7 +32,6 @@ import androidx.compose.material.icons.automirrored.rounded.Message
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,7 +56,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.coderon.phone.R
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 import kotlinx.coroutines.launch
@@ -79,7 +77,6 @@ fun IncomingCallScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // REUSABLE BACKGROUND
         OneUi8DynamicBackground()
 
         /* ---------- CONTENT ---------- */
@@ -91,65 +88,45 @@ fun IncomingCallScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            /* ---------- IDENTITY SECTION ---------- */
+            /* ---------- IDENTITY SECTION (iOS Style) ---------- */
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(horizontal = 32.dp)
             ) {
-                // Info Badge
-                Surface(
-                    color = Color.White.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.padding(bottom = 36.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF00D2D3))
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = "$simInfo • $callType",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-
-                // Avatar
-                IncomingCallAvatar(
-                    name = name ?: phoneNumber,
-                    photoUrl = profilePictureUrl
-                )
-
-                Spacer(Modifier.height(48.dp))
-
                 Text(
                     text = name ?: phoneNumber,
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Normal,
                     color = Color.White,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 48.sp
+                    textAlign = TextAlign.Center
                 )
 
-                if (!name.isNullOrBlank()) {
-                    Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = if (name != null) phoneNumber else callType,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+                
+                if (simInfo.isNotEmpty()) {
                     Text(
-                        text = phoneNumber,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color.White.copy(alpha = 0.65f),
-                        letterSpacing = 1.2.sp
+                        text = simInfo,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }
+
+            Spacer(Modifier.height(48.dp))
+
+            // Avatar
+            IncomingCallAvatar(
+                name = name ?: phoneNumber,
+                photoUrl = profilePictureUrl
+            )
 
             Spacer(Modifier.weight(1f))
 
@@ -164,8 +141,8 @@ fun IncomingCallScreen(
                         .padding(horizontal = 64.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    OneUiActionControl(Icons.Rounded.NotificationsActive, "Remind me")
-                    OneUiActionControl(Icons.AutoMirrored.Rounded.Message, "Message")
+                    OneUiActionControl(Icons.Rounded.NotificationsActive, "remind me")
+                    OneUiActionControl(Icons.AutoMirrored.Rounded.Message, "message")
                 }
 
                 Spacer(Modifier.height(72.dp))
@@ -182,11 +159,6 @@ fun IncomingCallScreen(
 @Composable
 private fun IncomingCallAvatar(name: String, photoUrl: String?) {
     Box(contentAlignment = Alignment.Center) {
-        Surface(
-            modifier = Modifier.size(176.dp),
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.06f)
-        ) {}
         Surface(
             modifier = Modifier
                 .size(160.dp)
@@ -239,8 +211,7 @@ private fun OneUi8BiDirectionalSlider(
                 .fillMaxWidth()
                 .height(84.dp),
             shape = RoundedCornerShape(42.dp),
-            color = Color.White.copy(alpha = 0.1f),
-            border = null
+            color = Color.White.copy(alpha = 0.1f)
         ) {
             Row(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
@@ -317,9 +288,9 @@ private fun OneUi8BiDirectionalSlider(
                 modifier = Modifier.fillMaxSize(),
                 shape = CircleShape,
                 color = when {
-                    offsetX.value > 20f -> Color(0xFF2ECC71) // Turn Green
-                    offsetX.value < -20f -> Color(0xFFFF4757) // Turn Red
-                    else -> Color.White.copy(alpha = 0.2f) // Clean Translucent
+                    offsetX.value > 20f -> Color(0xFF2ECC71)
+                    offsetX.value < -20f -> Color(0xFFFF4757)
+                    else -> Color.White.copy(alpha = 0.2f)
                 },
                 shadowElevation = if (offsetX.value > 20f || offsetX.value < -20f) 8.dp else 0.dp
             ) {}

@@ -14,7 +14,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.coderon.phone.ui.MyApp
+import com.coderon.phone.ui.screens.RequestDefaultDialerScreen
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.utils.getDefaultDialerIntent
 import com.coderon.phone.utils.isDefaultDialer
 
 class MainActivity : ComponentActivity() {
@@ -31,17 +33,24 @@ class MainActivity : ComponentActivity() {
                 val isDefaultDialerState =
                     remember { mutableStateOf(isDefaultDialer(this)) }
 
-                // ✅ REQUIRED launcher
-                rememberLauncherForActivityResult(
+                val defaultDialerLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult()
-                ) { result ->
-                    if (result.resultCode == RESULT_OK) {
-                        isDefaultDialerState.value = true
-                    }
+                ) { _ ->
+                    isDefaultDialerState.value = isDefaultDialer(this)
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    MyApp()
+                    if (!isDefaultDialerState.value) {
+                        RequestDefaultDialerScreen(
+                            onRequestDialerRole = {
+                                getDefaultDialerIntent(this@MainActivity)?.let {
+                                    defaultDialerLauncher.launch(it)
+                                }
+                            }
+                        )
+                    } else {
+                        MyApp()
+                    }
                 }
             }
         }

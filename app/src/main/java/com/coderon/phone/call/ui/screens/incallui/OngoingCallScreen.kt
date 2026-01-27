@@ -2,7 +2,6 @@
 
 package com.coderon.phone.call.ui.screens.incallui
 
-import android.telecom.CallAudioState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,11 +22,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Dialpad
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.VideoCall
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -53,13 +55,15 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.coderon.phone.R
+import com.coderon.phone.call.services.CallManager
+import com.coderon.phone.call.ui.AudioRoute
 import com.coderon.phone.ui.Text
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 import com.coderon.phone.ui.utils.extentions.State
 
 /* ------------------------------------------------
-   ONGOING CALL – iOS + OneUI 8 + M3 HYBRID
+   ONGOING CALL – iOS Style Redesign
 ------------------------------------------------ */
 
 @Composable
@@ -67,7 +71,7 @@ fun OngoingCallScreen(
     contactName: String,
     contactPhoneNumber: String,
     state: State,
-    currentAudioRoute: Int,
+    currentAudioRoute: AudioRoute,
     callDuration: String = "00:00",
     isMuted: Boolean,
     callType: String = "HD",
@@ -78,6 +82,8 @@ fun OngoingCallScreen(
     onToggleMute: () -> Unit,
     onToggleHold: () -> Unit,
     onToggleBluetooth: () -> Unit,
+    onAddCall: () -> Unit = {},
+    onVideoCall: () -> Unit = {},
     bluetoothDeviceConnected: Boolean = true,
     playDfmTones: (Char) -> Unit
 ) {
@@ -96,157 +102,159 @@ fun OngoingCallScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(vertical = 64.dp),
+                .padding(bottom = 56.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            /* ---------- IDENTITY SECTION (OneUI 8 Reachability) ---------- */
+            /* ---------- IDENTITY SECTION (iOS Style Top) ---------- */
+            Spacer(Modifier.height(48.dp))
+            
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(horizontal = 32.dp)
             ) {
-                // Info Badge (M3 / OneUI 8)
-                Surface(
-                    color = Color.White.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.padding(bottom = 32.dp)
-                ) {
-                    Text(
-                        text = "$simInfo • $callType",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                // Avatar with Soft Glass Rim
-                OngoingCallAvatar(
-                    name = contactName.ifBlank { contactPhoneNumber },
-                    photoUrl = profilePictureUrl
-                )
-
-                Spacer(Modifier.height(36.dp))
-
                 Text(
                     text = contactName.ifBlank { contactPhoneNumber },
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Normal,
                     color = Color.White,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 40.sp
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
 
-                // Time Duration Pill (iOS style)
-                Surface(
-                    color = Color.White.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(50)
-                ) {
+                Text(
+                    text = if (state == State.HOLD) "on hold" else callDuration,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+                
+                if (simInfo.isNotEmpty()) {
                     Text(
-                        text = callDuration,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
+                        text = "$simInfo • $callType",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.weight(1f))
-
-            /* ---------- CONTROLS (iOS Grid + OneUI 8 Shapes) ---------- */
-            AnimatedVisibility(
-                visible = !showKeypad,
-                enter = fadeIn(),
-                exit = fadeOut()
+            // Dynamic Center Area: Avatar or Keypad
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(32.dp)
-                ) {
-                    // Control Grid Row 1
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        InCallActionCircle(
-                            icon = Icons.Rounded.MicOff,
-                            label = "Mute",
-                            active = isMuted,
-                            onClick = onToggleMute
-                        )
-                        InCallActionCircle(
-                            icon = Icons.Rounded.Dialpad,
-                            label = "Keypad",
-                            active = false,
-                            onClick = { showKeypad = true }
-                        )
-                        InCallActionCircle(
-                            icon = Icons.AutoMirrored.Rounded.VolumeUp,
-                            label = "Speaker",
-                            active = currentAudioRoute == CallAudioState.ROUTE_SPEAKER,
-                            onClick = onToggleSpeaker
-                        )
+                if (!showKeypad) {
+                    OngoingCallAvatar(
+                        name = contactName.ifBlank { contactPhoneNumber },
+                        photoUrl = profilePictureUrl
+                    )
+                } else {
+                    OngoingDialPad { 
+                        playDfmTones(it)
+                        CallManager.playDtmfTone(it)
                     }
-
-                    // Control Grid Row 2
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        InCallActionCircle(
-                            icon = Icons.Rounded.Bluetooth,
-                            label = "Bluetooth",
-                            active = currentAudioRoute == CallAudioState.ROUTE_BLUETOOTH,
-                            enabled = bluetoothDeviceConnected,
-                            onClick = onToggleBluetooth
-                        )
-                        InCallActionCircle(
-                            icon = Icons.Rounded.Pause,
-                            label = "Hold",
-                            active = state == State.HOLD,
-                            onClick = onToggleHold
-                        )
-                        InCallActionCircle(
-                            icon = Icons.Rounded.MoreVert,
-                            label = "More",
-                            active = false,
-                            onClick = {}
-                        )
-                    }
-
-                    Spacer(Modifier.height(40.dp))
-
-                    // End Call (Prominent iOS Red)
-                    EndCallButton(onClick = onEndCall)
                 }
             }
 
-            /* ---------- KEYPAD OVERLAY ---------- */
-            AnimatedVisibility(
-                visible = showKeypad,
-                enter = fadeIn(),
-                exit = fadeOut()
+            /* ---------- CONTROLS (Always Showing End Call) ---------- */
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    OngoingDialPad { playDfmTones(it) }
-                    Spacer(Modifier.height(48.dp))
-                    // iOS-style text button to hide keypad
+                
+                // Primary Action Grid (Visible when keypad is hidden)
+                AnimatedVisibility(
+                    visible = !showKeypad,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            InCallActionCircle(
+                                icon = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                                label = "mute",
+                                active = isMuted,
+                                onClick = onToggleMute
+                            )
+                            InCallActionCircle(
+                                icon = Icons.Rounded.Dialpad,
+                                label = "keypad",
+                                active = false,
+                                onClick = { showKeypad = true }
+                            )
+                            InCallActionCircle(
+                                icon = Icons.AutoMirrored.Rounded.VolumeUp,
+                                label = "speaker",
+                                active = currentAudioRoute == AudioRoute.SPEAKER,
+                                onClick = onToggleSpeaker
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            InCallActionCircle(
+                                icon = Icons.Rounded.Add,
+                                label = "add call",
+                                active = false,
+                                onClick = onAddCall
+                            )
+                            InCallActionCircle(
+                                icon = Icons.Rounded.VideoCall,
+                                label = "video call",
+                                active = false,
+                                onClick = onVideoCall
+                            )
+                            InCallActionCircle(
+                                icon = if (state == State.HOLD) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                                label = if (state == State.HOLD) "resume" else "hold",
+                                active = state == State.HOLD,
+                                onClick = onToggleHold
+                            )
+                        }
+                    }
+                }
+
+                // "Hide" button for keypad
+                if (showKeypad) {
                     Text(
                         "Hide",
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
+                            .padding(vertical = 24.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(Color.White.copy(alpha = 0.1f))
+                            .background(Color.White.copy(alpha = 0.15f))
                             .clickable { showKeypad = false }
                             .padding(horizontal = 32.dp, vertical = 12.dp)
                     )
+                } else {
+                    // Audio route row (Bluetooth etc)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        InCallActionCircle(
+                            icon = Icons.Rounded.Bluetooth,
+                            label = "bluetooth",
+                            active = currentAudioRoute == AudioRoute.BLUETOOTH,
+                            enabled = bluetoothDeviceConnected,
+                            onClick = onToggleBluetooth
+                        )
+                    }
                 }
+
+                // Always visible End Call Button
+                EndCallButton(onClick = onEndCall)
             }
         }
     }
@@ -255,17 +263,11 @@ fun OngoingCallScreen(
 @Composable
 private fun OngoingCallAvatar(name: String, photoUrl: String?) {
     Box(contentAlignment = Alignment.Center) {
-        // Glass Rim
-        Surface(
-            modifier = Modifier.size(136.dp),
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.08f)
-        ) {}
         Surface(
             modifier = Modifier
-                .size(120.dp)
+                .size(160.dp)
                 .clip(CircleShape),
-            color = Color.White.copy(alpha = 0.12f)
+            color = Color.White.copy(alpha = 0.1f)
         ) {
             if (!photoUrl.isNullOrBlank()) {
                 AsyncImage(
@@ -281,7 +283,7 @@ private fun OngoingCallAvatar(name: String, photoUrl: String?) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = name.firstOrNull()?.uppercase() ?: "?",
-                        fontSize = 56.sp,
+                        fontSize = 72.sp,
                         fontWeight = FontWeight.Light,
                         color = Color.White.copy(alpha = 0.8f)
                     )
@@ -315,16 +317,16 @@ private fun InCallActionCircle(
                     imageVector = icon,
                     contentDescription = label,
                     tint = if (active) Color.Black else Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             text = label,
             fontSize = 13.sp,
-            color = Color.White.copy(alpha = 0.85f),
-            fontWeight = FontWeight.Medium
+            color = Color.White,
+            fontWeight = FontWeight.Normal
         )
     }
 }
@@ -333,17 +335,17 @@ private fun InCallActionCircle(
 private fun EndCallButton(onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(80.dp),
+        modifier = Modifier.size(76.dp),
         shape = CircleShape,
         color = Color(0xFFFF3B30), // iOS Red
-        shadowElevation = 12.dp
+        shadowElevation = 8.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 painter = painterResource(R.drawable.end_call),
                 contentDescription = "End Call",
                 tint = Color.White,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(42.dp)
             )
         }
     }
@@ -351,7 +353,10 @@ private fun EndCallButton(onClick: () -> Unit) {
 
 @Composable
 private fun OngoingDialPad(onDigit: (Char) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.padding(horizontal = 32.dp)
+    ) {
         listOf("123", "456", "789", "*0#").forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -365,7 +370,7 @@ private fun OngoingDialPad(onDigit: (Char) -> Unit) {
                         color = Color.White.copy(alpha = 0.15f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(digit.toString(), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Normal)
+                            Text(digit.toString(), fontSize = 36.sp, color = Color.White, fontWeight = FontWeight.Normal)
                         }
                     }
                 }
@@ -382,7 +387,7 @@ private fun OngoingCallScreenPreview() {
             contactName = "Sarah Johnson",
             contactPhoneNumber = "+1 234 567 8900",
             state = State.ACTIVE,
-            currentAudioRoute = CallAudioState.ROUTE_EARPIECE,
+            currentAudioRoute = AudioRoute.EARPIECE,
             isMuted = false,
             callType = "HD",
             simInfo = "Sim 1",
