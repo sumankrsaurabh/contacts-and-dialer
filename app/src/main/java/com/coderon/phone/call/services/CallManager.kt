@@ -5,6 +5,7 @@ package com.coderon.phone.call.services
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.hardware.camera2.CameraManager
 import android.os.PowerManager
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -43,6 +44,8 @@ object CallManager : KoinComponent {
 
     private var inCallService: InCallService? = null
     private var proximityWakeLock: PowerManager.WakeLock? = null
+    
+    private var currentCameraId: String? = "1" // Default to front camera
 
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
@@ -104,9 +107,47 @@ object CallManager : KoinComponent {
             }
         }
 
+        // Listen for video provider callbacks
+        call.registerCallback(object : Call.Callback() {
+            override fun onVideoCallChanged(call: Call?, videoCall: InCallService.VideoCall?) {
+                videoCall?.registerCallback(videoCallCallback)
+                // Initialize camera when video call is available
+                if (videoCall != null && currentCameraId != null) {
+                    videoCall.setCamera(currentCameraId)
+                }
+            }
+            
+            override fun onDetailsChanged(call: Call?, details: Call.Details?) {
+                recompute()
+            }
+        })
+
         recompute()
         updateTimerState()
         updateProximitySensor()
+    }
+
+    private val videoCallCallback = object : InCallService.VideoCall.Callback() {
+        override fun onSessionModifyRequestReceived(videoProfile: VideoProfile?) {
+            if (videoProfile != null) {
+                val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call
+                activeCall?.videoCall?.sendSessionModifyResponse(videoProfile)
+            }
+        }
+
+        override fun onSessionModifyResponseReceived(
+            status: Int,
+            requestedProfile: VideoProfile?,
+            responseProfile: VideoProfile?
+        ) {
+            recompute()
+        }
+
+        override fun onCallSessionEvent(event: Int) {}
+        override fun onPeerDimensionsChanged(width: Int, height: Int) {}
+        override fun onVideoQualityChanged(videoQuality: Int) {}
+        override fun onCallDataUsageChanged(dataUsage: Long) {}
+        override fun onCameraCapabilitiesChanged(cameraCapabilities: VideoProfile.CameraCapabilities?) {}
     }
 
 
@@ -273,10 +314,15 @@ object CallManager : KoinComponent {
     ------------------------------------------------ */
 
     fun accept() {
-        sessions.values
-            .firstOrNull { it.state.isIncoming }
-            ?.call
-            ?.answer(VideoProfile.STATE_AUDIO_ONLY)
+        val incomingSession = sessions.values.firstOrNull { it.state.isIncoming } ?: return
+        val incomingVideoState = incomingSession.call.details.videoState
+        
+        // If it's an incoming video call, answer with video
+        if (VideoProfile.isVideo(incomingVideoState)) {
+            incomingSession.call.answer(VideoProfile.STATE_BIDIRECTIONAL)
+        } else {
+            incomingSession.call.answer(VideoProfile.STATE_AUDIO_ONLY)
+        }
     }
 
     fun reject() {
@@ -368,16 +414,30 @@ object CallManager : KoinComponent {
     fun toggleVideo() {
         val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
         val currentVideoState = activeCall.details.videoState
+        
         val newVideoState = if (VideoProfile.isVideo(currentVideoState)) {
             VideoProfile.STATE_AUDIO_ONLY
         } else {
             VideoProfile.STATE_BIDIRECTIONAL
         }
+        
         activeCall.videoCall?.sendSessionModifyRequest(VideoProfile(newVideoState))
     }
 
     fun flipCamera() {
-        // Implementation would require keeping track of front/back camera IDs
+        val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
+        val videoCall = activeCall.videoCall ?: return
+        
+        val cameraManager = inCallService?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return
+        try {
+            val cameraIds = cameraManager.cameraIdList
+            if (cameraIds.size < 2) return
+            
+            currentCameraId = if (currentCameraId == cameraIds[0]) cameraIds[1] else cameraIds[0]
+            videoCall.setCamera(currentCameraId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private suspend fun resolveContact(number: String): Contact? {

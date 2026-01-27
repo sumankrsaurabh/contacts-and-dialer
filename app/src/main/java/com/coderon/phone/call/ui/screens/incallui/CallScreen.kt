@@ -8,6 +8,7 @@ import androidx.navigation.NavController
 import com.coderon.phone.call.domain.CallState
 import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.call.ui.CallScreenType
+import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.utils.extentions.State
 import com.coderon.phone.ui.utils.extentions.formatCallDuration
 import com.coderon.phone.ui.utils.extentions.getCallType
@@ -67,7 +68,9 @@ fun CallScreen(
                     else CallManager.hold() 
                 },
                 onToggleBluetooth = { CallManager.toggleBluetooth() },
-                onAddCall = { CallManager.addCall(context) },
+                onAddCall = { 
+                    navController.navigate(Screen.Keypad.route)
+                },
                 onVideoCall = { CallManager.toggleVideo() },
                 playDfmTones = { CallManager.playDtmfTone(it) }
             )
@@ -117,7 +120,7 @@ fun CallScreen(
                 contactName = call.displayName ?: call.phoneNumber,
                 callDuration = uiState.callDurationSeconds.formatCallDuration(),
                 isMuted = uiState.isMuted,
-                isVideoEnabled = true,
+                isVideoEnabled = uiState.isVideo,
                 onEndCall = { CallManager.disconnectPrimary() },
                 onToggleMute = { CallManager.toggleMute() },
                 onToggleVideo = { CallManager.toggleVideo() },

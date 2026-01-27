@@ -22,8 +22,37 @@ object CallReducer {
 
         val isVideo = calls.any { it.call.details.isVideoCall }
 
+        // Determine if we are in a conference
+        val isConference = calls.any { it.call.details.hasProperty(Call.Details.PROPERTY_CONFERENCE) }
+
         return when {
-            // Case 1: Video Call (High Priority)
+            // Case 1: Incoming Call (with or without other calls)
+            ringing != null -> {
+                if (active != null || holding != null || dialing != null) {
+                    previous.copy(
+                        primaryCall = active ?: holding ?: dialing,
+                        secondaryCall = ringing,
+                        screen = CallScreenType.CALL_WAITING
+                    )
+                } else {
+                    previous.copy(
+                        primaryCall = ringing,
+                        screen = CallScreenType.INCOMING
+                    )
+                }
+            }
+
+            // Case 2: Conference Call
+            isConference -> {
+                previous.copy(
+                    primaryCall = active ?: holding ?: dialing ?: calls.first(),
+                    secondaryCall = calls.getOrNull(1),
+                    isConference = true,
+                    screen = CallScreenType.CONFERENCE
+                )
+            }
+
+            // Case 3: Video Call (Single or Primary)
             isVideo && active != null -> {
                 previous.copy(
                     primaryCall = active,
@@ -32,52 +61,33 @@ object CallReducer {
                 )
             }
 
-            // Case 2: Incoming Call while on another call (Call Waiting)
-            ringing != null && (active != null || holding != null || dialing != null) -> {
+            // Case 4: Two Calls (Any combination of Active, Holding, Dialing)
+            (active != null && holding != null) || 
+            (dialing != null && holding != null) || 
+            (active != null && dialing != null) -> {
+                val primary = dialing ?: active ?: holding!!
+                val secondary = if (primary == dialing) (active ?: holding!!) else (holding ?: dialing!!)
+                
                 previous.copy(
-                    primaryCall = active ?: holding ?: dialing,
-                    secondaryCall = ringing,
-                    screen = CallScreenType.CALL_WAITING
+                    primaryCall = primary,
+                    secondaryCall = secondary,
+                    screen = CallScreenType.TWO_CALLS
                 )
             }
 
-            // Case 3: Simple Incoming Call
-            ringing != null -> {
-                previous.copy(
-                    primaryCall = ringing,
-                    screen = CallScreenType.INCOMING
-                )
-            }
-
-            // Case 4: Multiple Calls (Conference or Two Calls)
-            active != null && holding != null -> {
-                val isConference =
-                    active.call.details.hasProperty(Call.Details.PROPERTY_CONFERENCE) ||
-                            holding.call.details.hasProperty(Call.Details.PROPERTY_CONFERENCE)
-
-                previous.copy(
-                    primaryCall = active,
-                    secondaryCall = holding,
-                    isConference = isConference,
-                    screen = if (isConference) CallScreenType.CONFERENCE else CallScreenType.TWO_CALLS
-                )
-            }
-
-            // Case 5: Single Active/Dialing Call
-            active != null -> {
-                previous.copy(
-                    primaryCall = active,
-                    screen = CallScreenType.ONGOING
-                )
-            }
-
+            // Case 5: Single Call
             dialing != null -> {
                 previous.copy(
                     primaryCall = dialing,
                     screen = CallScreenType.ONGOING
                 )
             }
-
+            active != null -> {
+                previous.copy(
+                    primaryCall = active,
+                    screen = CallScreenType.ONGOING
+                )
+            }
             holding != null -> {
                 previous.copy(
                     primaryCall = holding,
@@ -101,9 +111,4 @@ object CallReducer {
 
     private val Call.Details.isVideoCall: Boolean
         get() = VideoProfile.isVideo(videoState)
-
-
-    private fun Call.Details.can(capability: Int): Boolean {
-        return (callCapabilities and capability) == capability
-    }
 }
