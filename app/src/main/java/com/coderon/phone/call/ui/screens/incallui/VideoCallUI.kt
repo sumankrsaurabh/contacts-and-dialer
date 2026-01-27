@@ -1,7 +1,6 @@
 package com.coderon.phone.call.ui.screens.incallui
 
 import android.view.SurfaceView
-import android.view.TextureView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.rounded.FlipCameraAndroid
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
@@ -28,13 +26,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
+import com.coderon.phone.R
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 
 @Composable
@@ -61,25 +61,47 @@ fun VideoCallUI(
             OneUi8DynamicBackground()
         }
 
-        // Top Info
-        Column(
+        /* ---------- TOP BAR (Flip + Info) ---------- */
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(top = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            Text(
-                text = contactName,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = callDuration,
-                fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.8f)
-            )
+            // Flip Camera Top Left (iOS/OneUI 8 style)
+            Surface(
+                onClick = onFlipCamera,
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.2f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Rounded.FlipCameraAndroid,
+                        contentDescription = "Flip",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            // Center Info
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = contactName,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Text(
+                    text = callDuration,
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
         }
 
         // Local Video Preview (Picture-in-Picture)
@@ -89,7 +111,8 @@ fun VideoCallUI(
                 .padding(top = 100.dp, end = 24.dp)
                 .size(120.dp, 180.dp),
             shape = RoundedCornerShape(16.dp),
-            color = Color.DarkGray
+            color = Color.DarkGray,
+            shadowElevation = 8.dp
         ) {
             if (isVideoEnabled && localVideoSurface != null) {
                 localVideoSurface()
@@ -105,7 +128,7 @@ fun VideoCallUI(
             }
         }
 
-        // Bottom Controls
+        // Bottom Controls (Always Showing End Call)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -123,19 +146,20 @@ fun VideoCallUI(
                     onClick = onToggleMute
                 )
 
-                // End Call
+                // End Call (Prominent iOS Red)
                 Surface(
                     onClick = onEndCall,
                     modifier = Modifier.size(80.dp),
                     shape = CircleShape,
-                    color = Color(0xFFFF3B30)
+                    color = Color(0xFFFF3B30),
+                    shadowElevation = 12.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Rounded.CallEnd,
+                            painter = painterResource(R.drawable.end_call),
                             contentDescription = "End",
                             tint = Color.White,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(38.dp)
                         )
                     }
                 }
@@ -146,27 +170,6 @@ fun VideoCallUI(
                     active = !isVideoEnabled,
                     onClick = onToggleVideo
                 )
-            }
-            
-            Spacer(Modifier.height(32.dp))
-            
-            // Flip Camera
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                Surface(
-                    onClick = onFlipCamera,
-                    modifier = Modifier.size(56.dp),
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.2f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.FlipCameraAndroid,
-                            contentDescription = "Flip",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
             }
         }
     }
@@ -192,5 +195,32 @@ private fun VideoActionCircle(
                 modifier = Modifier.size(28.dp)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun VideoCallUIPreview() {
+    PhoneTheme {
+        VideoCallUI(
+            contactName = "Sarah Johnson",
+            callDuration = "05:24",
+            isMuted = false,
+            isVideoEnabled = true,
+            onEndCall = {},
+            onToggleMute = {},
+            onToggleVideo = {},
+            onFlipCamera = {},
+            remoteVideoSurface = {
+                Box(Modifier.fillMaxSize().background(Color.Gray), contentAlignment = Alignment.Center) {
+                    Text("Remote Video Stream", color = Color.White)
+                }
+            },
+            localVideoSurface = {
+                Box(Modifier.fillMaxSize().background(Color.DarkGray), contentAlignment = Alignment.Center) {
+                    Text("Local", color = Color.White, fontSize = 12.sp)
+                }
+            }
+        )
     }
 }
