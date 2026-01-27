@@ -1,5 +1,7 @@
 package com.coderon.phone.call.ui.screens.incallui
 
+import android.view.SurfaceView
+import android.view.TextureView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,23 +28,21 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.coderon.phone.ui.Text
+import androidx.compose.ui.viewinterop.AndroidView
+import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 
 @Composable
 fun VideoCallUI(
     contactName: String,
     callDuration: String,
-    remoteVideoUrl: String? = null,
-    localVideoUrl: String? = null,
+    remoteVideoSurface: @Composable (() -> Unit)? = null,
+    localVideoSurface: @Composable (() -> Unit)? = null,
     isMuted: Boolean,
     isVideoEnabled: Boolean,
     onEndCall: () -> Unit,
@@ -52,16 +52,11 @@ fun VideoCallUI(
 ) {
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         
-        // Remote Video (Full Screen Placeholder)
-        if (remoteVideoUrl != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(remoteVideoUrl)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+        // Remote Video (Full Screen)
+        if (remoteVideoSurface != null) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                remoteVideoSurface()
+            }
         } else {
             OneUi8DynamicBackground()
         }
@@ -96,15 +91,8 @@ fun VideoCallUI(
             shape = RoundedCornerShape(16.dp),
             color = Color.DarkGray
         ) {
-            if (isVideoEnabled && localVideoUrl != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(localVideoUrl)
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+            if (isVideoEnabled && localVideoSurface != null) {
+                localVideoSurface()
             } else {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(

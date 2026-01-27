@@ -76,6 +76,7 @@ fun DialerScreen(
     // SIM Selection State
     var showSimDialog by remember { mutableStateOf(false) }
     var availableSims by remember { mutableStateOf<List<PhoneAccountHandle>>(emptyList()) }
+    var phoneNumberToDial by remember { mutableStateOf("") }
 
     LaunchedEffect(dialedNumber) {
         updateSearchQuery(dialedNumber)
@@ -134,9 +135,9 @@ fun DialerScreen(
                     val map = linkedMapOf<String, Any>()
 
                     callLogs
+                        .filter { it.phoneNumber.contains(dialedNumber) }
                         .groupBy { it.phoneNumber }
                         .mapNotNull { it.value.maxByOrNull { log -> log.callTime } }
-                        .filter { it.phoneNumber.contains(dialedNumber) }
                         .forEach { map[it.phoneNumber] = it }
 
                     contacts.values.flatten().forEach { contact ->
@@ -180,6 +181,7 @@ fun DialerScreen(
                                     simSlot = item.simSlot,
                                     contact = item.contact,
                                     onRowClick = {
+                                        phoneNumberToDial = item.phoneNumber
                                         initiateCall(context, item.phoneNumber) { sims ->
                                             availableSims = sims
                                             showSimDialog = true
@@ -198,6 +200,7 @@ fun DialerScreen(
                                     subtitle = contactNumber,
                                     photoUrl = item.profilePictureUrl,
                                     onRowClick = {
+                                        phoneNumberToDial = contactNumber
                                         initiateCall(context, contactNumber) { sims ->
                                             availableSims = sims
                                             showSimDialog = true
@@ -238,6 +241,7 @@ fun DialerScreen(
                 FilledIconButton(
                     onClick = {
                         if (dialedNumber.isNotBlank()) {
+                            phoneNumberToDial = dialedNumber
                             initiateCall(context, dialedNumber) { sims ->
                                 availableSims = sims
                                 showSimDialog = true
@@ -289,7 +293,7 @@ fun DialerScreen(
                 availableAccounts = availableSims,
                 onSimSelected = { handle ->
                     showSimDialog = false
-                    placeCall(context, dialedNumber, handle)
+                    placeCall(context, phoneNumberToDial, handle)
                 },
                 onDismiss = { showSimDialog = false }
             )

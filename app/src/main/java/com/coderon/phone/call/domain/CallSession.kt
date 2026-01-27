@@ -1,6 +1,7 @@
 package com.coderon.phone.call.domain
 
 import android.telecom.Call
+import android.telecom.InCallService
 
 data class CallSession(
     val id: String,
@@ -18,5 +19,8 @@ data class CallSession(
 
     // Flags
     val isIncoming: Boolean,
-    val isConference: Boolean = false
+    val isConference: Boolean = false,
+    
+    // Video
+    val videoCall: InCallService.VideoCall? = null
 )

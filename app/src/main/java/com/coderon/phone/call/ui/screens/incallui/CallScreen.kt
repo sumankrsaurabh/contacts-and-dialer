@@ -1,9 +1,14 @@
 package com.coderon.phone.call.ui.screens.incallui
 
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import com.coderon.phone.call.domain.CallState
 import com.coderon.phone.call.services.CallManager
@@ -63,12 +68,12 @@ fun CallScreen(
                 onEndCall = { CallManager.disconnectPrimary() },
                 onToggleSpeaker = { CallManager.toggleSpeaker() },
                 onToggleMute = { CallManager.toggleMute() },
-                onToggleHold = { 
-                    if (call.state == CallState.HOLDING) CallManager.unhold() 
-                    else CallManager.hold() 
+                onToggleHold = {
+                    if (call.state == CallState.HOLDING) CallManager.unhold()
+                    else CallManager.hold()
                 },
                 onToggleBluetooth = { CallManager.toggleBluetooth() },
-                onAddCall = { 
+                onAddCall = {
                     navController.navigate(Screen.Keypad.route)
                 },
                 onVideoCall = { CallManager.toggleVideo() },
@@ -79,32 +84,32 @@ fun CallScreen(
         /* ---------------- CALL WAITING ---------------- */
 
         CallScreenType.CALL_WAITING -> {
-             val active = uiState.primaryCall ?: return
-             val waiting = uiState.secondaryCall ?: return
-             
-             CallWaitingScreen(
-                 activeName = active.displayName ?: active.phoneNumber,
-                 activeNumber = active.phoneNumber,
-                 waitingName = waiting.displayName,
-                 waitingNumber = waiting.phoneNumber,
-                 profilePictureUrl = waiting.profilePictureUrl,
-                 onAcceptWaiting = { CallManager.accept() },
-                 onRejectWaiting = { waiting.call.disconnect() },
-                 onEndActiveAcceptWaiting = {
-                     active.call.disconnect()
-                     CallManager.accept()
-                 }
-             )
+            val active = uiState.primaryCall ?: return
+            val waiting = uiState.secondaryCall ?: return
+
+            CallWaitingScreen(
+                activeName = active.displayName ?: active.phoneNumber,
+                activeNumber = active.phoneNumber,
+                waitingName = waiting.displayName,
+                waitingNumber = waiting.phoneNumber,
+                profilePictureUrl = waiting.profilePictureUrl,
+                onAcceptWaiting = { CallManager.accept() },
+                onRejectWaiting = { waiting.call.disconnect() },
+                onEndActiveAcceptWaiting = {
+                    active.call.disconnect()
+                    CallManager.accept()
+                }
+            )
         }
 
         /* ---------------- CONFERENCE ---------------- */
 
         CallScreenType.CONFERENCE -> {
-             val participants = mutableListOf<String>()
-             uiState.primaryCall?.displayName?.let { participants.add(it) }
-             uiState.secondaryCall?.displayName?.let { participants.add(it) }
-             
-             ConferenceCallScreen(
+            val participants = mutableListOf<String>()
+            uiState.primaryCall?.displayName?.let { participants.add(it) }
+            uiState.secondaryCall?.displayName?.let { participants.add(it) }
+
+            ConferenceCallScreen(
                 participants = participants,
                 callDuration = uiState.callDurationSeconds.formatCallDuration(),
                 onEndCall = { CallManager.disconnectPrimary() },
@@ -119,8 +124,65 @@ fun CallScreen(
             VideoCallUI(
                 contactName = call.displayName ?: call.phoneNumber,
                 callDuration = uiState.callDurationSeconds.formatCallDuration(),
+                remoteVideoSurface = {
+                    val videoCall = call.videoCall
+                    AndroidView(
+                        factory = { ctx ->
+                            SurfaceView(ctx).apply {
+                                holder.addCallback(object : SurfaceHolder.Callback {
+                                    override fun surfaceCreated(h: SurfaceHolder) {
+                                        videoCall?.setDisplaySurface(h.surface)
+                                    }
+
+                                    override fun surfaceChanged(
+                                        h: SurfaceHolder,
+                                        f: Int,
+                                        w: Int,
+                                        h1: Int
+                                    ) {
+                                        videoCall?.setDisplaySurface(h.surface)
+                                    }
+
+                                    override fun surfaceDestroyed(h: SurfaceHolder) {
+                                        videoCall?.setDisplaySurface(null)
+                                    }
+                                })
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                localVideoSurface = {
+                    val videoCall = call.videoCall
+                    AndroidView(
+                        factory = { ctx ->
+                            SurfaceView(ctx).apply {
+                                setZOrderMediaOverlay(true)
+                                holder.addCallback(object : SurfaceHolder.Callback {
+                                    override fun surfaceCreated(h: SurfaceHolder) {
+                                        videoCall?.setPreviewSurface(h.surface)
+                                    }
+
+                                    override fun surfaceChanged(
+                                        h: SurfaceHolder,
+                                        f: Int,
+                                        w: Int,
+                                        h1: Int
+                                    ) {
+                                        videoCall?.setPreviewSurface(h.surface)
+                                    }
+
+                                    override fun surfaceDestroyed(h: SurfaceHolder) {
+                                        videoCall?.setPreviewSurface(null)
+                                    }
+                                })
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
                 isMuted = uiState.isMuted,
-                isVideoEnabled = uiState.isVideo,
+                isVideoEnabled = true,
                 onEndCall = { CallManager.disconnectPrimary() },
                 onToggleMute = { CallManager.toggleMute() },
                 onToggleVideo = { CallManager.toggleVideo() },
@@ -153,7 +215,7 @@ fun CallScreen(
         /* ---------------- NONE ---------------- */
 
         CallScreenType.NONE -> {
-             navController.popBackStack()
+            navController.popBackStack()
         }
     }
 }

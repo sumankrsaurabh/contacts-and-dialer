@@ -2,6 +2,7 @@
 
 package com.coderon.phone.ui.screens
 
+import android.telecom.PhoneAccountHandle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,11 +36,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -56,6 +62,10 @@ import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.initiateCall
+import com.coderon.phone.utils.openMessagingApp
+import com.coderon.phone.utils.placeCall
 
 @Composable
 fun ContactDetailsScreen(
@@ -65,6 +75,13 @@ fun ContactDetailsScreen(
     onToggleFavorite: (Contact) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val primaryNumber = contact.phoneNumbers.firstOrNull()?.number ?: ""
+
+    // SIM Selection State
+    var showSimDialog by remember { mutableStateOf(false) }
+    var availableSims by remember { mutableStateOf<List<PhoneAccountHandle>>(emptyList()) }
+    var numberToCall by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -96,7 +113,7 @@ fun ContactDetailsScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { /* Edit */ }) {
+                        IconButton(onClick = { /* Edit Action */ }) {
                             Text(
                                 "Edit",
                                 color = colorScheme.primary,
@@ -117,90 +134,142 @@ fun ContactDetailsScreen(
         },
         containerColor = colorScheme.background
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding() + 16.dp,
-                bottom = 48.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            /* ---------------- HEADER / AVATAR (iOS + OneUI 8) ---------------- */
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    HybridAvatar(contact)
-                    Spacer(Modifier.height(28.dp))
-                    HybridQuickActions()
-                }
-            }
-
-            /* ---------------- INFO SECTION (iOS Grouped look with OneUI 8 Rounding) ---------------- */
-            item {
-                HybridSection(title = "CONTACT INFO") {
-                    contact.phoneNumbers.forEachIndexed { index, phone ->
-                        HybridInfoRow(
-                            label = phone.type.name.lowercase().capitalize(),
-                            value = phone.number,
-                            icon = R.drawable.call,
-                            showDivider = index < contact.phoneNumbers.size - 1 || contact.emailAddresses.isNotEmpty()
-                        )
-                    }
-                    contact.emailAddresses.forEachIndexed { index, email ->
-                        HybridInfoRow(
-                            label = "Email",
-                            value = email,
-                            icon = R.drawable.ic_email,
-                            showDivider = index < contact.emailAddresses.size - 1
-                        )
-                    }
-                }
-            }
-
-            /* ---------------- RECENT CALLS ---------------- */
-            if (callLogs.isNotEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding() + 16.dp,
+                    bottom = 48.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                /* ---------------- HEADER / AVATAR (iOS + OneUI 8) ---------------- */
                 item {
-                    HybridSection(title = "RECENT CALLS") {
-                        callLogs.take(5).forEachIndexed { index, log ->
-                            HybridCallLogRow(
-                                log = log,
-                                showDivider = index < 4 && index < callLogs.size - 1
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        HybridAvatar(contact)
+                        Spacer(Modifier.height(28.dp))
+                        HybridQuickActions(
+                            onCall = {
+                                if (primaryNumber.isNotBlank()) {
+                                    numberToCall = primaryNumber
+                                    initiateCall(context, primaryNumber) { sims ->
+                                        availableSims = sims
+                                        showSimDialog = true
+                                    }
+                                }
+                            },
+                            onMessage = {
+                                if (primaryNumber.isNotBlank()) {
+                                    openMessagingApp(context, primaryNumber)
+                                }
+                            },
+                            onVideo = {
+                                if (primaryNumber.isNotBlank()) {
+                                    numberToCall = primaryNumber
+                                    initiateCall(context, primaryNumber) { sims ->
+                                        availableSims = sims
+                                        showSimDialog = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
+                /* ---------------- INFO SECTION (iOS Grouped look with OneUI 8 Rounding) ---------------- */
+                item {
+                    HybridSection(title = "CONTACT INFO") {
+                        contact.phoneNumbers.forEachIndexed { index, phone ->
+                            HybridInfoRow(
+                                label = phone.type.name.lowercase().replaceFirstChar { it.uppercase() },
+                                value = phone.number,
+                                icon = R.drawable.call,
+                                showDivider = index < contact.phoneNumbers.size - 1 || contact.emailAddresses.isNotEmpty(),
+                                onClick = {
+                                    numberToCall = phone.number
+                                    initiateCall(context, phone.number) { sims ->
+                                        availableSims = sims
+                                        showSimDialog = true
+                                    }
+                                }
+                            )
+                        }
+                        contact.emailAddresses.forEachIndexed { index, email ->
+                            HybridInfoRow(
+                                label = "Email",
+                                value = email,
+                                icon = R.drawable.ic_email,
+                                showDivider = index < contact.emailAddresses.size - 1,
+                                onClick = { /* Email action */ }
+                            )
+                        }
+                    }
+                }
+
+                /* ---------------- RECENT CALLS ---------------- */
+                if (callLogs.isNotEmpty()) {
+                    item {
+                        HybridSection(title = "RECENT CALLS") {
+                            callLogs.take(5).forEachIndexed { index, log ->
+                                HybridCallLogRow(
+                                    log = log,
+                                    showDivider = index < 4 && index < callLogs.size - 1,
+                                    onClick = {
+                                        numberToCall = log.phoneNumber
+                                        initiateCall(context, log.phoneNumber) { sims ->
+                                            availableSims = sims
+                                            showSimDialog = true
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                /* ---------------- FAVORITE TOGGLE ---------------- */
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(32.dp),
+                        color = colorScheme.surfaceContainerLow,
+                        onClick = { onToggleFavorite(contact) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                if (contact.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = null,
+                                tint = if (contact.isFavorite) Color.Red else colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                if (contact.isFavorite) "Remove from Favorites" else "Add to Favorites",
+                                fontWeight = FontWeight.Medium,
+                                color = if (contact.isFavorite) Color.Red else colorScheme.primary
                             )
                         }
                     }
                 }
             }
 
-            /* ---------------- FAVORITE TOGGLE ---------------- */
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(32.dp),
-                    color = colorScheme.surfaceContainerLow,
-                    onClick = { onToggleFavorite(contact) }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            if (contact.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = null,
-                            tint = if (contact.isFavorite) Color.Red else colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            if (contact.isFavorite) "Remove from Favorites" else "Add to Favorites",
-                            fontWeight = FontWeight.Medium,
-                            color = if (contact.isFavorite) Color.Red else colorScheme.primary
-                        )
-                    }
-                }
+            if (showSimDialog) {
+                SimSelectionDialog(
+                    availableAccounts = availableSims,
+                    onSimSelected = { handle ->
+                        showSimDialog = false
+                        placeCall(context, numberToCall, handle)
+                    },
+                    onDismiss = { showSimDialog = false }
+                )
             }
         }
     }
@@ -236,22 +305,26 @@ private fun HybridAvatar(contact: Contact) {
 }
 
 @Composable
-private fun HybridQuickActions() {
+private fun HybridQuickActions(
+    onCall: () -> Unit,
+    onMessage: () -> Unit,
+    onVideo: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        ActionPill(R.drawable.call, "call", Color(0xFF34C759))
-        ActionPill(R.drawable.ic_message, "message", Color(0xFF007AFF))
-        ActionPill(R.drawable.ic_video_call, "video", Color(0xFF5856D6))
+        ActionPill(R.drawable.call, "call", Color(0xFF34C759), onCall)
+        ActionPill(R.drawable.ic_message, "message", Color(0xFF007AFF), onMessage)
+        ActionPill(R.drawable.ic_video_call, "video", Color(0xFF5856D6), onVideo)
     }
 }
 
 @Composable
-private fun ActionPill(icon: Int, label: String, color: Color) {
+private fun ActionPill(icon: Int, label: String, color: Color, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
-            onClick = { /* Action */ },
+            onClick = onClick,
             shape = CircleShape,
             color = color.copy(alpha = 0.12f),
             modifier = Modifier.size(72.dp, 44.dp) // Pill-shaped action (OneUI 8 style)
@@ -300,14 +373,15 @@ private fun HybridInfoRow(
     label: String,
     value: String,
     icon: Int,
-    showDivider: Boolean
+    showDivider: Boolean,
+    onClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { /* Action */ }
+                .clickable { onClick() }
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -339,7 +413,7 @@ private fun HybridInfoRow(
 }
 
 @Composable
-private fun HybridCallLogRow(log: CallLog, showDivider: Boolean) {
+private fun HybridCallLogRow(log: CallLog, showDivider: Boolean, onClick: () -> Unit) {
     val colorScheme = MaterialTheme.colorScheme
     val icon = when (log.callType) {
         CallType.INCOMING -> R.drawable.ic_call_incoming
@@ -352,6 +426,7 @@ private fun HybridCallLogRow(log: CallLog, showDivider: Boolean) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onClick() }
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -419,9 +494,7 @@ private fun RedesignPreview() {
                 CallLog(phoneNumber = "9876543210", callType = CallType.INCOMING),
                 CallLog(phoneNumber = "9876543210", callType = CallType.MISSED)
             ),
-            rememberNavController()
+            navController = rememberNavController()
         )
     }
 }
-
-private fun String.capitalize() = this.replaceFirstChar { it.uppercase() }

@@ -27,6 +27,13 @@ data class CallUiState(
 
     val callDurationSeconds: Long = 0L,
 
+    /* ---------------- VIDEO ---------------- */
+    val peerWidth: Int = 0,
+    val peerHeight: Int = 0,
+    val videoQuality: Int = 0,
+    val dataUsage: Long = 0L,
+    val maxZoom: Float = 1.0f,
+
     /* ---------------- SCREEN ---------------- */
 
     val screen: CallScreenType = CallScreenType.NONE
