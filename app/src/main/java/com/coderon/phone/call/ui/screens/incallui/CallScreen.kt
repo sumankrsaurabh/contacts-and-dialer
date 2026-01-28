@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -144,27 +145,32 @@ fun CallScreen(
                 callDuration = uiState.callDurationSeconds.formatCallDuration(),
                 isMuted = uiState.isMuted,
                 isVideoEnabled = isVideoEnabled,
+                isFrontCamera = uiState.isFrontCamera,
                 onEndCall = { CallManager.disconnectPrimary() },
                 onToggleMute = { CallManager.toggleMute() },
                 onToggleVideo = { CallManager.toggleVideo() },
                 onFlipCamera = { CallManager.flipCamera() },
                 remoteVideoSurface = {
-                    VideoSurface(
-                        videoCall = call.videoCall,
-                        isPreview = false,
-                        onSurfaceReady = {
-                            CallManager.rebindCamera()
-                        }
-                    )
+                    key(uiState.cameraUpdateTick) {
+                        VideoSurface(
+                            videoCall = call.videoCall,
+                            isPreview = false,
+                            onSurfaceReady = {
+                                CallManager.rebindCamera()
+                            }
+                        )
+                    }
                 },
                 localVideoSurface = {
-                    VideoSurface(
-                        videoCall = call.videoCall,
-                        isPreview = true,
-                        onSurfaceReady = {
-                            CallManager.rebindCamera()
-                        }
-                    )
+                    key(uiState.cameraUpdateTick) {
+                        VideoSurface(
+                            videoCall = call.videoCall,
+                            isPreview = true,
+                            onSurfaceReady = {
+                                CallManager.rebindCamera()
+                            }
+                        )
+                    }
                 }
             )
         }

@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,6 +43,7 @@ fun VideoCallUI(
     localVideoSurface: @Composable (() -> Unit)? = null,
     isMuted: Boolean,
     isVideoEnabled: Boolean,
+    isFrontCamera: Boolean = true,
     onEndCall: () -> Unit,
     onToggleMute: () -> Unit,
     onToggleVideo: () -> Unit,
@@ -110,7 +112,8 @@ fun VideoCallUI(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 100.dp, end = 24.dp)
-                .size(120.dp, 180.dp),
+                .size(120.dp, 180.dp)
+                .graphicsLayer(scaleX = if (isFrontCamera) -1f else 1f),
             shape = RoundedCornerShape(16.dp),
             color = Color.DarkGray,
             shadowElevation = 8.dp
@@ -118,7 +121,10 @@ fun VideoCallUI(
             if (isVideoEnabled && localVideoSurface != null) {
                 localVideoSurface()
             } else {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.graphicsLayer(scaleX = if (isFrontCamera) -1f else 1f) // Un-mirror the icon
+                ) {
                     Icon(
                         imageVector = Icons.Rounded.VideocamOff,
                         contentDescription = null,
@@ -208,6 +214,7 @@ fun VideoCallUIPreview() {
             callDuration = "05:24",
             isMuted = false,
             isVideoEnabled = true,
+            isFrontCamera = true,
             onEndCall = {},
             onToggleMute = {},
             onToggleVideo = {},

@@ -35,6 +35,9 @@ data class CallUiState(
     val dataUsage: Long = 0L,
     val maxZoom: Float = 1.0f,
     val incomingVideoUpgradeRequest: VideoProfile? = null,
+    val isFrontCamera: Boolean = true,
+    val cameraUpdateTick: Int = 0,
+    val userWantsVideo: Boolean = false,
 
     /* ---------------- SCREEN ---------------- */
 

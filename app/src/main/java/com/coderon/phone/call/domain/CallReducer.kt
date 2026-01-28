@@ -20,7 +20,13 @@ object CallReducer {
         val dialing =
             calls.firstOrNull { it.state == CallState.DIALING || it.state == CallState.CONNECTING }
 
-        val isVideo = calls.any { it.call.details.isVideoCall }
+        // Determine if this is a video call according to the system
+        val isSystemVideo = calls.any { it.call.details.isVideoCall }
+        
+        // Determine if we should stay in video UI. 
+        // We stay in video UI if the system says so, OR if the user recently intended to be in video
+        // and we are in a state where video is possible (ACTIVE or DIALING).
+        val isVideo = isSystemVideo || (previous.userWantsVideo && (active != null || dialing != null))
 
         // Determine if we are in a conference
         val isConference = calls.any { it.call.details.hasProperty(Call.Details.PROPERTY_CONFERENCE) }
@@ -48,16 +54,18 @@ object CallReducer {
                     primaryCall = active ?: holding ?: dialing ?: calls.first(),
                     secondaryCall = calls.getOrNull(1),
                     isConference = true,
-                    screen = CallScreenType.CONFERENCE
+                    screen = CallScreenType.CONFERENCE,
+                    userWantsVideo = false
                 )
             }
 
             // Case 3: Video Call (Single or Primary)
-            isVideo && active != null -> {
+            isVideo && (active != null || dialing != null) -> {
                 previous.copy(
-                    primaryCall = active,
+                    primaryCall = active ?: dialing,
                     screen = CallScreenType.VIDEO,
-                    isVideo = true
+                    isVideo = true,
+                    userWantsVideo = true
                 )
             }
 
@@ -71,27 +79,31 @@ object CallReducer {
                 previous.copy(
                     primaryCall = primary,
                     secondaryCall = secondary,
-                    screen = CallScreenType.TWO_CALLS
+                    screen = CallScreenType.TWO_CALLS,
+                    userWantsVideo = false
                 )
             }
 
-            // Case 5: Single Call
+            // Case 5: Single Call (Audio or Video fallback)
             dialing != null -> {
                 previous.copy(
                     primaryCall = dialing,
-                    screen = CallScreenType.ONGOING
+                    screen = CallScreenType.ONGOING,
+                    userWantsVideo = false
                 )
             }
             active != null -> {
                 previous.copy(
                     primaryCall = active,
-                    screen = CallScreenType.ONGOING
+                    screen = CallScreenType.ONGOING,
+                    userWantsVideo = isSystemVideo // Keep it true if system says it's video, even if not in VIDEO screen
                 )
             }
             holding != null -> {
                 previous.copy(
                     primaryCall = holding,
-                    screen = CallScreenType.ONGOING
+                    screen = CallScreenType.ONGOING,
+                    userWantsVideo = false
                 )
             }
 
@@ -100,7 +112,8 @@ object CallReducer {
                 if (anyCall != null) {
                     previous.copy(
                         primaryCall = anyCall,
-                        screen = CallScreenType.ONGOING
+                        screen = CallScreenType.ONGOING,
+                        userWantsVideo = false
                     )
                 } else {
                     CallUiState()
