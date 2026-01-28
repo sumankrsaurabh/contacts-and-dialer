@@ -45,12 +45,14 @@ object CallManager : KoinComponent {
 
     private const val TAG = "CallManager"
 
+    private var currentFacing: Int = CameraCharacteristics.LENS_FACING_FRONT
+
     private val sessions = mutableMapOf<Int, CallSession>()
     private val sessionStartTimes = mutableMapOf<Int, Long>()
 
     private var inCallService: InCallService? = null
     private var proximityWakeLock: PowerManager.WakeLock? = null
-    
+
     private var currentCameraId: String? = null
 
     private val _uiState = MutableStateFlow(CallUiState())
@@ -58,7 +60,7 @@ object CallManager : KoinComponent {
 
     private val contactRepository: ContactRepository by inject()
     private val callLogRepository: CallLogRepository by inject()
-    
+
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private var timerJob: Job? = null
 
@@ -81,30 +83,42 @@ object CallManager : KoinComponent {
     }
 
     private fun initCameraId(context: Context) {
-        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
-        try {
-            val ids = cameraManager?.cameraIdList ?: return
-            for (id in ids) {
-                val chars = cameraManager.getCameraCharacteristics(id)
-                val facing = chars.get(CameraCharacteristics.LENS_FACING)
-                if (facing == CameraCharacteristics.LENS_FACING_FRONT) {
-                    currentCameraId = id
-                    Log.d(TAG, "Selected front camera: $id")
-                    break
-                }
-            }
-            if (currentCameraId == null) {
-                currentCameraId = ids.firstOrNull()
-                Log.d(TAG, "Selected fallback camera: $currentCameraId")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to init camera ID", e)
+        val manager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+
+        val front = getCameraForFacing(
+            manager, CameraCharacteristics.LENS_FACING_FRONT
+        )
+
+        currentCameraId = front
+        currentFacing = CameraCharacteristics.LENS_FACING_FRONT
+    }
+
+    private fun getCameraForFacing(
+        manager: CameraManager,
+        facing: Int
+    ): String? {
+        return manager.cameraIdList.firstOrNull { id ->
+            manager.getCameraCharacteristics(id)
+                .get(CameraCharacteristics.LENS_FACING) == facing
         }
     }
 
+    fun rebindCamera() {
+        val call = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
+        val videoCall = call.videoCall ?: return
+        if (!hasCameraPermission()) return
+
+        currentCameraId?.let {
+            videoCall.setCamera(it)
+        }
+    }
+
+
     private fun hasCameraPermission(): Boolean {
         val service = inCallService ?: return false
-        return ContextCompat.checkSelfPermission(service, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        return ContextCompat.checkSelfPermission(
+            service, Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     /* ------------------------------------------------
@@ -134,8 +148,7 @@ object CallManager : KoinComponent {
             val contact = resolveContact(phoneNumber)
             if (contact != null) {
                 sessions[id] = sessions[id]?.copy(
-                    displayName = contact.displayName,
-                    profilePictureUrl = contact.profilePictureUrl
+                    displayName = contact.displayName, profilePictureUrl = contact.profilePictureUrl
                 ) ?: return@launch
                 recompute()
             }
@@ -146,7 +159,7 @@ object CallManager : KoinComponent {
                 Log.d(TAG, "onVideoCallChanged: ${videoCall != null}")
                 val existing = sessions[id] ?: return
                 sessions[id] = existing.copy(videoCall = videoCall)
-                
+
                 videoCall?.let { vc ->
                     vc.registerCallback(videoCallCallback)
                     vc.requestCameraCapabilities()
@@ -157,29 +170,28 @@ object CallManager : KoinComponent {
                 }
                 recompute()
             }
-            
+
             override fun onDetailsChanged(call: Call?, details: Call.Details?) {
                 val existing = sessions[id] ?: return
-                
+
                 val wasVideo = VideoProfile.isVideo(existing.call.details.videoState)
                 val isNowVideo = VideoProfile.isVideo(details?.videoState ?: 0)
-                
+
                 val newState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     details?.state ?: existing.call.state
                 } else {
                     existing.call.state
                 }
-                
+
                 sessions[id] = existing.copy(
-                    state = newState.toDomainState(),
-                    videoCall = call?.videoCall
+                    state = newState.toDomainState(), videoCall = call?.videoCall
                 )
-                
+
                 if (isNowVideo && !wasVideo && currentCameraId != null && hasCameraPermission()) {
                     Log.d(TAG, "Upgraded to video, setting camera: $currentCameraId")
                     call?.videoCall?.setCamera(currentCameraId)
                 }
-                
+
                 recompute()
             }
         })
@@ -200,15 +212,12 @@ object CallManager : KoinComponent {
         override fun onSessionModifyRequestReceived(videoProfile: VideoProfile?) {
             Log.d(TAG, "onSessionModifyRequestReceived")
             if (videoProfile != null) {
-                val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call
-                activeCall?.videoCall?.sendSessionModifyResponse(videoProfile)
+                _uiState.value = _uiState.value.copy(incomingVideoUpgradeRequest = videoProfile)
             }
         }
 
         override fun onSessionModifyResponseReceived(
-            status: Int,
-            requestedProfile: VideoProfile?,
-            responseProfile: VideoProfile?
+            status: Int, requestedProfile: VideoProfile?, responseProfile: VideoProfile?
         ) {
             Log.d(TAG, "onSessionModifyResponseReceived: $status")
             recompute()
@@ -256,14 +265,14 @@ object CallManager : KoinComponent {
     fun onCallRemoved(call: Call) {
         val id = System.identityHashCode(call)
         val session = sessions[id]
-        
+
         if (session != null) {
             saveCallLog(session)
         }
 
         sessions.remove(id)
         sessionStartTimes.remove(id)
-        
+
         recompute()
         updateTimerState()
         updateProximitySensor()
@@ -285,7 +294,9 @@ object CallManager : KoinComponent {
 
         if (callType == CallType.MISSED) {
             inCallService?.let {
-                CallNotificationManager(it).showMissedCallNotification(session.displayName, session.phoneNumber)
+                CallNotificationManager(it).showMissedCallNotification(
+                    session.displayName, session.phoneNumber
+                )
             }
         }
 
@@ -309,8 +320,7 @@ object CallManager : KoinComponent {
             else -> AudioRoute.EARPIECE
         }
         _uiState.value = _uiState.value.copy(
-            audioRoute = route,
-            isMuted = audioState.isMuted
+            audioRoute = route, isMuted = audioState.isMuted
         )
         updateProximitySensor()
     }
@@ -359,17 +369,14 @@ object CallManager : KoinComponent {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         if (proximityWakeLock == null) {
             proximityWakeLock = powerManager.newWakeLock(
-                PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK,
-                "Phone:ProximityWakeLock"
+                PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "Phone:ProximityWakeLock"
             )
         }
     }
 
     private fun updateProximitySensor() {
-        val shouldBeActive = sessions.values.any { it.state.isActive || it.state.isOutgoing } &&
-                _uiState.value.audioRoute != AudioRoute.SPEAKER &&
-                _uiState.value.audioRoute != AudioRoute.BLUETOOTH &&
-                !_uiState.value.isVideo
+        val shouldBeActive =
+            sessions.values.any { it.state.isActive || it.state.isOutgoing } && _uiState.value.audioRoute != AudioRoute.SPEAKER && _uiState.value.audioRoute != AudioRoute.BLUETOOTH && !_uiState.value.isVideo
 
         if (shouldBeActive) {
             if (proximityWakeLock?.isHeld == false) {
@@ -395,8 +402,7 @@ object CallManager : KoinComponent {
 
     private fun recompute() {
         _uiState.value = CallReducer.reduce(
-            sessions.values.toList(),
-            _uiState.value
+            sessions.values.toList(), _uiState.value
         )
     }
 
@@ -407,7 +413,7 @@ object CallManager : KoinComponent {
     fun accept() {
         val incomingSession = sessions.values.firstOrNull { it.state.isIncoming } ?: return
         val incomingVideoState = incomingSession.call.details.videoState
-        
+
         if (VideoProfile.isVideo(incomingVideoState)) {
             incomingSession.call.answer(VideoProfile.STATE_BIDIRECTIONAL)
         } else {
@@ -424,17 +430,11 @@ object CallManager : KoinComponent {
     }
 
     fun hold() {
-        sessions.values
-            .firstOrNull { it.state.isActive }
-            ?.call
-            ?.hold()
+        sessions.values.firstOrNull { it.state.isActive }?.call?.hold()
     }
 
     fun unhold() {
-        sessions.values
-            .firstOrNull { it.state.isHolding }
-            ?.call
-            ?.unhold()
+        sessions.values.firstOrNull { it.state.isHolding }?.call?.unhold()
     }
 
     fun toggleMute() {
@@ -470,7 +470,7 @@ object CallManager : KoinComponent {
             activeCall.stopDtmfTone()
         }
     }
-    
+
     fun stopDtmfTone() {
         sessions.values.firstOrNull { it.state.isActive }?.call?.stopDtmfTone()
     }
@@ -502,32 +502,86 @@ object CallManager : KoinComponent {
     /* ---------------- VIDEO CALL ACTIONS ---------------- */
 
     fun toggleVideo() {
+        val call = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
+        val videoCall = call.videoCall ?: return
+
+        val current = call.details.videoState
+        val newState = if (VideoProfile.isVideo(current)) VideoProfile.STATE_AUDIO_ONLY
+        else VideoProfile.STATE_BIDIRECTIONAL
+
+        videoCall.sendSessionModifyRequest(VideoProfile(newState))
+    }
+
+
+    fun acceptVideoUpgrade() {
         val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
-        val currentVideoState = activeCall.details.videoState
-        
-        val newVideoState = if (VideoProfile.isVideo(currentVideoState)) {
-            VideoProfile.STATE_AUDIO_ONLY
-        } else {
-            VideoProfile.STATE_BIDIRECTIONAL
-        }
-        
-        activeCall.videoCall?.sendSessionModifyRequest(VideoProfile(newVideoState))
+        val profile = _uiState.value.incomingVideoUpgradeRequest ?: return
+
+        activeCall.videoCall?.sendSessionModifyResponse(profile)
+        _uiState.value = _uiState.value.copy(incomingVideoUpgradeRequest = null)
+    }
+
+    fun declineVideoUpgrade() {
+        val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
+        _uiState.value.incomingVideoUpgradeRequest ?: return
+
+        // Respond with current video state (which should be audio only)
+        val responseProfile = VideoProfile(VideoProfile.STATE_AUDIO_ONLY)
+        activeCall.videoCall?.sendSessionModifyResponse(responseProfile)
+        _uiState.value = _uiState.value.copy(incomingVideoUpgradeRequest = null)
     }
 
     fun flipCamera() {
-        val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
-        val videoCall = activeCall.videoCall ?: return
-        
-        val cameraManager = inCallService?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return
+        val service = inCallService ?: return
+        val call = sessions.values.firstOrNull { it.state.isActive }?.call ?: return
+        val videoCall = call.videoCall ?: return
+        if (!hasCameraPermission()) return
+
+        val manager = service.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+
+        val targetFacing =
+            if (currentFacing == CameraCharacteristics.LENS_FACING_FRONT) CameraCharacteristics.LENS_FACING_BACK
+            else CameraCharacteristics.LENS_FACING_FRONT
+
+        val targetCameraId = getCameraForFacing(manager, targetFacing)
+
         try {
-            val cameraIds = cameraManager.cameraIdList
-            if (cameraIds.size < 2) return
-            
-            val nextIndex = (cameraIds.indexOf(currentCameraId) + 1) % cameraIds.size
-            currentCameraId = cameraIds[nextIndex]
-            videoCall.setCamera(currentCameraId)
+            if (targetCameraId != null) {
+                videoCall.setCamera(targetCameraId)
+                currentCameraId = targetCameraId
+                currentFacing = targetFacing
+            } else {
+                // 🔁 fallback to FRONT if BACK unavailable
+                val frontId = getCameraForFacing(
+                    manager, CameraCharacteristics.LENS_FACING_FRONT
+                ) ?: return
+
+                videoCall.setCamera(frontId)
+                currentCameraId = frontId
+                currentFacing = CameraCharacteristics.LENS_FACING_FRONT
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to flip camera", e)
+            // 🛟 absolute safety fallback
+            try {
+                val frontId = getCameraForFacing(
+                    manager, CameraCharacteristics.LENS_FACING_FRONT
+                ) ?: return
+
+                videoCall.setCamera(frontId)
+                currentCameraId = frontId
+                currentFacing = CameraCharacteristics.LENS_FACING_FRONT
+            } catch (_: Exception) {
+                // swallow – never crash in-call
+            }
+        }
+    }
+
+
+    private fun findCameraId(
+        manager: CameraManager, facing: Int
+    ): String? {
+        return manager.cameraIdList.firstOrNull { id ->
+            manager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING) == facing
         }
     }
 

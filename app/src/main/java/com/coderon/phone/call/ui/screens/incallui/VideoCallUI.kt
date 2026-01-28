@@ -1,15 +1,12 @@
 package com.coderon.phone.call.ui.screens.incallui
 
-import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -50,8 +47,12 @@ fun VideoCallUI(
     onToggleVideo: () -> Unit,
     onFlipCamera: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+
         // Remote Video (Full Screen)
         if (remoteVideoSurface != null) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -212,12 +213,22 @@ fun VideoCallUIPreview() {
             onToggleVideo = {},
             onFlipCamera = {},
             remoteVideoSurface = {
-                Box(Modifier.fillMaxSize().background(Color.Gray), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Gray),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text("Remote Video Stream", color = Color.White)
                 }
             },
             localVideoSurface = {
-                Box(Modifier.fillMaxSize().background(Color.DarkGray), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.DarkGray),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text("Local", color = Color.White, fontSize = 12.sp)
                 }
             }

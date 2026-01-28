@@ -1,5 +1,6 @@
 package com.coderon.phone.call.ui
 
+import android.telecom.VideoProfile
 import com.coderon.phone.call.domain.CallSession
 import com.coderon.phone.call.domain.CallState
 
@@ -33,6 +34,7 @@ data class CallUiState(
     val videoQuality: Int = 0,
     val dataUsage: Long = 0L,
     val maxZoom: Float = 1.0f,
+    val incomingVideoUpgradeRequest: VideoProfile? = null,
 
     /* ---------------- SCREEN ---------------- */
 

@@ -1,6 +1,7 @@
 package com.coderon.phone.call.ui.screens.incallui
 
 import android.telecom.InCallService
+import android.telecom.VideoProfile
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,7 @@ import androidx.navigation.NavController
 import com.coderon.phone.call.domain.CallState
 import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.call.ui.CallScreenType
+import com.coderon.phone.ui.components.HybridAlertDialog
 import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.utils.extentions.State
 import com.coderon.phone.ui.utils.extentions.formatCallDuration
@@ -26,6 +28,17 @@ fun CallScreen(
 ) {
     val uiState by CallManager.uiState.collectAsState()
     val context = LocalContext.current
+
+    uiState.incomingVideoUpgradeRequest?.let {
+        HybridAlertDialog(
+            title = "Video Call Upgrade",
+            message = "The other party wants to switch to a video call.",
+            confirmText = "Accept",
+            cancelText = "Decline",
+            onConfirm = { CallManager.acceptVideoUpgrade() },
+            onDismiss = { CallManager.declineVideoUpgrade() }
+        )
+    }
 
     when (uiState.screen) {
 
@@ -122,23 +135,40 @@ fun CallScreen(
 
         CallScreenType.VIDEO -> {
             val call = uiState.primaryCall ?: return
+
+            val isVideoEnabled =
+                VideoProfile.isVideo(call.call.details.videoState)
+
             VideoCallUI(
                 contactName = call.displayName ?: call.phoneNumber,
                 callDuration = uiState.callDurationSeconds.formatCallDuration(),
-                remoteVideoSurface = {
-                    VideoSurface(videoCall = call.videoCall, isPreview = false)
-                },
-                localVideoSurface = {
-                    VideoSurface(videoCall = call.videoCall, isPreview = true)
-                },
                 isMuted = uiState.isMuted,
-                isVideoEnabled = true,
+                isVideoEnabled = isVideoEnabled,
                 onEndCall = { CallManager.disconnectPrimary() },
                 onToggleMute = { CallManager.toggleMute() },
                 onToggleVideo = { CallManager.toggleVideo() },
-                onFlipCamera = { CallManager.flipCamera() }
+                onFlipCamera = { CallManager.flipCamera() },
+                remoteVideoSurface = {
+                    VideoSurface(
+                        videoCall = call.videoCall,
+                        isPreview = false,
+                        onSurfaceReady = {
+                            CallManager.rebindCamera()
+                        }
+                    )
+                },
+                localVideoSurface = {
+                    VideoSurface(
+                        videoCall = call.videoCall,
+                        isPreview = true,
+                        onSurfaceReady = {
+                            CallManager.rebindCamera()
+                        }
+                    )
+                }
             )
         }
+
 
         /* ---------------- TWO CALLS ---------------- */
 
@@ -171,36 +201,58 @@ fun CallScreen(
 }
 
 @Composable
-fun VideoSurface(videoCall: InCallService.VideoCall?, isPreview: Boolean) {
+fun VideoSurface(
+    videoCall: InCallService.VideoCall?,
+    isPreview: Boolean,
+    onSurfaceReady: (() -> Unit)? = null
+) {
     AndroidView(
-        factory = { ctx ->
-            SurfaceView(ctx).apply {
+        modifier = Modifier.fillMaxSize(),
+        factory = { context ->
+            SurfaceView(context).apply {
                 if (isPreview) setZOrderMediaOverlay(true)
+
                 holder.addCallback(object : SurfaceHolder.Callback {
-                    override fun surfaceCreated(h: SurfaceHolder) {
-                        if (isPreview) videoCall?.setPreviewSurface(h.surface)
-                        else videoCall?.setDisplaySurface(h.surface)
+                    override fun surfaceCreated(holder: SurfaceHolder) {
+                        if (isPreview) {
+                            videoCall?.setPreviewSurface(holder.surface)
+                        } else {
+                            videoCall?.setDisplaySurface(holder.surface)
+                        }
+                        onSurfaceReady?.invoke()
                     }
 
-                    override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, h1: Int) {
-                        if (isPreview) videoCall?.setPreviewSurface(h.surface)
-                        else videoCall?.setDisplaySurface(h.surface)
+                    override fun surfaceChanged(
+                        holder: SurfaceHolder,
+                        format: Int,
+                        width: Int,
+                        height: Int
+                    ) {
+                        if (isPreview) {
+                            videoCall?.setPreviewSurface(holder.surface)
+                        } else {
+                            videoCall?.setDisplaySurface(holder.surface)
+                        }
                     }
 
-                    override fun surfaceDestroyed(h: SurfaceHolder) {
-                        if (isPreview) videoCall?.setPreviewSurface(null)
-                        else videoCall?.setDisplaySurface(null)
+                    override fun surfaceDestroyed(holder: SurfaceHolder) {
+                        if (isPreview) {
+                            videoCall?.setPreviewSurface(null)
+                        } else {
+                            videoCall?.setDisplaySurface(null)
+                        }
                     }
                 })
             }
         },
         update = { view ->
-            // Re-bind if videoCall changes
             if (view.holder.surface.isValid) {
-                if (isPreview) videoCall?.setPreviewSurface(view.holder.surface)
-                else videoCall?.setDisplaySurface(view.holder.surface)
+                if (isPreview) {
+                    videoCall?.setPreviewSurface(view.holder.surface)
+                } else {
+                    videoCall?.setDisplaySurface(view.holder.surface)
+                }
             }
-        },
-        modifier = Modifier.fillMaxSize()
+        }
     )
 }
