@@ -2,6 +2,11 @@
 
 package com.coderon.phone.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -23,33 +29,40 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.coderon.phone.R
 import com.coderon.phone.R.drawable
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.theme.PhoneTheme
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun SearchScreen(
@@ -60,6 +73,14 @@ fun SearchScreen(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var query by remember { mutableStateOf("") }
+
+    val entryAlpha = remember { Animatable(0f) }
+    val entryOffset = remember { Animatable(20f) }
+
+    LaunchedEffect(Unit) {
+        launch { entryAlpha.animateTo(1f, tween(600, easing = LinearEasing)) }
+        launch { entryOffset.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+    }
 
     val filteredContacts = remember(query, contacts) {
         if (query.isBlank()) emptyList()
@@ -82,6 +103,8 @@ fun SearchScreen(
             .fillMaxSize()
             .background(colorScheme.background)
             .windowInsetsPadding(WindowInsets.statusBars)
+            .alpha(entryAlpha.value)
+            .offset { IntOffset(0, entryOffset.value.roundToInt()) }
     ) {
 
         /* ---------- HYBRID SEARCH HEADER ---------- */
@@ -232,7 +255,7 @@ private fun EmptySearchState(message: String) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                Icons.Rounded.Search,
+                painterResource(drawable.search),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.surfaceVariant
@@ -251,7 +274,21 @@ private fun EmptySearchState(message: String) {
 @Preview(showBackground = true)
 @Composable
 private fun PreviewSearchHybrid() {
-    SearchScreen(
-        navController = rememberNavController()
-    )
+    PhoneTheme {
+        SearchScreen(
+            navController = rememberNavController(),
+            contacts = listOf(
+                Contact(
+                    id = "1",
+                    displayName = "Alice Smith",
+                    phoneNumbers = listOf(PhoneNumber("123456"))
+                ),
+                Contact(
+                    id = "2",
+                    displayName = "Bob Johnson",
+                    phoneNumbers = listOf(PhoneNumber("789012"))
+                )
+            )
+        )
+    }
 }

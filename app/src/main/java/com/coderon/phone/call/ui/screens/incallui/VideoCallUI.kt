@@ -1,11 +1,14 @@
 package com.coderon.phone.call.ui.screens.incallui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -30,7 +34,9 @@ import androidx.compose.material.icons.rounded.VideocamOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -42,12 +48,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.R
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.OneUi8DynamicBackground
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun VideoCallUI(
@@ -64,6 +73,14 @@ fun VideoCallUI(
     onToggleVideo: () -> Unit,
     onFlipCamera: () -> Unit
 ) {
+    val entryAlpha = remember { Animatable(0f) }
+    val entryOffset = remember { Animatable(20f) }
+
+    LaunchedEffect(Unit) {
+        launch { entryAlpha.animateTo(1f, tween(800, easing = LinearEasing)) }
+        launch { entryOffset.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -79,7 +96,10 @@ fun VideoCallUI(
             OneUi8DynamicBackground()
             // Show avatar or name if no remote video
             Column(
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .alpha(entryAlpha.value)
+                    .offset { IntOffset(0, entryOffset.value.roundToInt()) },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Surface(
@@ -105,6 +125,8 @@ fun VideoCallUI(
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 16.dp)
+                .alpha(entryAlpha.value)
+                .offset { IntOffset(0, entryOffset.value.roundToInt()) }
         ) {
             // Flip Camera Top Left
             Surface(
@@ -171,6 +193,8 @@ fun VideoCallUI(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 64.dp)
+                .alpha(entryAlpha.value)
+                .offset { IntOffset(0, entryOffset.value.roundToInt()) }
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

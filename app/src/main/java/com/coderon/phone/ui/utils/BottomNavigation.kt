@@ -48,8 +48,11 @@ import com.coderon.phone.ui.navigation.Screen
    BOTTOM NAV VISIBILITY CONTROL
 ------------------------------------------------ */
 
+// Fixed: Provided a default mutableStateOf(true) to prevent IllegalStateException in Previews.
+// Previews of screens using LocalBottomNavVisible will now render correctly without needing
+// an explicit CompositionLocalProvider.
 val LocalBottomNavVisible = compositionLocalOf<MutableState<Boolean>> {
-    error("No LocalBottomNavVisible provided")
+    mutableStateOf(true)
 }
 
 /* ------------------------------------------------

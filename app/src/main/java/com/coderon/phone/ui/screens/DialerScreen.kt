@@ -1,6 +1,15 @@
 package com.coderon.phone.ui.screens
 
 import android.telecom.PhoneAccountHandle
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -13,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -32,29 +42,37 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
+import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.DialPad
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
-import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
 import com.coderon.phone.viewmodel.GroupedCallLog
+import kotlinx.coroutines.launch
 import java.util.SortedMap
+import java.util.TreeMap
+import kotlin.math.roundToInt
 
 @Composable
 fun DialerScreen(
@@ -66,6 +84,14 @@ fun DialerScreen(
 ) {
     var dialedNumber by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    val entryAlpha = remember { Animatable(0f) }
+    val entryOffset = remember { Animatable(20f) }
+
+    LaunchedEffect(Unit) {
+        launch { entryAlpha.animateTo(1f, tween(600, easing = LinearEasing)) }
+        launch { entryOffset.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+    }
 
     // SIM Selection State
     var showSimDialog by remember { mutableStateOf(false) }
@@ -91,6 +117,8 @@ fun DialerScreen(
                 .background(colorScheme.background)
                 .statusBarsPadding()
                 .padding(bottom = 104.dp)
+                .alpha(entryAlpha.value)
+                .offset { IntOffset(0, entryOffset.value.roundToInt()) }
         ) {
             Spacer(Modifier.height(24.dp))
 
@@ -107,7 +135,11 @@ fun DialerScreen(
                 maxLines = 1
             )
 
-            if (dialedNumber.isNotBlank()) {
+            AnimatedVisibility(
+                visible = dialedNumber.isNotBlank(),
+                enter = fadeIn() + slideInVertically { -20 },
+                exit = fadeOut()
+            ) {
                 Text(
                     text = "Add to Contacts",
                     color = colorScheme.primary,
@@ -121,13 +153,13 @@ fun DialerScreen(
                             navController.navigate(Screen.AddContact.createRoute(dialedNumber))
                         }
                 )
-            } else {
+            }
+            if (dialedNumber.isBlank()) {
                 Spacer(Modifier.height(37.dp))
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // Suggestions logic moved to DialerScreen for local dialedNumber reactiveness
             val suggestions = remember(dialedNumber, contactsGrouped, callLogsGrouped) {
                 if (dialedNumber.isBlank()) emptyList()
                 else {
@@ -304,11 +336,15 @@ fun DialerScreen(
 @Preview(showBackground = true)
 @Composable
 fun DialerPreview() {
-    DialerScreen(
-        navController = rememberNavController(),
-        contactsGrouped = java.util.TreeMap(),
-        callLogsGrouped = emptyMap(),
-        updateSearchQuery = {},
-        playTones = {}
-    )
+    PhoneTheme {
+        DialerScreen(
+            navController = rememberNavController(),
+            contactsGrouped = TreeMap<Char, List<Contact>>().apply {
+                put('A', listOf(Contact(displayName = "Alice", phoneNumbers = listOf(PhoneNumber("123456")))))
+            },
+            callLogsGrouped = emptyMap(),
+            updateSearchQuery = {},
+            playTones = {}
+        )
+    }
 }

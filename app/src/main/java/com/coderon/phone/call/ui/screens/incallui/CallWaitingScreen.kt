@@ -1,5 +1,10 @@
 package com.coderon.phone.call.ui.screens.incallui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,31 +14,40 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.coderon.phone.R
-import com.coderon.phone.ui.Text
+import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.OneUi8DynamicBackground
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /* ------------------------------------------------
-   CALL WAITING SCREEN (PIXEL STYLE)
+   CALL WAITING SCREEN (ONE UI 8 STYLE)
 ------------------------------------------------ */
 
 @Composable
@@ -47,76 +61,78 @@ fun CallWaitingScreen(
     onRejectWaiting: () -> Unit,
     onEndActiveAcceptWaiting: () -> Unit
 ) {
+    val entryAlpha = remember { Animatable(0f) }
+    val entryOffset = remember { Animatable(30f) }
+
+    LaunchedEffect(Unit) {
+        launch { entryAlpha.animateTo(1f, tween(800, easing = LinearEasing)) }
+        launch { entryOffset.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-
-        // Background blur
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(profilePictureUrl ?: R.drawable.background_incallui)
-                .build(),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(20.dp),
-            contentScale = ContentScale.Crop
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-        )
+        OneUi8DynamicBackground()
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 48.dp),
+                .padding(vertical = 48.dp)
+                .alpha(entryAlpha.value)
+                .offset { IntOffset(0, entryOffset.value.roundToInt()) },
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
 
             // Waiting caller info
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(profilePictureUrl ?: R.drawable.profile_picture_call)
-                        .build(),
-                    contentDescription = null,
+                Surface(
                     modifier = Modifier
-                        .size(110.dp)
-                        .clip(CircleShape)
-                )
+                        .size(140.dp)
+                        .clip(CircleShape),
+                    color = Color.White.copy(alpha = 0.1f)
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(profilePictureUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
                 Text(
                     text = waitingName ?: "Incoming call",
-                    fontSize = 24.sp,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
 
                 Text(
                     text = waitingNumber,
                     fontSize = 18.sp,
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = Color.White.copy(alpha = 0.7f)
                 )
 
                 Spacer(Modifier.height(8.dp))
 
                 Text(
-                    text = "Call waiting",
+                    text = "Call waiting while on call with $activeName",
                     fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 48.dp)
                 )
             }
 
             // Action buttons
-            Column {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 48.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
 
                     CallActionButton(
@@ -134,19 +150,20 @@ fun CallWaitingScreen(
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(48.dp))
 
-                IconButton(
+                Surface(
                     onClick = onEndActiveAcceptWaiting,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.15f)
                 ) {
                     Text(
                         text = "End current & accept",
-                        fontSize = 14.sp,
-                        color = Color.White
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 14.dp)
                     )
                 }
             }
@@ -181,9 +198,14 @@ private fun CallActionButton(
             )
         }
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(10.dp))
 
-        Text(label, color = Color.White)
+        Text(
+            text = label, 
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -191,16 +213,18 @@ private fun CallActionButton(
    PREVIEW
 ------------------------------------------------ */
 
-@Preview(showBackground = true, device = "id:pixel_8")
+@Preview(showBackground = true)
 @Composable
 private fun PreviewCallWaitingScreen() {
-    CallWaitingScreen(
-        activeName = "Alice Johnson",
-        activeNumber = "+91 9876543210",
-        waitingName = "Bob Williams",
-        waitingNumber = "+91 9998887776",
-        onAcceptWaiting = {},
-        onRejectWaiting = {},
-        onEndActiveAcceptWaiting = {}
-    )
+    PhoneTheme {
+        CallWaitingScreen(
+            activeName = "Alice Johnson",
+            activeNumber = "+1 987 654 3210",
+            waitingName = "Bob Williams",
+            waitingNumber = "+1 999 888 7776",
+            onAcceptWaiting = {},
+            onRejectWaiting = {},
+            onEndActiveAcceptWaiting = {}
+        )
+    }
 }

@@ -3,12 +3,18 @@
 package com.coderon.phone.ui.screens
 
 import android.telecom.PhoneAccountHandle
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,22 +34,31 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.data.model.Contact
+import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
+import kotlinx.coroutines.launch
 import java.util.SortedMap
+import java.util.TreeMap
+import kotlin.math.roundToInt
 
 @Composable
 fun ContactsScreen(
@@ -52,6 +67,14 @@ fun ContactsScreen(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
+
+    val entryAlpha = remember { Animatable(0f) }
+    val entryOffset = remember { Animatable(20f) }
+
+    LaunchedEffect(Unit) {
+        launch { entryAlpha.animateTo(1f, tween(600, easing = LinearEasing)) }
+        launch { entryOffset.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+    }
 
     // SIM Selection State
     var showSimDialog by remember { mutableStateOf(false) }
@@ -102,9 +125,13 @@ fun ContactsScreen(
             }
         ) { innerPadding ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .alpha(entryAlpha.value)
+                    .offset { IntOffset(0, entryOffset.value.roundToInt()) },
                 contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding() + 16.dp,
+                    top = 16.dp,
                     bottom = 100.dp,
                     start = 16.dp,
                     end = 16.dp
@@ -156,5 +183,19 @@ fun ContactsScreen(
                 onDismiss = { showSimDialog = false }
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewHybridContacts() {
+    PhoneTheme {
+        ContactsScreen(
+            contactsGrouped = TreeMap<Char, List<Contact>>().apply {
+                put('A', listOf(Contact(id = "1", displayName = "Alice", phoneNumbers = listOf(PhoneNumber("123456")))))
+                put('B', listOf(Contact(id = "2", displayName = "Bob", phoneNumbers = listOf(PhoneNumber("789012")))))
+            },
+            navController = rememberNavController()
+        )
     }
 }

@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.rounded.Merge
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
@@ -45,12 +44,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.R
 import com.coderon.phone.call.ui.AudioRoute
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -285,6 +286,28 @@ private fun ModernTwoCallAction(
             fontSize = 12.sp,
             color = Color.White.copy(alpha = 0.8f),
             fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TwoCallScreenPreview() {
+    PhoneTheme {
+        TwoCallScreen(
+            firstContactName = "John Doe",
+            firstPhoneNumber = "1234567890",
+            secondContactName = "Jane Smith",
+            secondPhoneNumber = "0987654321",
+            isMuted = false,
+            currentAudioRoute = AudioRoute.EARPIECE.name,
+            callDuration = "02:15",
+            onSwapCalls = {},
+            onMergeCalls = {},
+            onEndCall = {},
+            onToggleSpeaker = {},
+            onToggleMute = {},
+            onToggleBluetooth = {}
         )
     }
 }

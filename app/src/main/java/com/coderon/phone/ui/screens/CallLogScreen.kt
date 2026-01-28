@@ -3,12 +3,18 @@
 package com.coderon.phone.ui.screens
 
 import android.telecom.PhoneAccountHandle
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,24 +35,35 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import com.coderon.phone.data.model.CallLog
+import com.coderon.phone.data.model.CallType
 import com.coderon.phone.ui.components.HybridAlertDialog
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridSegmentedPicker
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
 import com.coderon.phone.viewmodel.CallFilter
+import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.GroupedCallLog
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun CallLogScreen(
@@ -58,6 +75,14 @@ fun CallLogScreen(
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+
+    val entryAlpha = remember { Animatable(0f) }
+    val entryOffset = remember { Animatable(20f) }
+
+    LaunchedEffect(Unit) {
+        launch { entryAlpha.animateTo(1f, tween(600, easing = LinearEasing)) }
+        launch { entryOffset.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+    }
 
     // SIM Selection State
     var showSimDialog by remember { mutableStateOf(false) }
@@ -106,7 +131,12 @@ fun CallLogScreen(
                 }
             }
         ) { innerPadding ->
-            Column(modifier = Modifier.padding(innerPadding)) {
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .alpha(entryAlpha.value)
+                    .offset { IntOffset(0, entryOffset.value.roundToInt()) }
+            ) {
 
                 Box(
                     modifier = Modifier
@@ -193,5 +223,23 @@ fun CallLogScreen(
                 onDismiss = { showDeleteConfirmation = false }
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CallLogPreview() {
+    PhoneTheme {
+        CallLogScreen(
+            callLogsByDate = mapOf(
+                "Today" to listOf(
+                    GroupedCallLog(listOf(CallLog(phoneNumber = "1234567890", callType = CallType.INCOMING)))
+                )
+            ),
+            filter = CallFilter.ALL,
+            onFilterChanged = {},
+            onDeleteAllLogs = {},
+            navController = rememberNavController()
+        )
     }
 }
