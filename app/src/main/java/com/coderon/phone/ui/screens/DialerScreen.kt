@@ -39,13 +39,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
-import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.DialPad
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridContactRow
@@ -56,16 +53,14 @@ import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import com.coderon.phone.data.model.CallLog as CallLogEntry
+import com.coderon.phone.viewmodel.GroupedCallLog
+import java.util.SortedMap
 
 @Composable
 fun DialerScreen(
     navController: NavController,
-    filterContact: StateFlow<Map<Char, List<Contact>>>,
-    filterCallLog: Flow<List<CallLogEntry>>,
+    contactsGrouped: SortedMap<Char, List<Contact>>,
+    callLogsGrouped: Map<String, List<GroupedCallLog>>,
     updateSearchQuery: (String) -> Unit = {},
     playTones: (Char) -> Unit
 ) {
@@ -87,8 +82,6 @@ fun DialerScreen(
         updateSearchQuery(dialedNumber)
     }
 
-    val contacts by filterContact.collectAsStateWithLifecycle()
-    val callLogs by filterCallLog.collectAsStateWithLifecycle(emptyList())
     val colorScheme = MaterialTheme.colorScheme
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -134,18 +127,19 @@ fun DialerScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            val suggestions = remember(dialedNumber, contacts, callLogs) {
+            // Suggestions logic moved to DialerScreen for local dialedNumber reactiveness
+            val suggestions = remember(dialedNumber, contactsGrouped, callLogsGrouped) {
                 if (dialedNumber.isBlank()) emptyList()
                 else {
                     val map = linkedMapOf<String, Any>()
 
-                    callLogs
-                        .filter { it.phoneNumber.contains(dialedNumber) }
-                        .groupBy { it.phoneNumber }
-                        .mapNotNull { it.value.maxByOrNull { log -> log.callTime } }
-                        .forEach { map[it.phoneNumber] = it }
+                    callLogsGrouped.values.flatten().forEach { group ->
+                        if (group.phoneNumber.contains(dialedNumber)) {
+                            map[group.phoneNumber] = group
+                        }
+                    }
 
-                    contacts.values.flatten().forEach { contact ->
+                    contactsGrouped.values.flatten().forEach { contact ->
                         val number = contact.phoneNumbers.firstOrNull()?.number ?: return@forEach
                         if (number.contains(dialedNumber)) {
                             map.putIfAbsent(number, contact)
@@ -177,7 +171,7 @@ fun DialerScreen(
 
                     items(suggestions) { item ->
                         when (item) {
-                            is CallLogEntry -> {
+                            is GroupedCallLog -> {
                                 HybridCallLogPill(
                                     name = item.contact?.displayName ?: item.phoneNumber,
                                     phoneNumber = item.phoneNumber,
@@ -185,6 +179,7 @@ fun DialerScreen(
                                     callTime = item.callTime,
                                     simSlot = item.simSlot,
                                     contact = item.contact,
+                                    callCount = item.logs.size,
                                     onRowClick = {
                                         phoneNumberToDial = item.phoneNumber
                                         initiateCall(context, item.phoneNumber) { sims ->
@@ -306,47 +301,14 @@ fun DialerScreen(
     }
 }
 
-/* ---------------- PREVIEW DATA ---------------- */
-
-private fun previewContacts(): Map<Char, List<Contact>> {
-    val contacts = (1..10).map {
-        Contact(
-            id = it.toString(),
-            displayName = "Contact $it",
-            phoneNumbers = listOf(
-                PhoneNumber(
-                    number = "98765432$it",
-                )
-            )
-        )
-    }
-    return contacts.groupBy { it.displayName.first() }
-}
-
-private fun previewCallLogs(): List<CallLogEntry> {
-    return (1..10).map {
-        CallLogEntry(
-            id = it.toLong(),
-            phoneNumber = "98765432$it",
-            callTime = System.currentTimeMillis() - it * 60_000L,
-            contact = null,
-            callType = CallType.INCOMING,
-        )
-    }
-}
-
-/* ---------------- PREVIEW ---------------- */
-
 @Preview(showBackground = true)
 @Composable
 fun DialerPreview() {
-    ScaffoldScreen(rememberNavController()) {
-        DialerScreen(
-            navController = rememberNavController(),
-            filterContact = MutableStateFlow(previewContacts()),
-            filterCallLog = MutableStateFlow(previewCallLogs()),
-            updateSearchQuery = {},
-            playTones = {}
-        )
-    }
+    DialerScreen(
+        navController = rememberNavController(),
+        contactsGrouped = java.util.TreeMap(),
+        callLogsGrouped = emptyMap(),
+        updateSearchQuery = {},
+        playTones = {}
+    )
 }

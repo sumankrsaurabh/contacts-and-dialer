@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.SortedMap
 
 class ContactViewModel(
     private val getContactsUseCase: GetContactsUseCase,
@@ -28,7 +29,20 @@ class ContactViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    val groupedContacts: StateFlow<Map<Char, List<Contact>>> =
+    val filteredContacts: StateFlow<List<Contact>> =
+        combine(_allContacts, _searchQuery) { contacts, query ->
+            if (query.isBlank()) emptyList()
+            else contacts.filter { contact ->
+                contact.displayName.contains(query, ignoreCase = true) ||
+                        contact.phoneNumbers.any { it.number.contains(query) }
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
+    val groupedContacts: StateFlow<SortedMap<Char, List<Contact>>> =
         combine(_allContacts, _searchQuery) { contacts, query ->
             val filtered = if (query.isBlank()) {
                 contacts
@@ -39,17 +53,17 @@ class ContactViewModel(
                 }
             }
 
-            filtered.groupBy { contact ->
-                contact.displayName
-                    .firstOrNull()
-                    ?.takeIf { it.isLetter() }
-                    ?.uppercaseChar()
-                    ?: '#'
-            }.toSortedMap()
+            filtered.sortedBy { it.displayName.lowercase() }
+                .groupBy { contact ->
+                    contact.displayName
+                        .firstOrNull()
+                        ?.uppercaseChar()
+                        ?: '#'
+                }.toSortedMap()
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyMap()
+            initialValue = emptyMap<Char, List<Contact>>().toSortedMap()
         )
 
     init {
@@ -122,12 +136,6 @@ class ContactViewModel(
             profilePictureUri = contact.profilePictureUrl,
             isFavorite = !contact.isFavorite
         )
-    }
-
-    fun getContactByPhoneNumber(phoneNumber: String): Contact? {
-        return _allContacts.value.firstOrNull { contact ->
-            contact.phoneNumbers.any { it.number == phoneNumber }
-        }
     }
 
     fun onSearchQueryChanged(query: String) {

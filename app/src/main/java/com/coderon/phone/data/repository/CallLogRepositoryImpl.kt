@@ -5,8 +5,6 @@ import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.database.ContentObserver
-import android.os.Handler
-import android.os.Looper
 import android.provider.CallLog
 import android.provider.ContactsContract
 import android.telephony.PhoneNumberUtils
@@ -16,9 +14,13 @@ import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.domain.repository.CallLogRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.lang.System.currentTimeMillis
 import com.coderon.phone.data.model.CallLog as CallLogData
 
@@ -35,27 +37,35 @@ class CallLogRepositoryImpl(
     private val contactsCache = mutableMapOf<String, Pair<Contact?, Long>>()
 
     override fun observeCallLogs(): Flow<List<CallLogData>> = callbackFlow {
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        val observer = object : ContentObserver(null) {
             override fun onChange(selfChange: Boolean) {
-                trySend(loadCallLogs())
+                launch {
+                    trySend(loadCallLogs())
+                }
             }
         }
 
-        contentResolver.registerContentObserver(
-            CallLog.Calls.CONTENT_URI,
-            true,
-            observer
-        )
+        try {
+            contentResolver.registerContentObserver(
+                CallLog.Calls.CONTENT_URI,
+                true,
+                observer
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registering observer", e)
+        }
 
-        trySend(loadCallLogs())
+        launch {
+            trySend(loadCallLogs())
+        }
 
         awaitClose {
             contentResolver.unregisterContentObserver(observer)
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
-    override suspend fun getCallLogs(): List<CallLogData> {
-        return loadCallLogs()
+    override suspend fun getCallLogs(): List<CallLogData> = withContext(Dispatchers.IO) {
+        loadCallLogs()
     }
 
     @SuppressLint("Range")
@@ -68,16 +78,23 @@ class CallLogRepositoryImpl(
             CallLog.Calls.TYPE,
             CallLog.Calls.DURATION,
             CallLog.Calls.DATE,
-            CallLog.Calls.PHONE_ACCOUNT_ID
+            CallLog.Calls.PHONE_ACCOUNT_ID,
+            CallLog.Calls.CACHED_NAME,
+            CallLog.Calls.CACHED_PHOTO_URI
         )
 
-        val cursor = contentResolver.query(
-            CallLog.Calls.CONTENT_URI,
-            projection,
-            null,
-            null,
-            "${CallLog.Calls.DATE} DESC"
-        ) ?: return emptyList()
+        val cursor = try {
+            contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                projection,
+                null,
+                null,
+                "${CallLog.Calls.DATE} DESC LIMIT 500"
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error querying call logs", e)
+            null
+        } ?: return emptyList()
 
         cursor.use {
             val idIndex = it.getColumnIndexOrThrow(CallLog.Calls._ID)
@@ -86,13 +103,18 @@ class CallLogRepositoryImpl(
             val durationIndex = it.getColumnIndexOrThrow(CallLog.Calls.DURATION)
             val dateIndex = it.getColumnIndexOrThrow(CallLog.Calls.DATE)
             val phoneAccountIdIndex = it.getColumnIndex(CallLog.Calls.PHONE_ACCOUNT_ID)
+            val cachedNameIndex = it.getColumnIndex(CallLog.Calls.CACHED_NAME)
+            val cachedPhotoIndex = it.getColumnIndex(CallLog.Calls.CACHED_PHOTO_URI)
 
             while (it.moveToNext()) {
                 val id = it.getLong(idIndex)
                 val rawNumber = it.getString(numberIndex) ?: continue
-                val normalized = PhoneNumberUtils.normalizeNumber(rawNumber)
+                val normalized = PhoneNumberUtils.normalizeNumber(rawNumber) ?: rawNumber
                 val phoneAccountId =
                     if (phoneAccountIdIndex != -1) it.getString(phoneAccountIdIndex) else null
+                val cachedName = if (cachedNameIndex != -1) it.getString(cachedNameIndex) else null
+                val cachedPhoto =
+                    if (cachedPhotoIndex != -1) it.getString(cachedPhotoIndex) else null
 
                 callLogs.add(
                     CallLogData(
@@ -101,14 +123,13 @@ class CallLogRepositoryImpl(
                         callType = mapCallType(it.getInt(typeIndex)),
                         callDurationSeconds = it.getInt(durationIndex),
                         callTime = it.getLong(dateIndex),
-                        contact = getCachedOrFetchContact(normalized),
+                        contact = getCachedOrFetchContact(normalized, cachedName, cachedPhoto),
                         simSlot = getSlotFromAccountId(phoneAccountId)
                     )
                 )
             }
         }
 
-        Log.d(TAG, "Loaded ${callLogs.size} call logs")
         return callLogs
     }
 
@@ -118,15 +139,17 @@ class CallLogRepositoryImpl(
         val subscriptionManager =
             context.getSystemService(SubscriptionManager::class.java) ?: return 1
 
-        // On many devices, PHONE_ACCOUNT_ID in the call log matches the Subscription ID or ICCID
-        val activeSubscriptions = subscriptionManager.activeSubscriptionInfoList ?: return 1
+        val activeSubscriptions = try {
+            subscriptionManager.activeSubscriptionInfoList
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Error getting active subscriptions", e)
+            null
+        } ?: return 1
 
-        // Try matching by subscriptionId string
         activeSubscriptions.firstOrNull { it.subscriptionId.toString() == accountId }?.let {
             return it.simSlotIndex + 1
         }
 
-        // Try matching by ICCID (sometimes stored in PHONE_ACCOUNT_ID)
         activeSubscriptions.firstOrNull { it.iccId == accountId }?.let {
             return it.simSlotIndex + 1
         }
@@ -135,24 +158,34 @@ class CallLogRepositoryImpl(
     }
 
     override suspend fun addCallLog(callLog: CallLogData) {
-        val values = ContentValues().apply {
-            put(CallLog.Calls.NUMBER, callLog.phoneNumber)
-            put(CallLog.Calls.TYPE, mapCallTypeToSystem(callLog.callType))
-            put(CallLog.Calls.DURATION, callLog.callDurationSeconds)
-            put(CallLog.Calls.DATE, currentTimeMillis())
-            // Note: In a real app, we should also try to set PHONE_ACCOUNT_ID here 
-            // if we want the system to know which SIM was used.
-        }
+        withContext(Dispatchers.IO) {
+            val values = ContentValues().apply {
+                put(CallLog.Calls.NUMBER, callLog.phoneNumber)
+                put(CallLog.Calls.TYPE, mapCallTypeToSystem(callLog.callType))
+                put(CallLog.Calls.DURATION, callLog.callDurationSeconds)
+                put(CallLog.Calls.DATE, callLog.callTime)
+            }
 
-        contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
+            try {
+                contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error adding call log", e)
+            }
+        }
     }
 
     override suspend fun deleteCallLog(callLog: CallLogData) {
-        contentResolver.delete(
-            CallLog.Calls.CONTENT_URI,
-            "${CallLog.Calls._ID}=?",
-            arrayOf(callLog.id.toString())
-        )
+        withContext(Dispatchers.IO) {
+            try {
+                contentResolver.delete(
+                    CallLog.Calls.CONTENT_URI,
+                    "${CallLog.Calls._ID}=?",
+                    arrayOf(callLog.id.toString())
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting call log", e)
+            }
+        }
     }
 
     private fun mapCallType(type: Int): CallType = when (type) {
@@ -173,16 +206,27 @@ class CallLogRepositoryImpl(
         else -> CallLog.Calls.OUTGOING_TYPE
     }
 
-    private fun getCachedOrFetchContact(phoneNumber: String): Contact? {
+    private fun getCachedOrFetchContact(
+        phoneNumber: String,
+        cachedName: String?,
+        cachedPhoto: String?
+    ): Contact? {
         val now = currentTimeMillis()
         val cached = contactsCache[phoneNumber]
 
-        return if (cached != null && now - cached.second < CACHE_DURATION) {
-            cached.first
+        if (cached != null && now - cached.second < CACHE_DURATION) {
+            return cached.first
         } else {
-            val contact = fetchContact(phoneNumber)
+            val contact = fetchContact(phoneNumber) ?: if (cachedName != null) {
+                Contact(
+                    displayName = cachedName,
+                    profilePictureUrl = cachedPhoto,
+                    phoneNumbers = listOf(PhoneNumber(phoneNumber))
+                )
+            } else null
+
             contactsCache[phoneNumber] = contact to now
-            contact
+            return contact
         }
     }
 
@@ -218,8 +262,7 @@ class CallLogRepositoryImpl(
                     )
                 )
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
             null
         }
     }

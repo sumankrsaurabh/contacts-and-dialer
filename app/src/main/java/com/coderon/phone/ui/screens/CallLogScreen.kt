@@ -2,7 +2,6 @@
 
 package com.coderon.phone.ui.screens
 
-import android.content.Context
 import android.telecom.PhoneAccountHandle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -34,53 +33,30 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.coderon.phone.data.helpers.formatDate
-import com.coderon.phone.data.model.CallLog
-import com.coderon.phone.data.model.CallType
-import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.components.HybridAlertDialog
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridSegmentedPicker
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
-import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
-import kotlinx.coroutines.flow.first
-
-/* ------------------------------------------------ */
-/* DATASTORE                                        */
-/* ------------------------------------------------ */
-
-private val Context.dataStore by preferencesDataStore("call_log_prefs")
-private val FILTER_KEY = stringPreferencesKey("call_filter")
-
-private enum class CallFilter {
-    ALL, MISSED_TODAY
-}
-
-/* ------------------------------------------------ */
-/* MAIN SCREEN (iOS + OneUI 8 + M3)                */
-/* ------------------------------------------------ */
+import com.coderon.phone.viewmodel.CallFilter
+import com.coderon.phone.viewmodel.GroupedCallLog
 
 @Composable
 fun CallLogScreen(
-    callLogs: List<CallLog>,
-    navController: NavController,
-    onDeleteAllLogs: () -> Unit = {}
+    callLogsByDate: Map<String, List<GroupedCallLog>>,
+    filter: CallFilter,
+    onFilterChanged: (CallFilter) -> Unit,
+    onDeleteAllLogs: () -> Unit,
+    navController: NavController
 ) {
     val context = LocalContext.current
-    var filter by remember { mutableStateOf(CallFilter.ALL) }
     val colorScheme = MaterialTheme.colorScheme
 
     // SIM Selection State
@@ -97,37 +73,11 @@ fun CallLogScreen(
     // Confirmation State
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val savedFilterName = context.dataStore.data.first()[FILTER_KEY]
-        filter = try {
-            CallFilter.valueOf(savedFilterName ?: CallFilter.ALL.name)
-        } catch (ignored: Exception) {
-            CallFilter.ALL
-        }
-    }
-
-    LaunchedEffect(filter) {
-        context.dataStore.edit { it[FILTER_KEY] = filter.name }
-    }
-
-    val filteredLogs = remember(callLogs, filter) {
-        when (filter) {
-            CallFilter.ALL -> callLogs
-            CallFilter.MISSED_TODAY -> callLogs.filter {
-                it.callType == CallType.MISSED && it.callTime >= System.currentTimeMillis() - 86_400_000
-            }
-        }
-    }
-
-    val callLogsByDate =
-        filteredLogs.sortedByDescending { it.callTime }.groupBy { it.callTime.formatDate() }
-
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = colorScheme.background,
             topBar = {
                 Box {
-                    // iOS Blur Background Effect
                     Box(
                         modifier = Modifier
                             .matchParentSize()
@@ -158,7 +108,6 @@ fun CallLogScreen(
         ) { innerPadding ->
             Column(modifier = Modifier.padding(innerPadding)) {
 
-                // iOS/OneUI 8 Segmented Picker
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -168,7 +117,7 @@ fun CallLogScreen(
                     HybridSegmentedPicker(
                         options = CallFilter.entries.toTypedArray(),
                         selectedOption = filter,
-                        onOptionSelected = { filter = it },
+                        onOptionSelected = onFilterChanged,
                         labelProvider = { if (it == CallFilter.ALL) "All" else "Missed" }
                     )
                 }
@@ -178,7 +127,7 @@ fun CallLogScreen(
                     contentPadding = PaddingValues(bottom = 100.dp, start = 16.dp, end = 16.dp)
                 ) {
                     callLogsByDate.forEach { (date, logs) ->
-                        item {
+                        item(key = date) {
                             Text(
                                 text = date.uppercase(),
                                 fontSize = 12.sp,
@@ -192,9 +141,7 @@ fun CallLogScreen(
                             )
                         }
 
-                        val groupedLogs = groupConsecutiveLogs(logs)
-
-                        items(groupedLogs, key = { it.log.id }) { group ->
+                        items(logs, key = { it.log.id }) { group ->
                             HybridCallLogPill(
                                 name = group.contact?.displayName ?: group.phoneNumber,
                                 phoneNumber = group.phoneNumber,
@@ -246,80 +193,5 @@ fun CallLogScreen(
                 onDismiss = { showDeleteConfirmation = false }
             )
         }
-    }
-}
-
-private fun groupConsecutiveLogs(logs: List<CallLog>): List<GroupedCallLog> {
-    if (logs.isEmpty()) return emptyList()
-    
-    val result = mutableListOf<GroupedCallLog>()
-    var currentGroup = mutableListOf<CallLog>()
-    
-    for (log in logs) {
-        if (currentGroup.isEmpty()) {
-            currentGroup.add(log)
-        } else {
-            val lastLog = currentGroup.last()
-            // Group if it's the same number and same type (consecutive)
-            if (lastLog.phoneNumber == log.phoneNumber && lastLog.callType == log.callType) {
-                currentGroup.add(log)
-            } else {
-                result.add(GroupedCallLog(currentGroup))
-                currentGroup = mutableListOf(log)
-            }
-        }
-    }
-    
-    if (currentGroup.isNotEmpty()) {
-        result.add(GroupedCallLog(currentGroup))
-    }
-    
-    return result
-}
-
-private data class GroupedCallLog(val logs: List<CallLog>) {
-    val log = logs.first()
-    val phoneNumber get() = log.phoneNumber
-    val callType get() = log.callType
-    val callTime get() = log.callTime
-    val contact get() = log.contact
-    val simSlot get() = log.simSlot
-}
-
-@PreviewLightDark
-@Composable
-private fun PreviewHybridCallLog() {
-    val mockContactNames = listOf(
-        "John Appleseed",
-        "Alice Johnson",
-        "Brian Lee",
-        "Catherine Smith",
-        "David Miller",
-        "Emma Wilson"
-    )
-
-    val mockCallLogs = List(12) { logIndex ->
-        CallLog(
-            id = logIndex.toLong(),
-            phoneNumber = "98765432$logIndex",
-            callType = when (logIndex % 3) {
-                0 -> CallType.INCOMING
-                1 -> CallType.OUTGOING
-                else -> CallType.MISSED
-            },
-            callTime = System.currentTimeMillis() - logIndex * 3_600_000L,
-            contact = Contact(
-                id = "$logIndex",
-                displayName = mockContactNames[logIndex % mockContactNames.size],
-                phoneNumbers = listOf(com.coderon.phone.data.model.PhoneNumber("98765432$logIndex")),
-                profilePictureUrl = null
-            )
-        )
-    }
-
-    PhoneTheme {
-        CallLogScreen(
-            callLogs = mockCallLogs, navController = rememberNavController()
-        )
     }
 }

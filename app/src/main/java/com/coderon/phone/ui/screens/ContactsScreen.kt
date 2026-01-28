@@ -32,25 +32,22 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.data.model.Contact
-import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
-import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
+import java.util.SortedMap
 
 @Composable
 fun ContactsScreen(
-    contacts: Map<Char, List<Contact>>,
+    contactsGrouped: SortedMap<Char, List<Contact>>,
     navController: NavController
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -65,15 +62,6 @@ fun ContactsScreen(
     val bottomNavVisible = LocalBottomNavVisible.current
     LaunchedEffect(showSimDialog) {
         bottomNavVisible.value = !showSimDialog
-    }
-
-    val allContacts = remember(contacts) { contacts.values.flatten() }
-
-    val grouped = remember(allContacts) {
-        allContacts
-            .sortedBy { it.displayName.lowercase() }
-            .groupBy { it.displayName.firstOrNull()?.uppercaseChar() ?: '#' }
-            .toSortedMap()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -122,8 +110,8 @@ fun ContactsScreen(
                     end = 16.dp
                 )
             ) {
-                grouped.forEach { (letter, list) ->
-                    item {
+                contactsGrouped.forEach { (letter, list) ->
+                    item(key = letter) {
                         Text(
                             text = letter.toString(),
                             fontSize = 13.sp,
@@ -133,7 +121,7 @@ fun ContactsScreen(
                         )
                     }
 
-                    items(list) { contact ->
+                    items(list, key = { it.id }) { contact ->
                         val phoneNumber = contact.phoneNumbers.firstOrNull()?.number.orEmpty()
                         HybridContactRow(
                             name = contact.displayName,
@@ -168,24 +156,5 @@ fun ContactsScreen(
                 onDismiss = { showSimDialog = false }
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PreviewHybridContacts() {
-    val contacts = listOf(
-        Contact("4", "Simple Alpaca", phoneNumbers = listOf(PhoneNumber("123"))),
-        Contact("2", "Alice Smith", phoneNumbers = listOf(PhoneNumber("456"))),
-        Contact("3", "John Doe", phoneNumbers = listOf(PhoneNumber("789")))
-    )
-
-    PhoneTheme {
-        ContactsScreen(
-            contacts = contacts.groupBy {
-                it.displayName.first().uppercaseChar()
-            },
-            navController = rememberNavController()
-        )
     }
 }

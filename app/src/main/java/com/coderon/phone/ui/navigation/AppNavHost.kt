@@ -1,6 +1,7 @@
 package com.coderon.phone.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -29,9 +30,12 @@ fun AppNavHost(
     contactViewModel: ContactViewModel,
     callLogViewModel: CallLogViewModel
 ) {
-    val groupedContacts = contactViewModel.groupedContacts.collectAsStateWithLifecycle().value
-    val allContacts = contactViewModel.allContacts.collectAsStateWithLifecycle().value
-    val filteredCallLogs = callLogViewModel.filteredCallLogs.collectAsStateWithLifecycle().value
+    val groupedContacts by contactViewModel.groupedContacts.collectAsStateWithLifecycle()
+    val allContacts by contactViewModel.allContacts.collectAsStateWithLifecycle()
+    val filteredContacts by contactViewModel.filteredContacts.collectAsStateWithLifecycle()
+    
+    val callLogsByDate by callLogViewModel.callLogsByDate.collectAsStateWithLifecycle()
+    val callFilter by callLogViewModel.filter.collectAsStateWithLifecycle()
 
     NavHost(
         navController = navController,
@@ -48,8 +52,8 @@ fun AppNavHost(
             ScaffoldScreen(navController) {
                 DialerScreen(
                     navController = navController,
-                    filterContact = contactViewModel.groupedContacts,
-                    filterCallLog = callLogViewModel.filteredCallLogs,
+                    contactsGrouped = groupedContacts,
+                    callLogsGrouped = callLogsByDate,
                     updateSearchQuery = ::updateSearchQuery,
                     playTones = { playTones(it) }
                 )
@@ -60,8 +64,11 @@ fun AppNavHost(
         composable(Screen.Recent.route) {
             ScaffoldScreen(navController) {
                 CallLogScreen(
-                    callLogs = filteredCallLogs,
-                    navController = navController,
+                    callLogsByDate = callLogsByDate,
+                    filter = callFilter,
+                    onFilterChanged = { callLogViewModel.onFilterChanged(it) },
+                    onDeleteAllLogs = { callLogViewModel.deleteAllLogs() },
+                    navController = navController
                 )
             }
         }
@@ -70,7 +77,7 @@ fun AppNavHost(
         composable(Screen.Contacts.route) {
             ScaffoldScreen(navController) {
                 ContactsScreen(
-                    contacts = groupedContacts,
+                    contactsGrouped = groupedContacts,
                     navController = navController
                 )
             }
@@ -81,8 +88,8 @@ fun AppNavHost(
             ScaffoldScreen(navController) {
                 SearchScreen(
                     navController = navController,
-                    contacts = allContacts,
-                    logs = filteredCallLogs,
+                    contacts = filteredContacts,
+                    logs = callLogsByDate.values.flatten().flatMap { it.logs },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -111,7 +118,6 @@ fun AppNavHost(
                 allContacts.firstOrNull { it.id == contactId }
             } else null
 
-            // Use key to force re-initialization when contact is loaded from the database
             key(existingContact?.id ?: "new_contact") {
                 AddContactScreen(
                     navController = navController,
@@ -150,10 +156,9 @@ fun AppNavHost(
             val routePhoneNumber = backStackEntry.arguments?.getString("phoneNumber").orEmpty()
             val normalizedRouteNumber = normalizePhoneNumber(routePhoneNumber)
 
-            val callLogsForNumber = callLogViewModel
+            val callLogsForNumber by callLogViewModel
                 .getCallLogsForNumber(normalizedRouteNumber)
                 .collectAsStateWithLifecycle(emptyList())
-                .value
 
             val matchedContact = allContacts.firstOrNull { contact ->
                 contact.phoneNumbers.any { phone ->

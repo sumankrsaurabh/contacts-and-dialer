@@ -207,6 +207,7 @@ class ContactRepositoryImpl(
         isFavorite: Boolean
     ): Unit = withContext(Dispatchers.IO) {
 
+        val rawContactId = getRawContactId(contactId) ?: return@withContext
         val ops = ArrayList<ContentProviderOperation>()
 
         // Update starred status
@@ -218,9 +219,9 @@ class ContactRepositoryImpl(
         // Update name
         ops += ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
             .withSelection(
-                "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+                "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
                 arrayOf(
-                    contactId,
+                    rawContactId,
                     ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
                 )
             )
@@ -232,9 +233,9 @@ class ContactRepositoryImpl(
         // Remove old numbers
         ops += ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
             .withSelection(
-                "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+                "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
                 arrayOf(
-                    contactId,
+                    rawContactId,
                     ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE
                 )
             )
@@ -247,7 +248,7 @@ class ContactRepositoryImpl(
                     ContactsContract.Data.MIMETYPE,
                     ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE
                 )
-                .withValue(ContactsContract.Data.CONTACT_ID, contactId)
+                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
                 .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone.number)
                 .withValue(
                     ContactsContract.CommonDataKinds.Phone.TYPE,
@@ -259,9 +260,9 @@ class ContactRepositoryImpl(
         // Remove old emails
         ops += ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
             .withSelection(
-                "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+                "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
                 arrayOf(
-                    contactId,
+                    rawContactId,
                     ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE
                 )
             )
@@ -274,7 +275,7 @@ class ContactRepositoryImpl(
                     ContactsContract.Data.MIMETYPE,
                     ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE
                 )
-                .withValue(ContactsContract.Data.CONTACT_ID, contactId)
+                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
                 .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
                 .build()
         }
@@ -282,24 +283,48 @@ class ContactRepositoryImpl(
         // Update photo
         profilePictureUri?.let {
             getPhotoBytes(it.toUri())?.let { bytes ->
-                ops += ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                // Try to delete existing photo first to simplify (instead of conditional update/insert)
+                ops += ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
-                        "${ContactsContract.Data.CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+                        "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
                         arrayOf(
-                            contactId,
+                            rawContactId,
                             ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
                         )
                     )
+                    .build()
+
+                ops += ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
                     .withValue(
-                        ContactsContract.CommonDataKinds.Photo.PHOTO,
-                        bytes
+                        ContactsContract.Data.MIMETYPE,
+                        ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
                     )
+                    .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, bytes)
                     .build()
             }
         }
 
         contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
         Unit
+    }
+
+    private fun getRawContactId(contactId: String): String? {
+        val projection = arrayOf(ContactsContract.RawContacts._ID)
+        val selection = "${ContactsContract.RawContacts.CONTACT_ID}=?"
+        val selectionArgs = arrayOf(contactId)
+        val cursor = contentResolver.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )
+        return cursor?.use {
+            if (it.moveToFirst()) {
+                it.getString(it.getColumnIndexOrThrow(ContactsContract.RawContacts._ID))
+            } else null
+        }
     }
 
     // ------------------------------------------------
