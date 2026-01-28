@@ -12,14 +12,16 @@ data class CallLog(
 
     val callType: CallType,
 
-    // duration in seconds (better than string)
+    // duration in seconds
     val callDurationSeconds: Int = 0,
 
     // timestamp
     val callTime: Long = currentTimeMillis(),
 
-    // SIM support (dual SIM phones)
+    // SIM support
     val simSlot: Int = 1,
+    val phoneAccountId: String? = null,
+    val phoneAccountComponentName: String? = null,
 
     val isRead: Boolean = true,
 

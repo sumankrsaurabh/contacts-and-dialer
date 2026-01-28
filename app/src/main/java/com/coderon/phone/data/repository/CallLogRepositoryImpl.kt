@@ -91,7 +91,8 @@ class CallLogRepositoryImpl(
                 val id = it.getLong(idIndex)
                 val rawNumber = it.getString(numberIndex) ?: continue
                 val normalized = PhoneNumberUtils.normalizeNumber(rawNumber)
-                val phoneAccountId = if (phoneAccountIdIndex != -1) it.getString(phoneAccountIdIndex) else null
+                val phoneAccountId =
+                    if (phoneAccountIdIndex != -1) it.getString(phoneAccountIdIndex) else null
 
                 callLogs.add(
                     CallLogData(
@@ -114,16 +115,17 @@ class CallLogRepositoryImpl(
     @SuppressLint("MissingPermission")
     private fun getSlotFromAccountId(accountId: String?): Int {
         if (accountId == null) return 1
-        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java) ?: return 1
-        
+        val subscriptionManager =
+            context.getSystemService(SubscriptionManager::class.java) ?: return 1
+
         // On many devices, PHONE_ACCOUNT_ID in the call log matches the Subscription ID or ICCID
         val activeSubscriptions = subscriptionManager.activeSubscriptionInfoList ?: return 1
-        
+
         // Try matching by subscriptionId string
         activeSubscriptions.firstOrNull { it.subscriptionId.toString() == accountId }?.let {
             return it.simSlotIndex + 1
         }
-        
+
         // Try matching by ICCID (sometimes stored in PHONE_ACCOUNT_ID)
         activeSubscriptions.firstOrNull { it.iccId == accountId }?.let {
             return it.simSlotIndex + 1
@@ -217,6 +219,7 @@ class CallLogRepositoryImpl(
                 )
             }
         } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }

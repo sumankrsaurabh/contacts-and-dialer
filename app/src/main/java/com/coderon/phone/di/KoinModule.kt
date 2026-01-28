@@ -16,44 +16,36 @@ import com.coderon.phone.utils.VoicemailRecorder
 import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
 import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.module.dsl.factoryOf
+import org.koin.core.module.dsl.singleOf
+import org.koin.core.module.dsl.viewModelOf
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 val appModule = module {
     // Provide ContentResolver from the Android context
     single<ContentResolver> { androidContext().contentResolver }
 
-    // Repository injections
-    single<ContactRepository> { ContactRepositoryImpl(contentResolver = get()) }
+    // Repository injections using modern DSL
+    singleOf(::ContactRepositoryImpl) bind ContactRepository::class
     single<CallLogRepository> {
         CallLogRepositoryImpl(
             contentResolver = get(),
-            context = get()
+            context = androidContext()
         )
     }
-    single { VoicemailRecorder() }
-    single { BlockedNumberRepository(blockedNumberDao = get()) }
-    single { VoicemailRepository(voicemailDao = get()) }
+    singleOf(::VoicemailRecorder)
+    singleOf(::BlockedNumberRepository)
+    singleOf(::VoicemailRepository)
 
     // Use Case injections
-    factory { GetContactsUseCase(contactRepository = get()) }
-    factory { SaveContactUseCase(contactRepository = get()) }
-    factory { UpdateContactUseCase(contactRepository = get()) }
-    factory { ObserveCallLogsUseCase(callLogRepository = get()) }
-    factory { DeleteCallLogUseCase(callLogRepository = get()) }
+    factoryOf(::GetContactsUseCase)
+    factoryOf(::SaveContactUseCase)
+    factoryOf(::UpdateContactUseCase)
+    factoryOf(::ObserveCallLogsUseCase)
+    factoryOf(::DeleteCallLogUseCase)
 
-    // ViewModel injections
-    viewModel {
-        ContactViewModel(
-            getContactsUseCase = get(),
-            saveContactUseCase = get(),
-            updateContactUseCase = get()
-        )
-    }
-    viewModel {
-        CallLogViewModel(
-            observeCallLogsUseCase = get(),
-            deleteCallLogUseCase = get()
-        )
-    }
+    // ViewModel injections using modern DSL (removes deprecation)
+    viewModelOf(::ContactViewModel)
+    viewModelOf(::CallLogViewModel)
 }
