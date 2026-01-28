@@ -540,39 +540,30 @@ object CallManager : KoinComponent {
         val manager = service.getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
         val targetFacing =
-            if (currentFacing == CameraCharacteristics.LENS_FACING_FRONT) CameraCharacteristics.LENS_FACING_BACK
-            else CameraCharacteristics.LENS_FACING_FRONT
+            if (currentFacing == CameraCharacteristics.LENS_FACING_FRONT)
+                CameraCharacteristics.LENS_FACING_BACK
+            else
+                CameraCharacteristics.LENS_FACING_FRONT
 
-        val targetCameraId = getCameraForFacing(manager, targetFacing)
+        val targetCameraId =
+            getCameraForFacing(manager, targetFacing)
+                ?: getCameraForFacing(manager, CameraCharacteristics.LENS_FACING_FRONT)
+                ?: return
 
         try {
-            if (targetCameraId != null) {
-                videoCall.setCamera(targetCameraId)
-                currentCameraId = targetCameraId
-                currentFacing = targetFacing
-            } else {
-                // 🔁 fallback to FRONT if BACK unavailable
-                val frontId = getCameraForFacing(
-                    manager, CameraCharacteristics.LENS_FACING_FRONT
-                ) ?: return
+            // 1️⃣ Switch camera
+            videoCall.setCamera(targetCameraId)
 
-                videoCall.setCamera(frontId)
-                currentCameraId = frontId
-                currentFacing = CameraCharacteristics.LENS_FACING_FRONT
-            }
+            // 2️⃣ Force FULL ACTIVE video profile (NOT paused)
+            val activeProfile = VideoProfile(VideoProfile.STATE_BIDIRECTIONAL)
+            videoCall.sendSessionModifyRequest(activeProfile)
+
+            // 3️⃣ Update state only after success
+            currentCameraId = targetCameraId
+            currentFacing = targetFacing
+
         } catch (e: Exception) {
-            // 🛟 absolute safety fallback
-            try {
-                val frontId = getCameraForFacing(
-                    manager, CameraCharacteristics.LENS_FACING_FRONT
-                ) ?: return
-
-                videoCall.setCamera(frontId)
-                currentCameraId = frontId
-                currentFacing = CameraCharacteristics.LENS_FACING_FRONT
-            } catch (_: Exception) {
-                // swallow – never crash in-call
-            }
+            Log.e("CallManager", "Camera flip failed", e)
         }
     }
 
