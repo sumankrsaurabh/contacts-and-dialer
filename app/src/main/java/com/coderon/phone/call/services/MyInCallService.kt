@@ -1,11 +1,19 @@
 package com.coderon.phone.call.services
 
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
 import com.coderon.phone.MainActivity
 import com.coderon.phone.notifications.CallNotificationManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 /**
  * Thin InCallService layer.
@@ -17,20 +25,19 @@ import com.coderon.phone.notifications.CallNotificationManager
  */
 class CallService : InCallService() {
 
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
     private val notificationManager by lazy {
         CallNotificationManager(this)
     }
 
     private val callback = object : Call.Callback() {
-
         override fun onStateChanged(call: Call, state: Int) {
             CallManager.onCallStateChanged(call, state)
-            syncNotification()
         }
 
         override fun onDetailsChanged(call: Call, details: Call.Details) {
             CallManager.onCallStateChanged(call, call.state)
-            syncNotification()
         }
 
         override fun onConferenceableCallsChanged(
@@ -38,7 +45,17 @@ class CallService : InCallService() {
             conferenceableCalls: MutableList<Call>
         ) {
             CallManager.onCallStateChanged(call, call.state)
-            syncNotification()
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        
+        // Observe UiState changes to sync notification automatically (covers timer, mute, etc.)
+        serviceScope.launch {
+            CallManager.uiState.collectLatest { state ->
+                syncNotification()
+            }
         }
     }
 
@@ -55,7 +72,6 @@ class CallService : InCallService() {
         call.registerCallback(callback)
 
         maybeLaunchUi()
-        syncNotification(forceOngoing = true)
     }
 
     /* ---------------------------------------------------
@@ -67,11 +83,11 @@ class CallService : InCallService() {
 
         call.unregisterCallback(callback)
         CallManager.onCallRemoved(call)
-
-        syncNotification()
         
         if (CallManager.uiState.value.hasNoCalls) {
             CallManager.setService(null)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
     }
 
@@ -86,6 +102,7 @@ class CallService : InCallService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceScope.cancel()
         notificationManager.cancelNotification()
         CallManager.setService(null)
     }
@@ -94,17 +111,28 @@ class CallService : InCallService() {
        HELPERS
     --------------------------------------------------- */
 
-    private fun syncNotification(forceOngoing: Boolean = false) {
+    private fun syncNotification() {
         val uiState = CallManager.uiState.value
 
-        when {
-            uiState.hasNoCalls ->
-                notificationManager.cancelNotification()
+        if (uiState.hasNoCalls) {
+            notificationManager.cancelNotification()
+            return
+        }
 
-            else ->
-                notificationManager.setupNotification(
-                    showOngoing = forceOngoing || uiState.isOngoing
+        val notification = notificationManager.setupNotification()
+        if (notification != null) {
+            // Android 14 requires specifying foreground service type
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    CallNotificationManager.CALL_NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL or 
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or 
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
                 )
+            } else {
+                startForeground(CallNotificationManager.CALL_NOTIFICATION_ID, notification)
+            }
         }
     }
 

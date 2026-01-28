@@ -3,10 +3,14 @@
 package com.coderon.phone.call.ui.screens.incallui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,17 +19,26 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Dialpad
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.VideoCall
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,12 +48,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -52,10 +67,8 @@ import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.OneUi8DynamicBackground
 import com.coderon.phone.ui.utils.extentions.State
-
-/* ------------------------------------------------
-   ONGOING CALL – iOS Style Redesign
------------------------------------------------- */
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun OngoingCallScreen(
@@ -80,24 +93,37 @@ fun OngoingCallScreen(
 ) {
     var showKeypad by remember { mutableStateOf(false) }
 
+    val entryAlpha = remember { Animatable(0f) }
+    val entryOffset = remember { Animatable(30f) }
+
+    LaunchedEffect(Unit) {
+        launch { entryAlpha.animateTo(1f, tween(800, easing = LinearEasing)) }
+        launch { entryOffset.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+    }
+
+    // Logic for button states
+    val isConnectingOrDialing = state == State.DIALING || state == State.CONNECTING
+    val isActive = state == State.ACTIVE
+    val isOnHold = state == State.HOLD
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Shared Dynamic Background
         OneUi8DynamicBackground()
 
-        /* ---------- MAIN CONTENT ---------- */
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(bottom = 56.dp),
+                .padding(bottom = 48.dp)
+                .alpha(entryAlpha.value)
+                .offset { IntOffset(0, entryOffset.value.roundToInt()) },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            /* ---------- IDENTITY SECTION (iOS Style) ---------- */
+            /* ---------- IDENTITY SECTION ---------- */
             Spacer(Modifier.height(48.dp))
 
             Column(
@@ -106,32 +132,46 @@ fun OngoingCallScreen(
             ) {
                 Text(
                     text = contactName.ifBlank { contactPhoneNumber },
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Normal,
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (1).sp
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(
-                    text = if (state == State.HOLD) "on hold" else callDuration,
-                    fontSize = 18.sp,
+                    text = when (state) {
+                        State.HOLD -> "On Hold"
+                        State.DIALING -> "Dialing..."
+                        State.CONNECTING -> "Connecting..."
+                        State.DISCONNECTING -> "Disconnecting..."
+                        else -> callDuration
+                    },
+                    fontSize = 19.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = if (isOnHold) Color(0xFFF1C40F) else Color.White.copy(alpha = 0.7f)
                 )
 
                 if (simInfo.isNotEmpty()) {
-                    Text(
-                        text = "$simInfo • $callType",
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Surface(
+                        color = Color.White.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(top = 12.dp)
+                    ) {
+                        Text(
+                            text = "$simInfo • $callType",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
-            // Dynamic Center Area: Avatar or Keypad
+            /* ---------- CENTER AREA ---------- */
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -139,7 +179,8 @@ fun OngoingCallScreen(
                 if (!showKeypad) {
                     OngoingCallAvatar(
                         name = contactName.ifBlank { contactPhoneNumber },
-                        photoUrl = profilePictureUrl
+                        photoUrl = profilePictureUrl,
+                        isPulsing = isConnectingOrDialing
                     )
                 } else {
                     OngoingDialPad {
@@ -154,38 +195,35 @@ fun OngoingCallScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
-                // Primary Action Grid (Visible when keypad is hidden)
                 AnimatedVisibility(
                     visible = !showKeypad,
-                    enter = fadeIn(),
-                    exit = fadeOut()
+                    enter = fadeIn(tween(400)),
+                    exit = fadeOut(tween(400))
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 32.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                        verticalArrangement = Arrangement.spacedBy(32.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            InCallActionCircle(
-                                icon = if (isMuted) painterResource(R.drawable.mic_mute_fill) else painterResource(
-                                    R.drawable.mic
-                                ),
-                                label = "mute",
+                            ModernInCallAction(
+                                imageVector = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                                label = "Mute",
                                 active = isMuted,
+                                enabled = isActive,
                                 onClick = onToggleMute
                             )
-                            InCallActionCircle(
-                                icon = painterResource(R.drawable.keypad_icon),
-                                label = "keypad",
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.Dialpad,
+                                label = "Keypad",
                                 active = false,
                                 onClick = { showKeypad = true }
                             )
-                            InCallActionCircle(
-                                icon = painterResource(R.drawable.volume_high),
-                                label = "speaker",
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.VolumeUp,
+                                label = "Speaker",
                                 active = currentAudioRoute == AudioRoute.SPEAKER,
                                 onClick = onToggleSpeaker
                             )
@@ -194,62 +232,100 @@ fun OngoingCallScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            InCallActionCircle(
-                                icon = painterResource(R.drawable.plus),
-                                label = "add call",
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.Add,
+                                label = "Add Call",
                                 active = false,
+                                enabled = isActive,
                                 onClick = onAddCall
                             )
-                            InCallActionCircle(
-                                icon = painterResource(R.drawable.video_call),
-                                label = "video call",
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.VideoCall,
+                                label = "Video",
                                 active = false,
+                                enabled = isActive,
                                 onClick = onVideoCall
                             )
-                            InCallActionCircle(
-                                icon = if (state == State.HOLD) null else painterResource(R.drawable.pause),
-                                imageVector = if (state == State.HOLD) Icons.Rounded.PlayArrow else null,
-                                label = if (state == State.HOLD) "resume" else "hold",
-                                active = state == State.HOLD,
+                            ModernInCallAction(
+                                imageVector = if (isOnHold) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                                label = if (isOnHold) "Resume" else "Hold",
+                                active = isOnHold,
+                                enabled = isActive || isOnHold,
                                 onClick = onToggleHold
                             )
                         }
                     }
                 }
 
-                // "Hide" button for keypad
                 if (showKeypad) {
-                    Text(
-                        "Hide",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .padding(vertical = 24.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Color.White.copy(alpha = 0.15f))
-                            .clickable { showKeypad = false }
-                            .padding(horizontal = 32.dp, vertical = 12.dp)
-                    )
+                    Surface(
+                        onClick = { showKeypad = false },
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = CircleShape,
+                        modifier = Modifier.padding(vertical = 24.dp)
+                    ) {
+                        Text(
+                            "Hide Keypad",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                        )
+                    }
                 } else {
                     Spacer(Modifier.height(48.dp))
                 }
 
-                // Always visible End Call Button
-                EndCallButton(onClick = onEndCall)
+                // Modern End Call Button
+                Surface(
+                    onClick = onEndCall,
+                    modifier = Modifier.size(80.dp),
+                    shape = CircleShape,
+                    color = Color(0xFFFF3B30),
+                    shadowElevation = 12.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(R.drawable.end_call),
+                            contentDescription = "End",
+                            tint = Color.White,
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun OngoingCallAvatar(name: String, photoUrl: String?) {
+private fun OngoingCallAvatar(name: String, photoUrl: String?, isPulsing: Boolean = false) {
+    // Pulse animation logic for dialing/connecting
+    val pulseAlpha = remember { Animatable(0.2f) }
+    if (isPulsing) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                pulseAlpha.animateTo(0.6f, tween(1000, easing = LinearEasing))
+                pulseAlpha.animateTo(0.2f, tween(1000, easing = LinearEasing))
+            }
+        }
+    }
+
     Box(contentAlignment = Alignment.Center) {
+        if (isPulsing) {
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .background(Color.White.copy(alpha = pulseAlpha.value), CircleShape)
+            )
+        }
+
         Surface(
             modifier = Modifier
-                .size(160.dp)
+                .size(180.dp)
                 .clip(CircleShape),
-            color = Color.White.copy(alpha = 0.1f)
+            color = Color.White.copy(alpha = 0.08f),
+            shadowElevation = 4.dp
         ) {
             if (!photoUrl.isNullOrBlank()) {
                 AsyncImage(
@@ -265,9 +341,9 @@ private fun OngoingCallAvatar(name: String, photoUrl: String?) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = name.firstOrNull()?.uppercase() ?: "?",
-                        fontSize = 72.sp,
-                        fontWeight = FontWeight.Light,
-                        color = Color.White.copy(alpha = 0.8f)
+                        fontSize = 84.sp,
+                        fontWeight = FontWeight.ExtraLight,
+                        color = Color.White.copy(alpha = 0.9f)
                     )
                 }
             }
@@ -276,78 +352,48 @@ private fun OngoingCallAvatar(name: String, photoUrl: String?) {
 }
 
 @Composable
-private fun InCallActionCircle(
-    icon: Painter? = null,
-    imageVector: androidx.compose.ui.graphics.vector.ImageVector? = null,
+private fun ModernInCallAction(
+    imageVector: ImageVector,
     label: String,
     active: Boolean,
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val alpha = if (enabled) 1f else 0.4f
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.alpha(if (enabled) 1f else 0.4f)
+        modifier = Modifier.alpha(alpha)
     ) {
         Surface(
-            onClick = onClick,
-            enabled = enabled,
+            onClick = { if (enabled) onClick() },
             modifier = Modifier.size(72.dp),
             shape = CircleShape,
-            color = if (active) Color.White else Color.White.copy(alpha = 0.15f)
+            color = if (active) Color.White else Color.White.copy(alpha = 0.12f)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                if (icon != null) {
-                    Icon(
-                        painter = icon,
-                        contentDescription = label,
-                        tint = if (active) Color.Black else Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                } else if (imageVector != null) {
-                    Icon(
-                        imageVector = imageVector,
-                        contentDescription = label,
-                        tint = if (active) Color.Black else Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+                Icon(
+                    imageVector = imageVector,
+                    contentDescription = label,
+                    tint = if (active) Color.Black else Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
         Text(
             text = label,
-            fontSize = 13.sp,
-            color = Color.White,
-            fontWeight = FontWeight.Normal
+            fontSize = 12.sp,
+            color = Color.White.copy(alpha = 0.8f),
+            fontWeight = FontWeight.Medium
         )
-    }
-}
-
-@Composable
-private fun EndCallButton(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(76.dp),
-        shape = CircleShape,
-        color = Color(0xFFFF3B30), // iOS Red
-        shadowElevation = 8.dp
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(R.drawable.end_call),
-                contentDescription = "End Call",
-                tint = Color.White,
-                modifier = Modifier.size(42.dp)
-            )
-        }
     }
 }
 
 @Composable
 private fun OngoingDialPad(onDigit: (Char) -> Unit) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.padding(horizontal = 32.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         listOf("123", "456", "789", "*0#").forEach { row ->
             Row(
@@ -357,16 +403,16 @@ private fun OngoingDialPad(onDigit: (Char) -> Unit) {
                 row.forEach { digit ->
                     Surface(
                         onClick = { onDigit(digit) },
-                        modifier = Modifier.size(76.dp),
+                        modifier = Modifier.size(72.dp),
                         shape = CircleShape,
                         color = Color.White.copy(alpha = 0.15f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 digit.toString(),
-                                fontSize = 36.sp,
+                                fontSize = 32.sp,
                                 color = Color.White,
-                                fontWeight = FontWeight.Normal
+                                fontWeight = FontWeight.Light
                             )
                         }
                     }
@@ -394,7 +440,6 @@ private fun OngoingCallScreenPreview() {
             onToggleMute = {},
             onToggleHold = {},
             onToggleBluetooth = {},
-            bluetoothDeviceConnected = true,
             playDfmTones = {}
         )
     }

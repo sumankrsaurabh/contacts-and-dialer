@@ -1,5 +1,14 @@
 package com.coderon.phone.call.ui.screens.incallui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +22,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.FlipCameraAndroid
+import androidx.compose.material.icons.rounded.Cameraswitch
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Videocam
@@ -21,12 +30,17 @@ import androidx.compose.material.icons.rounded.VideocamOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +58,7 @@ fun VideoCallUI(
     isMuted: Boolean,
     isVideoEnabled: Boolean,
     isFrontCamera: Boolean = true,
+    isActive: Boolean = true,
     onEndCall: () -> Unit,
     onToggleMute: () -> Unit,
     onToggleVideo: () -> Unit,
@@ -56,12 +71,32 @@ fun VideoCallUI(
     ) {
 
         // Remote Video (Full Screen)
-        if (remoteVideoSurface != null) {
+        if (remoteVideoSurface != null && isVideoEnabled) {
             Box(modifier = Modifier.fillMaxSize()) {
                 remoteVideoSurface()
             }
         } else {
             OneUi8DynamicBackground()
+            // Show avatar or name if no remote video
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Surface(
+                    modifier = Modifier.size(120.dp),
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.1f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = contactName.firstOrNull()?.uppercase() ?: "?",
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Light,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
         }
 
         /* ---------- TOP BAR (Flip + Info) ---------- */
@@ -71,16 +106,16 @@ fun VideoCallUI(
                 .statusBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            // Flip Camera Top Left (iOS/OneUI 8 style)
+            // Flip Camera Top Left
             Surface(
                 onClick = onFlipCamera,
                 modifier = Modifier.size(48.dp),
                 shape = CircleShape,
-                color = Color.White.copy(alpha = 0.2f)
+                color = Color.Black.copy(alpha = 0.3f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Rounded.FlipCameraAndroid,
+                        imageVector = Icons.Rounded.Cameraswitch,
                         contentDescription = "Flip",
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
@@ -97,45 +132,41 @@ fun VideoCallUI(
                     text = contactName,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = Color.White,
+                    textAlign = TextAlign.Center
                 )
                 Text(
-                    text = callDuration,
+                    text = if (isActive) callDuration else "Connecting...",
                     fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.8f)
                 )
             }
         }
 
         // Local Video Preview (Picture-in-Picture)
-        Surface(
+        AnimatedVisibility(
+            visible = isVideoEnabled,
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 100.dp, end = 24.dp)
-                .size(120.dp, 180.dp)
-                .graphicsLayer(scaleX = if (isFrontCamera) -1f else 1f),
-            shape = RoundedCornerShape(16.dp),
-            color = Color.DarkGray,
-            shadowElevation = 8.dp
         ) {
-            if (isVideoEnabled && localVideoSurface != null) {
-                localVideoSurface()
-            } else {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.graphicsLayer(scaleX = if (isFrontCamera) -1f else 1f) // Un-mirror the icon
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.VideocamOff,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.size(40.dp)
-                    )
+            Surface(
+                modifier = Modifier
+                    .size(110.dp, 160.dp)
+                    .graphicsLayer(scaleX = if (isFrontCamera) -1f else 1f),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.DarkGray,
+                shadowElevation = 8.dp
+            ) {
+                if (localVideoSurface != null) {
+                    localVideoSurface()
                 }
             }
         }
 
-        // Bottom Controls (Always Showing End Call)
+        // Bottom Controls
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -150,13 +181,14 @@ fun VideoCallUI(
                 VideoActionCircle(
                     icon = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
                     active = isMuted,
+                    enabled = isActive,
                     onClick = onToggleMute
                 )
 
-                // End Call (Prominent iOS Red)
+                // End Call
                 Surface(
                     onClick = onEndCall,
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier.size(76.dp),
                     shape = CircleShape,
                     color = Color(0xFFFF3B30),
                     shadowElevation = 12.dp
@@ -166,15 +198,16 @@ fun VideoCallUI(
                             painter = painterResource(R.drawable.end_call),
                             contentDescription = "End",
                             tint = Color.White,
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(36.dp)
                         )
                     }
                 }
 
-                // Camera Toggle
+                // Video Toggle
                 VideoActionCircle(
                     icon = if (isVideoEnabled) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff,
                     active = !isVideoEnabled,
+                    enabled = isActive,
                     onClick = onToggleVideo
                 )
             }
@@ -184,15 +217,16 @@ fun VideoCallUI(
 
 @Composable
 private fun VideoActionCircle(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     active: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Surface(
-        onClick = onClick,
-        modifier = Modifier.size(64.dp),
+        onClick = { if (enabled) onClick() },
+        modifier = Modifier.size(64.dp).alpha(if (enabled) 1f else 0.5f),
         shape = CircleShape,
-        color = if (active) Color.White else Color.White.copy(alpha = 0.2f)
+        color = if (active) Color.White else Color.Black.copy(alpha = 0.3f)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
@@ -215,30 +249,11 @@ fun VideoCallUIPreview() {
             isMuted = false,
             isVideoEnabled = true,
             isFrontCamera = true,
+            isActive = true,
             onEndCall = {},
             onToggleMute = {},
             onToggleVideo = {},
-            onFlipCamera = {},
-            remoteVideoSurface = {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Gray),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Remote Video Stream", color = Color.White)
-                }
-            },
-            localVideoSurface = {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.DarkGray),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Local", color = Color.White, fontSize = 12.sp)
-                }
-            }
+            onFlipCamera = {}
         )
     }
 }

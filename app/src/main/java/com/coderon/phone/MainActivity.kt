@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -24,11 +25,14 @@ import com.coderon.phone.utils.isDefaultDialer
 
 class MainActivity : ComponentActivity() {
 
+    private val intentState: MutableState<Intent?> = mutableStateOf(null)
+
     @SuppressLint("MissingPermission", "SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        intentState.value = intent
 
         setContent {
             PhoneTheme {
@@ -78,7 +82,7 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        MyApp()
+                        MyApp(intentState)
                     }
                 }
             }
@@ -88,5 +92,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        intentState.value = intent
     }
 }

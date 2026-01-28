@@ -6,6 +6,8 @@ object Constants {
     const val DECLINE_CALL = PATH + "decline_call"
     const val TOGGLE_MUTE = PATH + "toggle_mute"
     const val TOGGLE_SPEAKER = PATH + "toggle_speaker"
+    const val TOGGLE_HOLD = PATH + "toggle_hold"
     const val CALLBACK_MISSED_CALL = PATH + "callback_missed_call"
+    const val SEND_MESSAGE = PATH + "send_message"
     const val ACTION_UPDATE_CALL_NOTIFICATION = PATH + "update_call_notification"
 }
