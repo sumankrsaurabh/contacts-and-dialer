@@ -19,7 +19,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,8 +41,16 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
-import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Screen
+
+/* ------------------------------------------------
+   BOTTOM NAV VISIBILITY CONTROL
+------------------------------------------------ */
+
+val LocalBottomNavVisible = compositionLocalOf<MutableState<Boolean>> {
+    error("No LocalBottomNavVisible provided")
+}
 
 /* ------------------------------------------------
    ROOT CONTAINER
@@ -49,33 +62,37 @@ fun ScaffoldScreen(
     showBottomBar: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    val bottomNavVisible = remember { mutableStateOf(true) }
 
+    CompositionLocalProvider(LocalBottomNavVisible provides bottomNavVisible) {
         Box(modifier = Modifier.fillMaxSize()) {
-            content()
-        }
 
-        if (showBottomBar) {
-            // Gradient fade to soften the area behind the floating dock
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
+            Box(modifier = Modifier.fillMaxSize()) {
+                content()
+            }
+
+            if (showBottomBar && bottomNavVisible.value) {
+                // Gradient fade to soften the area behind the floating dock
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
+                                )
                             )
                         )
-                    )
-            )
+                )
 
-            IosSegmentedBottomBar(
-                navController = navController,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+                IosSegmentedBottomBar(
+                    navController = navController,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
         }
     }
 }
@@ -129,7 +146,9 @@ fun IosSegmentedBottomBar(
                             .weight(1f)
                             .clip(RoundedCornerShape(26.dp))
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(
+                                    alpha = 0.35f
+                                )
                                 else Color.Transparent
                             )
                             .noRippleClickable {

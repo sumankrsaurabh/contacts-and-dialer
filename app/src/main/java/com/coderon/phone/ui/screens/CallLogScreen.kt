@@ -52,6 +52,7 @@ import com.coderon.phone.ui.components.HybridSegmentedPicker
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
@@ -86,6 +87,12 @@ fun CallLogScreen(
     var showSimDialog by remember { mutableStateOf(false) }
     var availableSims by remember { mutableStateOf<List<PhoneAccountHandle>>(emptyList()) }
     var phoneNumberToDial by remember { mutableStateOf("") }
+
+    // Bottom Nav Visibility
+    val bottomNavVisible = LocalBottomNavVisible.current
+    LaunchedEffect(showSimDialog) {
+        bottomNavVisible.value = !showSimDialog
+    }
 
     // Confirmation State
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -185,8 +192,7 @@ fun CallLogScreen(
                             )
                         }
 
-                        val groupedLogs = logs.groupBy { it.id } // Using id as unique key for now
-                            .map { GroupedCallLog(it.value) }
+                        val groupedLogs = groupConsecutiveLogs(logs)
 
                         items(groupedLogs, key = { it.log.id }) { group ->
                             HybridCallLogPill(
@@ -196,6 +202,7 @@ fun CallLogScreen(
                                 callTime = group.callTime,
                                 simSlot = group.simSlot,
                                 contact = group.contact,
+                                callCount = group.logs.size,
                                 onRowClick = {
                                     initiateCall(context, group.phoneNumber) { sims ->
                                         availableSims = sims
@@ -240,6 +247,34 @@ fun CallLogScreen(
             )
         }
     }
+}
+
+private fun groupConsecutiveLogs(logs: List<CallLog>): List<GroupedCallLog> {
+    if (logs.isEmpty()) return emptyList()
+    
+    val result = mutableListOf<GroupedCallLog>()
+    var currentGroup = mutableListOf<CallLog>()
+    
+    for (log in logs) {
+        if (currentGroup.isEmpty()) {
+            currentGroup.add(log)
+        } else {
+            val lastLog = currentGroup.last()
+            // Group if it's the same number and same type (consecutive)
+            if (lastLog.phoneNumber == log.phoneNumber && lastLog.callType == log.callType) {
+                currentGroup.add(log)
+            } else {
+                result.add(GroupedCallLog(currentGroup))
+                currentGroup = mutableListOf(log)
+            }
+        }
+    }
+    
+    if (currentGroup.isNotEmpty()) {
+        result.add(GroupedCallLog(currentGroup))
+    }
+    
+    return result
 }
 
 private data class GroupedCallLog(val logs: List<CallLog>) {

@@ -1,6 +1,7 @@
 package com.coderon.phone.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -87,7 +88,7 @@ fun AppNavHost(
             }
         }
 
-        /* -------------------- ADD CONTACT -------------------- */
+        /* -------------------- ADD/EDIT CONTACT -------------------- */
         composable(
             route = Screen.AddContact.route,
             arguments = listOf(
@@ -95,25 +96,53 @@ fun AppNavHost(
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                },
+                navArgument("contactId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) { backStackEntry ->
             val number = backStackEntry.arguments?.getString("number")
-            AddContactScreen(
-                navController = navController,
-                initialPhoneNumber = number,
-                onSaveContact = { contact ->
-                    contactViewModel.saveContact(
-                        firstName = contact.firstName,
-                        lastName = contact.lastName,
-                        displayName = contact.displayName,
-                        phoneNumbers = contact.phoneNumbers,
-                        emailAddresses = contact.emailAddresses,
-                        profilePictureUri = contact.profilePictureUrl,
-                        isFavorite = contact.isFavorite
-                    )
-                }
-            )
+            val contactId = backStackEntry.arguments?.getString("contactId")
+            
+            val existingContact = if (contactId != null) {
+                allContacts.firstOrNull { it.id == contactId }
+            } else null
+
+            // Use key to force re-initialization when contact is loaded from the database
+            key(existingContact?.id ?: "new_contact") {
+                AddContactScreen(
+                    navController = navController,
+                    initialPhoneNumber = number,
+                    existingContact = existingContact,
+                    onSaveContact = { contact ->
+                        if (contactId != null) {
+                            contactViewModel.updateContact(
+                                contactId = contactId,
+                                firstName = contact.firstName,
+                                lastName = contact.lastName,
+                                displayName = contact.displayName,
+                                phoneNumbers = contact.phoneNumbers,
+                                emailAddresses = contact.emailAddresses,
+                                profilePictureUri = contact.profilePictureUrl,
+                                isFavorite = contact.isFavorite
+                            )
+                        } else {
+                            contactViewModel.saveContact(
+                                firstName = contact.firstName,
+                                lastName = contact.lastName,
+                                displayName = contact.displayName,
+                                phoneNumbers = contact.phoneNumbers,
+                                emailAddresses = contact.emailAddresses,
+                                profilePictureUri = contact.profilePictureUrl,
+                                isFavorite = contact.isFavorite
+                            )
+                        }
+                    }
+                )
+            }
         }
 
         /* -------------------- CONTACT DETAILS -------------------- */
@@ -144,6 +173,10 @@ fun AppNavHost(
                 ),
                 callLogs = callLogsForNumber,
                 navController = navController,
+                onToggleFavorite = { contactViewModel.toggleFavorite(it) },
+                onEditContact = { contact ->
+                    navController.navigate(Screen.AddContact.createRoute(contactId = contact.id))
+                }
             )
         }
 

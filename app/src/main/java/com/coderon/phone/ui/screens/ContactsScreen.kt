@@ -2,6 +2,7 @@
 
 package com.coderon.phone.ui.screens
 
+import android.telecom.PhoneAccountHandle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,10 +22,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -37,6 +43,10 @@ import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.ui.utils.LocalBottomNavVisible
+import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.initiateCall
+import com.coderon.phone.utils.placeCall
 
 @Composable
 fun ContactsScreen(
@@ -44,6 +54,18 @@ fun ContactsScreen(
     navController: NavController
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+
+    // SIM Selection State
+    var showSimDialog by remember { mutableStateOf(false) }
+    var availableSims by remember { mutableStateOf<List<PhoneAccountHandle>>(emptyList()) }
+    var phoneNumberToDial by remember { mutableStateOf("") }
+
+    // Bottom Nav Visibility
+    val bottomNavVisible = LocalBottomNavVisible.current
+    LaunchedEffect(showSimDialog) {
+        bottomNavVisible.value = !showSimDialog
+    }
 
     val allContacts = remember(contacts) { contacts.values.flatten() }
 
@@ -54,78 +76,97 @@ fun ContactsScreen(
             .toSortedMap()
     }
 
-    Scaffold(
-        containerColor = colorScheme.background,
-        topBar = {
-            Box {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(24.dp)
-                        .background(colorScheme.background.copy(alpha = 0.65f))
-                )
-
-                TopAppBar(
-                    title = {
-                        Text(
-                            "Contacts",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 32.sp
-                        )
-                    },
-                    actions = {
-                        FilledTonalIconButton(onClick = { navController.navigate(Screen.AddContact.route) }) {
-                            Icon(
-                                Icons.Rounded.Add,
-                                contentDescription = "Add",
-                                tint = colorScheme.primary
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.9f)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = colorScheme.background,
+            topBar = {
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .blur(24.dp)
+                            .background(colorScheme.background.copy(alpha = 0.65f))
                     )
+
+                    TopAppBar(
+                        title = {
+                            Text(
+                                "Contacts",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 32.sp
+                            )
+                        },
+                        actions = {
+                            FilledTonalIconButton(onClick = { navController.navigate(Screen.AddContact.route) }) {
+                                Icon(
+                                    Icons.Rounded.Add,
+                                    contentDescription = "Add",
+                                    tint = colorScheme.primary
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.9f)
+                        )
+                    )
+                }
+            }
+        ) { innerPadding ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding() + 16.dp,
+                    bottom = 100.dp,
+                    start = 16.dp,
+                    end = 16.dp
                 )
+            ) {
+                grouped.forEach { (letter, list) ->
+                    item {
+                        Text(
+                            text = letter.toString(),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                        )
+                    }
+
+                    items(list) { contact ->
+                        val phoneNumber = contact.phoneNumbers.firstOrNull()?.number.orEmpty()
+                        HybridContactRow(
+                            name = contact.displayName,
+                            subtitle = phoneNumber,
+                            photoUrl = contact.profilePictureUrl,
+                            onRowClick = {
+                                if (phoneNumber.isNotBlank()) {
+                                    phoneNumberToDial = phoneNumber
+                                    initiateCall(context, phoneNumber) { sims ->
+                                        availableSims = sims
+                                        showSimDialog = true
+                                    }
+                                }
+                            },
+                            onInfoClick = {
+                                navController.navigate(Screen.CallDetails.createRoute(phoneNumber))
+                            }
+                        )
+                    }
+                    item { Spacer(Modifier.height(16.dp)) }
+                }
             }
         }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding() + 16.dp,
-                bottom = 100.dp,
-                start = 16.dp,
-                end = 16.dp
-            )
-        ) {
-            grouped.forEach { (letter, list) ->
-                item {
-                    Text(
-                        text = letter.toString(),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
-                    )
-                }
 
-                items(list) { contact ->
-                    val phoneNumber = contact.phoneNumbers.firstOrNull()?.number.orEmpty()
-                    HybridContactRow(
-                        name = contact.displayName,
-                        subtitle = phoneNumber,
-                        photoUrl = contact.profilePictureUrl,
-                        onRowClick = {
-                            navController.navigate(Screen.CallDetails.createRoute(phoneNumber))
-                        },
-                        onInfoClick = {
-                            navController.navigate(Screen.CallDetails.createRoute(phoneNumber))
-                        }
-                    )
-                }
-                item { Spacer(Modifier.height(16.dp)) }
-            }
+        if (showSimDialog) {
+            SimSelectionDialog(
+                availableAccounts = availableSims,
+                onSimSelected = { handle ->
+                    showSimDialog = false
+                    placeCall(context, phoneNumberToDial, handle)
+                },
+                onDismiss = { showSimDialog = false }
+            )
         }
     }
 }

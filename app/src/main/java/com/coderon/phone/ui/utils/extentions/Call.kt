@@ -98,15 +98,35 @@ fun Call.getSimInfoForCall(context: Context): String {
 
     val phoneAccountHandle = this.details.accountHandle ?: return "Unknown SIM"
     val phoneAccount = telecomManager.getPhoneAccount(phoneAccountHandle)
-    val subscriptionId = phoneAccount?.subscriptionAddress?.schemeSpecificPart?.toIntOrNull() ?: return "Unknown SIM"
+    
+    // Attempt to get subscription ID from the account handle ID
+    val subscriptionId = phoneAccountHandle.id?.toIntOrNull()
 
-    val subscriptionInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    val subscriptionInfo = if (subscriptionId != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            subscriptionManager.getActiveSubscriptionInfo(subscriptionId)
+        } else {
+            @Suppress("DEPRECATION")
+            subscriptionManager.activeSubscriptionInfoList?.firstOrNull { it.subscriptionId == subscriptionId }
+        }
+    } else null
+
+    return subscriptionInfo?.carrierName?.toString() ?: phoneAccount?.label?.toString() ?: "Unknown Carrier"
+}
+
+@SuppressLint("MissingPermission")
+fun Call.getSimSlot(context: Context): Int {
+    val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+    val phoneAccountHandle = this.details.accountHandle ?: return 1
+    
+    val subscriptionId = phoneAccountHandle.id?.toIntOrNull() ?: return 1
+    
+    val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         subscriptionManager.getActiveSubscriptionInfo(subscriptionId)
     } else {
         @Suppress("DEPRECATION")
         subscriptionManager.activeSubscriptionInfoList?.firstOrNull { it.subscriptionId == subscriptionId }
     }
-
-    return subscriptionInfo?.carrierName?.toString() ?: "Unknown Carrier"
+    
+    return (info?.simSlotIndex ?: 0) + 1
 }
-

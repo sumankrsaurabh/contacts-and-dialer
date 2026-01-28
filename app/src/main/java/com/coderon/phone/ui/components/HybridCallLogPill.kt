@@ -40,6 +40,7 @@ fun HybridCallLogPill(
     callTime: Long,
     simSlot: Int,
     contact: Contact?,
+    callCount: Int = 1,
     onRowClick: () -> Unit,
     onInfoClick: () -> Unit
 ) {
@@ -74,13 +75,26 @@ fun HybridCallLogPill(
             Spacer(Modifier.width(16.dp))
 
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = name,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isMissed) Color.Red else colorScheme.onSurface,
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = name,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isMissed) Color.Red else colorScheme.onSurface,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    
+                    if (callCount > 1) {
+                        Text(
+                            text = " ($callCount)",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isMissed) Color.Red else colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(4.dp))
 

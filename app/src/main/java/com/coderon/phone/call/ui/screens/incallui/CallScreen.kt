@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -45,18 +46,18 @@ fun CallScreen(
         )
     }
 
-    // Use AnimatedContent for smoother transitions between call screens
     AnimatedContent(
         targetState = uiState.screen,
         transitionSpec = { fadeIn().togetherWith(fadeOut()) },
-        label = "call_screen_transition"
+        label = "call_screen_transition",
+        modifier = Modifier.fillMaxSize()
     ) { screenType ->
         when (screenType) {
 
             /* ---------------- INCOMING ---------------- */
 
             CallScreenType.INCOMING -> {
-                val call = uiState.primaryCall ?: return@AnimatedContent
+                val call = uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
 
                 IncomingCallScreen(
                     name = call.displayName,
@@ -71,7 +72,7 @@ fun CallScreen(
             /* ---------------- ONGOING ---------------- */
 
             CallScreenType.ONGOING -> {
-                val call = uiState.primaryCall ?: return@AnimatedContent
+                val call = uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
 
                 OngoingCallScreen(
                     contactName = call.displayName ?: call.phoneNumber,
@@ -109,8 +110,8 @@ fun CallScreen(
             /* ---------------- CALL WAITING ---------------- */
 
             CallScreenType.CALL_WAITING -> {
-                val active = uiState.primaryCall ?: return@AnimatedContent
-                val waiting = uiState.secondaryCall ?: return@AnimatedContent
+                val active = uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
+                val waiting = uiState.secondaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
 
                 CallWaitingScreen(
                     activeName = active.displayName ?: active.phoneNumber,
@@ -145,7 +146,7 @@ fun CallScreen(
             /* ---------------- VIDEO ---------------- */
 
             CallScreenType.VIDEO -> {
-                val call = uiState.primaryCall ?: return@AnimatedContent
+                val call = uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
 
                 val isVideoEnabled =
                     VideoProfile.isVideo(call.call.details.videoState)
@@ -190,8 +191,8 @@ fun CallScreen(
             /* ---------------- TWO CALLS ---------------- */
 
             CallScreenType.TWO_CALLS -> {
-                val active = uiState.primaryCall ?: return@AnimatedContent
-                val holding = uiState.secondaryCall ?: return@AnimatedContent
+                val active = uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
+                val holding = uiState.secondaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
                 TwoCallScreen(
                     firstContactName = active.displayName ?: active.phoneNumber,
                     firstPhoneNumber = active.phoneNumber,
@@ -211,8 +212,8 @@ fun CallScreen(
 
             /* ---------------- NONE ---------------- */
 
-            CallScreenType.NONE -> {
-                // Should be handled by AppUI.kt auto-navigation
+            else -> {
+                Box(Modifier.fillMaxSize())
             }
         }
     }

@@ -2,6 +2,8 @@
 
 package com.coderon.phone.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import android.telecom.PhoneAccountHandle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -72,7 +74,8 @@ fun ContactDetailsScreen(
     contact: Contact,
     callLogs: List<CallLog>,
     navController: NavController,
-    onToggleFavorite: (Contact) -> Unit = {}
+    onToggleFavorite: (Contact) -> Unit = {},
+    onEditContact: (Contact) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -113,7 +116,7 @@ fun ContactDetailsScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { /* Edit Action */ }) {
+                        IconButton(onClick = { onEditContact(contact) }) {
                             Text(
                                 "Edit",
                                 color = colorScheme.primary,
@@ -145,7 +148,7 @@ fun ContactDetailsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                /* ---------------- HEADER / AVATAR (iOS + OneUI 8) ---------------- */
+                /* ---------------- HEADER / AVATAR ---------------- */
                 item {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -169,6 +172,7 @@ fun ContactDetailsScreen(
                                 }
                             },
                             onVideo = {
+                                // For now, video call uses same initiateCall flow
                                 if (primaryNumber.isNotBlank()) {
                                     numberToCall = primaryNumber
                                     initiateCall(context, primaryNumber) { sims ->
@@ -181,7 +185,7 @@ fun ContactDetailsScreen(
                     }
                 }
 
-                /* ---------------- INFO SECTION (iOS Grouped look with OneUI 8 Rounding) ---------------- */
+                /* ---------------- INFO SECTION ---------------- */
                 item {
                     HybridSection(title = "CONTACT INFO") {
                         contact.phoneNumbers.forEachIndexed { index, phone ->
@@ -205,7 +209,16 @@ fun ContactDetailsScreen(
                                 value = email,
                                 icon = R.drawable.ic_email,
                                 showDivider = index < contact.emailAddresses.size - 1,
-                                onClick = { /* Email action */ }
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                        data = Uri.parse("mailto:$email")
+                                    }
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        // Handle no email app
+                                    }
+                                }
                             )
                         }
                     }
@@ -215,10 +228,10 @@ fun ContactDetailsScreen(
                 if (callLogs.isNotEmpty()) {
                     item {
                         HybridSection(title = "RECENT CALLS") {
-                            callLogs.take(5).forEachIndexed { index, log ->
+                            callLogs.take(10).forEachIndexed { index, log ->
                                 HybridCallLogRow(
                                     log = log,
-                                    showDivider = index < 4 && index < callLogs.size - 1,
+                                    showDivider = index < 9 && index < callLogs.size - 1,
                                     onClick = {
                                         numberToCall = log.phoneNumber
                                         initiateCall(context, log.phoneNumber) { sims ->
@@ -327,7 +340,7 @@ private fun ActionPill(icon: Int, label: String, color: Color, onClick: () -> Un
             onClick = onClick,
             shape = CircleShape,
             color = color.copy(alpha = 0.12f),
-            modifier = Modifier.size(72.dp, 44.dp) // Pill-shaped action (OneUI 8 style)
+            modifier = Modifier.size(72.dp, 44.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -360,7 +373,7 @@ private fun HybridSection(title: String, content: @Composable ColumnScope.() -> 
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(32.dp), // OneUI 8 super rounding
+            shape = RoundedCornerShape(32.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Column(content = content)

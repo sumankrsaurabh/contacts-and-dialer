@@ -10,15 +10,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -53,6 +51,7 @@ import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
@@ -78,6 +77,12 @@ fun DialerScreen(
     var availableSims by remember { mutableStateOf<List<PhoneAccountHandle>>(emptyList()) }
     var phoneNumberToDial by remember { mutableStateOf("") }
 
+    val bottomNavVisible = LocalBottomNavVisible.current
+    
+    LaunchedEffect(showSimDialog) {
+        bottomNavVisible.value = !showSimDialog
+    }
+
     LaunchedEffect(dialedNumber) {
         updateSearchQuery(dialedNumber)
     }
@@ -91,12 +96,12 @@ fun DialerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(colorScheme.background)
-                .windowInsetsPadding(WindowInsets.statusBars)
+                .statusBarsPadding()
                 .padding(bottom = 104.dp)
         ) {
             Spacer(Modifier.height(24.dp))
 
-            /* ---------- REDESIGNED DIALED TEXT (iOS / OneUI 8 Mix) ---------- */
+            /* ---------- DIALED TEXT ---------- */
             Text(
                 text = dialedNumber.ifBlank { " " },
                 fontSize = 48.sp,
@@ -151,7 +156,7 @@ fun DialerScreen(
                 }
             }
 
-            /* ---------- REDESIGNED SUGGESTIONS ---------- */
+            /* ---------- SUGGESTIONS ---------- */
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -76,26 +76,45 @@ import com.coderon.phone.ui.components.Text
 fun AddContactScreen(
     navController: NavController? = null,
     initialPhoneNumber: String? = null,
+    existingContact: Contact? = null,
     onSaveContact: (Contact) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf(existingContact?.firstName ?: "") }
+    var lastName by remember { mutableStateOf(existingContact?.lastName ?: "") }
+    
     val phoneNumbers = remember { 
-        mutableStateListOf(PhoneNumber(initialPhoneNumber ?: "", PhoneNumberType.MOBILE)) 
+        val list = mutableStateListOf<PhoneNumber>()
+        if (existingContact != null) {
+            list.addAll(existingContact.phoneNumbers)
+        } else {
+            list.add(PhoneNumber(initialPhoneNumber ?: "", PhoneNumberType.MOBILE))
+        }
+        list
     }
-    val emailAddresses = remember { mutableStateListOf("") }
-    var photoUri by remember { mutableStateOf<Uri?>(null) }
-    var isFavorite by remember { mutableStateOf(false) }
+    
+    val emailAddresses = remember { 
+        val list = mutableStateListOf<String>()
+        if (existingContact != null) {
+            list.addAll(existingContact.emailAddresses)
+        } else {
+            list.add("")
+        }
+        list
+    }
+    
+    var photoUri by remember { mutableStateOf<Uri?>(existingContact?.profilePictureUrl?.let { Uri.parse(it) }) }
+    var isFavorite by remember { mutableStateOf(existingContact?.isFavorite ?: false) }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
 
-    val hasChanges = firstName.isNotBlank() || 
-                     lastName.isNotBlank() || 
-                     phoneNumbers.any { it.number.isNotBlank() && it.number != initialPhoneNumber } ||
-                     emailAddresses.any { it.isNotBlank() } ||
-                     photoUri != null
+    val hasChanges = firstName != (existingContact?.firstName ?: "") || 
+                     lastName != (existingContact?.lastName ?: "") || 
+                     phoneNumbers.toList() != (existingContact?.phoneNumbers ?: listOf(PhoneNumber(initialPhoneNumber ?: "", PhoneNumberType.MOBILE))) ||
+                     emailAddresses.toList() != (existingContact?.emailAddresses ?: listOf("")) ||
+                     (photoUri?.toString() ?: "") != (existingContact?.profilePictureUrl ?: "") ||
+                     isFavorite != (existingContact?.isFavorite ?: false)
 
     val handleBack = {
         if (hasChanges) {
@@ -127,7 +146,7 @@ fun AddContactScreen(
                 
                 LargeTopAppBar(
                     title = {
-                        Text("New Contact", fontWeight = FontWeight.Bold, fontSize = 28.sp)
+                        Text(if (existingContact != null) "Edit Contact" else "New Contact", fontWeight = FontWeight.Bold, fontSize = 28.sp)
                     },
                     navigationIcon = {
                         TextButton(
@@ -142,9 +161,10 @@ fun AddContactScreen(
                         TextButton(
                             onClick = {
                                 val contact = Contact(
+                                    id = existingContact?.id ?: "",
                                     firstName = firstName,
                                     lastName = lastName,
-                                    displayName = "$firstName $lastName".trim(),
+                                    displayName = "$firstName $lastName".trim().ifBlank { phoneNumbers.firstOrNull { it.number.isNotBlank() }?.number ?: "Unknown" },
                                     phoneNumbers = phoneNumbers.filter { it.number.isNotBlank() },
                                     emailAddresses = emailAddresses.filter { it.isNotBlank() },
                                     profilePictureUrl = photoUri?.toString(),

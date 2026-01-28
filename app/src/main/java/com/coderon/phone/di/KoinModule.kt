@@ -25,7 +25,12 @@ val appModule = module {
 
     // Repository injections
     single<ContactRepository> { ContactRepositoryImpl(contentResolver = get()) }
-    single<CallLogRepository> { CallLogRepositoryImpl(contentResolver = get()) }
+    single<CallLogRepository> {
+        CallLogRepositoryImpl(
+            contentResolver = get(),
+            context = get()
+        )
+    }
     single { VoicemailRecorder() }
     single { BlockedNumberRepository(blockedNumberDao = get()) }
     single { VoicemailRepository(voicemailDao = get()) }
