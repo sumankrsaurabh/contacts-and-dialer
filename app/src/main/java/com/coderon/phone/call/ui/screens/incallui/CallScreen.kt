@@ -1,5 +1,6 @@
 package com.coderon.phone.call.ui.screens.incallui
 
+import android.telecom.InCallService
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.foundation.layout.fillMaxSize
@@ -125,61 +126,10 @@ fun CallScreen(
                 contactName = call.displayName ?: call.phoneNumber,
                 callDuration = uiState.callDurationSeconds.formatCallDuration(),
                 remoteVideoSurface = {
-                    val videoCall = call.videoCall
-                    AndroidView(
-                        factory = { ctx ->
-                            SurfaceView(ctx).apply {
-                                holder.addCallback(object : SurfaceHolder.Callback {
-                                    override fun surfaceCreated(h: SurfaceHolder) {
-                                        videoCall?.setDisplaySurface(h.surface)
-                                    }
-
-                                    override fun surfaceChanged(
-                                        h: SurfaceHolder,
-                                        f: Int,
-                                        w: Int,
-                                        h1: Int
-                                    ) {
-                                        videoCall?.setDisplaySurface(h.surface)
-                                    }
-
-                                    override fun surfaceDestroyed(h: SurfaceHolder) {
-                                        videoCall?.setDisplaySurface(null)
-                                    }
-                                })
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    VideoSurface(videoCall = call.videoCall, isPreview = false)
                 },
                 localVideoSurface = {
-                    val videoCall = call.videoCall
-                    AndroidView(
-                        factory = { ctx ->
-                            SurfaceView(ctx).apply {
-                                setZOrderMediaOverlay(true)
-                                holder.addCallback(object : SurfaceHolder.Callback {
-                                    override fun surfaceCreated(h: SurfaceHolder) {
-                                        videoCall?.setPreviewSurface(h.surface)
-                                    }
-
-                                    override fun surfaceChanged(
-                                        h: SurfaceHolder,
-                                        f: Int,
-                                        w: Int,
-                                        h1: Int
-                                    ) {
-                                        videoCall?.setPreviewSurface(h.surface)
-                                    }
-
-                                    override fun surfaceDestroyed(h: SurfaceHolder) {
-                                        videoCall?.setPreviewSurface(null)
-                                    }
-                                })
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    VideoSurface(videoCall = call.videoCall, isPreview = true)
                 },
                 isMuted = uiState.isMuted,
                 isVideoEnabled = true,
@@ -218,4 +168,39 @@ fun CallScreen(
             navController.popBackStack()
         }
     }
+}
+
+@Composable
+fun VideoSurface(videoCall: InCallService.VideoCall?, isPreview: Boolean) {
+    AndroidView(
+        factory = { ctx ->
+            SurfaceView(ctx).apply {
+                if (isPreview) setZOrderMediaOverlay(true)
+                holder.addCallback(object : SurfaceHolder.Callback {
+                    override fun surfaceCreated(h: SurfaceHolder) {
+                        if (isPreview) videoCall?.setPreviewSurface(h.surface)
+                        else videoCall?.setDisplaySurface(h.surface)
+                    }
+
+                    override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, h1: Int) {
+                        if (isPreview) videoCall?.setPreviewSurface(h.surface)
+                        else videoCall?.setDisplaySurface(h.surface)
+                    }
+
+                    override fun surfaceDestroyed(h: SurfaceHolder) {
+                        if (isPreview) videoCall?.setPreviewSurface(null)
+                        else videoCall?.setDisplaySurface(null)
+                    }
+                })
+            }
+        },
+        update = { view ->
+            // Re-bind if videoCall changes
+            if (view.holder.surface.isValid) {
+                if (isPreview) videoCall?.setPreviewSurface(view.holder.surface)
+                else videoCall?.setDisplaySurface(view.holder.surface)
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }

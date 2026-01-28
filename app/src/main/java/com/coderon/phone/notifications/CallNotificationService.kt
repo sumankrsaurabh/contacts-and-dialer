@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
@@ -23,15 +24,19 @@ import com.coderon.phone.receiver.CallReceiver
 import com.coderon.phone.ui.utils.extentions.notificationManager
 import com.coderon.phone.utils.Constants.ACCEPT_CALL
 import com.coderon.phone.utils.Constants.DECLINE_CALL
+import com.coderon.phone.utils.Constants.TOGGLE_MUTE
+import com.coderon.phone.utils.Constants.TOGGLE_SPEAKER
 
 class CallNotificationManager(
     private val context: Context
 ) {
 
-    private companion object {
+    companion object {
         const val CALL_NOTIFICATION_ID = 42
+        const val MISSED_CALL_NOTIFICATION_ID = 43
         const val CHANNEL_INCOMING = "call_incoming"
         const val CHANNEL_ONGOING = "call_ongoing"
+        const val CHANNEL_MISSED = "call_missed"
     }
 
     private val notificationManager: NotificationManager =
@@ -42,12 +47,12 @@ class CallNotificationManager(
     --------------------------------------------------- */
 
     @SuppressLint("NewApi")
-    fun setupNotification(showOngoing: Boolean = false) {
+    fun setupNotification(showOngoing: Boolean = false): Notification? {
         val uiState = CallManager.uiState.value
 
         if (uiState.hasNoCalls) {
             cancelNotification()
-            return
+            return null
         }
 
         val isIncoming = uiState.screen == CallScreenType.INCOMING
@@ -68,6 +73,39 @@ class CallNotificationManager(
         uiState.primaryCall?.profilePictureUrl?.let { url ->
             loadAvatarAndNotify(url, uiState, channelId, isIncoming, showOngoing)
         }
+        
+        return notification
+    }
+
+    fun showMissedCallNotification(name: String?, number: String) {
+        createMissedCallChannelIfNeeded()
+
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
+        val title = name ?: number
+        val text = if (name != null) "Missed call from $number" else "Missed call"
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_MISSED)
+            .setSmallIcon(R.drawable.missed_call)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(contentIntent)
+            .setColor(0xFFFF3B30.toInt()) // iOS Red
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setCategory(Notification.CATEGORY_MISSED_CALL)
+        }
+
+        notificationManager.notify(MISSED_CALL_NOTIFICATION_ID, builder.build())
     }
 
     fun cancelNotification() {
@@ -79,7 +117,7 @@ class CallNotificationManager(
     --------------------------------------------------- */
 
     @SuppressLint("RemoteViewLayout")
-    private fun buildNotification(
+    fun buildNotification(
         uiState: CallUiState,
         channelId: String,
         isIncoming: Boolean,
@@ -106,8 +144,10 @@ class CallNotificationManager(
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             },
-            PendingIntent.FLAG_IMMUTABLE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
         )
+
+        val isCallOngoing = !isIncoming && !uiState.hasNoCalls
 
         val collapsedView = RemoteViews(context.packageName, R.layout.call_notification).apply {
             setTextViewText(R.id.notification_caller_name, callerName)
@@ -120,8 +160,7 @@ class CallNotificationManager(
             }
 
             // Handle Chronometer for ongoing calls
-            val showTimer = !isIncoming && uiState.callDurationSeconds > 0
-            if (showTimer) {
+            if (isCallOngoing && uiState.callDurationSeconds > 0) {
                 setViewVisibility(R.id.notification_call_status_divider, View.VISIBLE)
                 setViewVisibility(R.id.notification_chronometer, View.VISIBLE)
                 setChronometer(
@@ -135,23 +174,26 @@ class CallNotificationManager(
                 setViewVisibility(R.id.notification_chronometer, View.GONE)
             }
 
+            // Toggle Remote actions visibility (Mute/Speaker)
+            setViewVisibility(R.id.notification_remote_actions, if (isCallOngoing) View.VISIBLE else View.GONE)
+            
+            // Set button icons based on state
+            setImageViewResource(R.id.notification_toggle_mute, if (uiState.isMuted) R.drawable.mic_mute_fill else R.drawable.mic)
+            
             // Actions
-            setViewVisibility(
-                R.id.notification_accept_call,
-                if (isIncoming) View.VISIBLE else View.GONE
-            )
+            setViewVisibility(R.id.notification_accept_call, if (isIncoming) View.VISIBLE else View.GONE)
+            
             setOnClickPendingIntent(R.id.notification_accept_call, actionPendingIntent(ACCEPT_CALL))
-            setOnClickPendingIntent(
-                R.id.notification_decline_call,
-                actionPendingIntent(DECLINE_CALL)
-            )
+            setOnClickPendingIntent(R.id.notification_decline_call, actionPendingIntent(DECLINE_CALL))
+            setOnClickPendingIntent(R.id.notification_toggle_mute, actionPendingIntent(TOGGLE_MUTE))
+            setOnClickPendingIntent(R.id.notification_toggle_speaker, actionPendingIntent(TOGGLE_SPEAKER))
         }
 
         return NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.call)
             .setCategory(Notification.CATEGORY_CALL)
             .setPriority(if (isIncoming) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
-            .setOngoing(showOngoing || !isIncoming)
+            .setOngoing(showOngoing || isCallOngoing)
             .setSound(null)
             .setContentIntent(contentIntent)
             .setCustomContentView(collapsedView)
@@ -198,7 +240,7 @@ class CallNotificationManager(
             Intent(context, CallReceiver::class.java).apply {
                 this.action = action
             },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_UPDATE_CURRENT
         )
     }
 
@@ -207,13 +249,24 @@ class CallNotificationManager(
         channelId: String,
         isIncoming: Boolean
     ) {
-        val importance =
-            if (isIncoming) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
+        val importance = if (isIncoming) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
         val channelName = if (isIncoming) "Incoming Calls" else "Ongoing Calls"
 
         val channel = NotificationChannel(channelId, channelName, importance).apply {
             setSound(null, null)
             enableVibration(false)
+        }
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    @SuppressLint("NewApi")
+    private fun createMissedCallChannelIfNeeded() {
+        val channel = NotificationChannel(
+            CHANNEL_MISSED,
+            "Missed Calls",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            enableVibration(true)
         }
         notificationManager.createNotificationChannel(channel)
     }

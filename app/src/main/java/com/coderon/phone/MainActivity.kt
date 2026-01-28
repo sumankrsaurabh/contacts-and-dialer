@@ -42,17 +42,30 @@ class MainActivity : ComponentActivity() {
                     isDefaultDialerState.value = isDefaultDialer(this)
                 }
 
-                // Runtime Notification Permission for Android 13+
-                val permissionLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestPermission()
-                ) { isGranted ->
-                    // Handle permission result if needed
+                // Runtime Permissions for Notifications, Camera, and Audio
+                val permissionsLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
+                ) { _ ->
+                    // Permissions handled
                 }
 
                 LaunchedEffect(Unit) {
+                    val permissions = mutableListOf(
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.READ_CONTACTS,
+                        Manifest.permission.WRITE_CONTACTS,
+                        Manifest.permission.READ_PHONE_STATE,
+                        Manifest.permission.CALL_PHONE,
+                        Manifest.permission.READ_CALL_LOG,
+                        Manifest.permission.WRITE_CALL_LOG
+                    )
+                    
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        permissions.add(Manifest.permission.POST_NOTIFICATIONS)
                     }
+                    
+                    permissionsLauncher.launch(permissions.toTypedArray())
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {

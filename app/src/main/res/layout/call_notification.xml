@@ -1,41 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/notification_holder"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingHorizontal="8dp"
-    android:paddingVertical="4dp">
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp">
 
-    <!-- Capsule Container -->
+    <!-- Floating Capsule Container -->
     <LinearLayout
+        android:id="@+id/notification_holder"
         android:layout_width="match_parent"
         android:layout_height="72dp"
-        android:background="@drawable/bg_call_notification"
+        android:background="@drawable/bg_notification_capsule"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="12dp">
 
-        <!-- Avatar with Rim -->
+        <!-- Avatar Section -->
         <FrameLayout
-            android:layout_width="52dp"
-            android:layout_height="52dp">
+            android:layout_width="48dp"
+            android:layout_height="48dp">
+
+            <ImageView
+                android:id="@+id/notification_avatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/profile_picture_call"
+                tools:ignore="ContentDescription" />
+
+            <!-- Glass Rim Overlay -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/circle_white"
-                android:alpha="0.1" />
-            <ImageView
-                android:id="@+id/notification_avatar"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="center"
-                android:scaleType="centerCrop"
-                android:src="@drawable/profile_picture_call"
-                tools:ignore="ContentDescription" />
+                android:alpha="0.15" />
         </FrameLayout>
 
-        <!-- Identity -->
+        <!-- Info Section -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -51,7 +53,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
                 android:textColor="#FFFFFF"
-                android:textSize="17sp"
+                android:textSize="16sp"
                 tools:text="Sarah Johnson" />
 
             <LinearLayout
@@ -68,7 +70,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     tools:text="Ongoing call" />
 
                 <TextView
@@ -78,7 +80,7 @@
                     android:text=" • "
                     android:textColor="#FFFFFF"
                     android:alpha="0.4"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:visibility="gone"
                     tools:visibility="visible" />
 
@@ -88,19 +90,54 @@
                     android:layout_height="wrap_content"
                     android:textColor="#FFFFFF"
                     android:alpha="0.6"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:visibility="gone"
                     tools:visibility="visible" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Actions -->
+        <!-- Remote Actions (Speaker/Mute) - Visible only when ongoing -->
         <LinearLayout
+            android:id="@+id/notification_remote_actions"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal"
-            android:layout_marginStart="8dp">
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:id="@+id/notification_toggle_mute"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/circle_white"
+                android:backgroundTint="#33FFFFFF"
+                android:padding="10dp"
+                android:src="@drawable/mic"
+                android:tint="#FFFFFF"
+                tools:ignore="UseAppTint" />
+
+            <ImageView
+                android:id="@+id/notification_toggle_speaker"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/circle_white"
+                android:backgroundTint="#33FFFFFF"
+                android:padding="10dp"
+                android:src="@drawable/volume_high"
+                android:tint="#FFFFFF"
+                tools:ignore="UseAppTint" />
+        </LinearLayout>
+
+        <!-- Primary Actions (Accept/Decline) -->
+        <LinearLayout
+            android:id="@+id/notification_actions_holder"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:layout_marginStart="12dp">
 
             <ImageView
                 android:id="@+id/notification_decline_call"
@@ -125,4 +162,4 @@
 
         </LinearLayout>
     </LinearLayout>
-</RelativeLayout>
+</FrameLayout>

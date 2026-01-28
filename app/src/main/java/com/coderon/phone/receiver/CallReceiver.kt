@@ -13,6 +13,8 @@ import com.coderon.phone.ui.utils.extentions.checkPermissions
 import com.coderon.phone.utils.Constants.ACCEPT_CALL
 import com.coderon.phone.utils.Constants.ACTION_UPDATE_CALL_NOTIFICATION
 import com.coderon.phone.utils.Constants.DECLINE_CALL
+import com.coderon.phone.utils.Constants.TOGGLE_MUTE
+import com.coderon.phone.utils.Constants.TOGGLE_SPEAKER
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +43,8 @@ class CallReceiver : BroadcastReceiver() {
 
             ACCEPT_CALL -> handleAcceptCall(context)
             DECLINE_CALL -> handleRejectCall(context)
+            TOGGLE_MUTE -> handleToggleMute(context)
+            TOGGLE_SPEAKER -> handleToggleSpeaker(context)
             ACTION_UPDATE_CALL_NOTIFICATION -> updateCallNotification(context)
         }
     }
@@ -51,7 +55,22 @@ class CallReceiver : BroadcastReceiver() {
     }
 
     private fun handleRejectCall(context: Context) {
-        CallManager.reject()
+        // Reject specifically for incoming, disconnect for ongoing
+        if (CallManager.uiState.value.isIncoming) {
+            CallManager.reject()
+        } else {
+            CallManager.disconnectPrimary()
+        }
+        updateCallNotification(context)
+    }
+
+    private fun handleToggleMute(context: Context) {
+        CallManager.toggleMute()
+        updateCallNotification(context)
+    }
+
+    private fun handleToggleSpeaker(context: Context) {
+        CallManager.toggleSpeaker()
         updateCallNotification(context)
     }
 

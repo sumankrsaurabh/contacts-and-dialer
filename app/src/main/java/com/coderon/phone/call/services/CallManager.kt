@@ -2,16 +2,21 @@
 
 package com.coderon.phone.call.services
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.os.Build
 import android.os.PowerManager
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
 import android.telecom.VideoProfile
+import android.util.Log
+import androidx.core.content.ContextCompat
 import com.coderon.phone.call.domain.CallReducer
 import com.coderon.phone.call.domain.CallSession
 import com.coderon.phone.call.domain.toDomainState
@@ -21,6 +26,7 @@ import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.domain.repository.CallLogRepository
 import com.coderon.phone.domain.repository.ContactRepository
+import com.coderon.phone.notifications.CallNotificationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,10 +43,9 @@ import com.coderon.phone.data.model.CallLog as CallLogData
 @SuppressLint("StaticFieldLeak")
 object CallManager : KoinComponent {
 
-    /** Active call sessions (keyed by Telecom Call identity) */
+    private const val TAG = "CallManager"
+
     private val sessions = mutableMapOf<Int, CallSession>()
-    
-    /** Start times for calculating duration accurately */
     private val sessionStartTimes = mutableMapOf<Int, Long>()
 
     private var inCallService: InCallService? = null
@@ -84,13 +89,22 @@ object CallManager : KoinComponent {
                 val facing = chars.get(CameraCharacteristics.LENS_FACING)
                 if (facing == CameraCharacteristics.LENS_FACING_FRONT) {
                     currentCameraId = id
+                    Log.d(TAG, "Selected front camera: $id")
                     break
                 }
             }
-            if (currentCameraId == null) currentCameraId = ids.firstOrNull()
+            if (currentCameraId == null) {
+                currentCameraId = ids.firstOrNull()
+                Log.d(TAG, "Selected fallback camera: $currentCameraId")
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to init camera ID", e)
         }
+    }
+
+    private fun hasCameraPermission(): Boolean {
+        val service = inCallService ?: return false
+        return ContextCompat.checkSelfPermission(service, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     }
 
     /* ------------------------------------------------
@@ -99,11 +113,10 @@ object CallManager : KoinComponent {
 
     fun onCallAdded(call: Call) {
         val id = System.identityHashCode(call)
-
-        val phoneNumber =
-            call.details.handle?.schemeSpecificPart ?: "Unknown"
-
+        val phoneNumber = call.details.handle?.schemeSpecificPart ?: "Unknown"
         val isIncoming = call.state == Call.STATE_RINGING
+
+        Log.d(TAG, "onCallAdded: $phoneNumber")
 
         val session = CallSession(
             id = id.toString(),
@@ -128,30 +141,54 @@ object CallManager : KoinComponent {
             }
         }
 
-        // Listen for video provider callbacks
         call.registerCallback(object : Call.Callback() {
             override fun onVideoCallChanged(call: Call?, videoCall: InCallService.VideoCall?) {
+                Log.d(TAG, "onVideoCallChanged: ${videoCall != null}")
                 val existing = sessions[id] ?: return
                 sessions[id] = existing.copy(videoCall = videoCall)
-                videoCall?.registerCallback(videoCallCallback)
                 
-                if (videoCall != null && currentCameraId != null && VideoProfile.isVideo(call?.details?.videoState ?: 0)) {
-                    videoCall.setCamera(currentCameraId)
+                videoCall?.let { vc ->
+                    vc.registerCallback(videoCallCallback)
+                    vc.requestCameraCapabilities()
+                    if (currentCameraId != null && hasCameraPermission()) {
+                        Log.d(TAG, "Setting camera: $currentCameraId")
+                        vc.setCamera(currentCameraId)
+                    }
                 }
                 recompute()
             }
             
             override fun onDetailsChanged(call: Call?, details: Call.Details?) {
                 val existing = sessions[id] ?: return
-                // Use call.state instead of details.state to avoid API 31 requirement
-                sessions[id] = existing.copy(state = call?.state?.toDomainState() ?: existing.state)
+                
+                val wasVideo = VideoProfile.isVideo(existing.call.details.videoState)
+                val isNowVideo = VideoProfile.isVideo(details?.videoState ?: 0)
+                
+                val newState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    details?.state ?: existing.call.state
+                } else {
+                    existing.call.state
+                }
+                
+                sessions[id] = existing.copy(
+                    state = newState.toDomainState(),
+                    videoCall = call?.videoCall
+                )
+                
+                if (isNowVideo && !wasVideo && currentCameraId != null && hasCameraPermission()) {
+                    Log.d(TAG, "Upgraded to video, setting camera: $currentCameraId")
+                    call?.videoCall?.setCamera(currentCameraId)
+                }
+                
                 recompute()
             }
         })
 
-        call.videoCall?.registerCallback(videoCallCallback)
-        if (call.videoCall != null && currentCameraId != null && VideoProfile.isVideo(call.details.videoState)) {
-            call.videoCall.setCamera(currentCameraId)
+        call.videoCall?.let { vc ->
+            vc.registerCallback(videoCallCallback)
+            if (currentCameraId != null && hasCameraPermission()) {
+                vc.setCamera(currentCameraId)
+            }
         }
 
         recompute()
@@ -161,6 +198,7 @@ object CallManager : KoinComponent {
 
     private val videoCallCallback = object : InCallService.VideoCall.Callback() {
         override fun onSessionModifyRequestReceived(videoProfile: VideoProfile?) {
+            Log.d(TAG, "onSessionModifyRequestReceived")
             if (videoProfile != null) {
                 val activeCall = sessions.values.firstOrNull { it.state.isActive }?.call
                 activeCall?.videoCall?.sendSessionModifyResponse(videoProfile)
@@ -172,6 +210,7 @@ object CallManager : KoinComponent {
             requestedProfile: VideoProfile?,
             responseProfile: VideoProfile?
         ) {
+            Log.d(TAG, "onSessionModifyResponseReceived: $status")
             recompute()
         }
 
@@ -180,28 +219,20 @@ object CallManager : KoinComponent {
         }
 
         override fun onPeerDimensionsChanged(width: Int, height: Int) {
-            _uiState.value = _uiState.value.copy(
-                peerWidth = width,
-                peerHeight = height
-            )
+            Log.d(TAG, "onPeerDimensionsChanged: ${width}x${height}")
+            _uiState.value = _uiState.value.copy(peerWidth = width, peerHeight = height)
         }
 
         override fun onVideoQualityChanged(videoQuality: Int) {
-            _uiState.value = _uiState.value.copy(
-                videoQuality = videoQuality
-            )
+            _uiState.value = _uiState.value.copy(videoQuality = videoQuality)
         }
 
         override fun onCallDataUsageChanged(dataUsage: Long) {
-            _uiState.value = _uiState.value.copy(
-                dataUsage = dataUsage
-            )
+            _uiState.value = _uiState.value.copy(dataUsage = dataUsage)
         }
 
         override fun onCameraCapabilitiesChanged(cameraCapabilities: VideoProfile.CameraCapabilities?) {
-            _uiState.value = _uiState.value.copy(
-                maxZoom = cameraCapabilities?.maxZoom ?: 1.0f
-            )
+            _uiState.value = _uiState.value.copy(maxZoom = cameraCapabilities?.maxZoom ?: 1.0f)
         }
     }
 
@@ -250,6 +281,12 @@ object CallManager : KoinComponent {
             session.isIncoming && session.state.isEnded && duration == 0 -> CallType.MISSED
             session.isIncoming -> CallType.INCOMING
             else -> CallType.OUTGOING
+        }
+
+        if (callType == CallType.MISSED) {
+            inCallService?.let {
+                CallNotificationManager(it).showMissedCallNotification(session.displayName, session.phoneNumber)
+            }
         }
 
         scope.launch(Dispatchers.IO) {
@@ -486,10 +523,11 @@ object CallManager : KoinComponent {
             val cameraIds = cameraManager.cameraIdList
             if (cameraIds.size < 2) return
             
-            currentCameraId = if (currentCameraId == cameraIds[0]) cameraIds[1] else cameraIds[0]
+            val nextIndex = (cameraIds.indexOf(currentCameraId) + 1) % cameraIds.size
+            currentCameraId = cameraIds[nextIndex]
             videoCall.setCamera(currentCameraId)
         } catch (e: Exception) {
-            // Ignored
+            Log.e(TAG, "Failed to flip camera", e)
         }
     }
 
@@ -497,6 +535,7 @@ object CallManager : KoinComponent {
         return try {
             contactRepository.getContactByNumber(number)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve contact", e)
             null
         }
     }
