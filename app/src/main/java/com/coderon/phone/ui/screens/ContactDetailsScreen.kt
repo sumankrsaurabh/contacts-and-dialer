@@ -64,8 +64,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.coderon.phone.R
 import com.coderon.phone.data.helpers.formatDate
@@ -74,6 +72,9 @@ import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
+import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
@@ -86,7 +87,7 @@ import kotlin.math.roundToInt
 fun ContactDetailsScreen(
     contact: Contact,
     callLogs: List<CallLog>,
-    navController: NavController,
+    navigator: Navigator,
     onToggleFavorite: (Contact) -> Unit = {},
     onEditContact: (Contact) -> Unit = {}
 ) {
@@ -131,7 +132,7 @@ fun ContactDetailsScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                        IconButton(onClick = { navigator.goBack() }) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = "Back",
@@ -519,6 +520,12 @@ private fun HybridCallLogRow(log: CallLog, showDivider: Boolean, onClick: () -> 
 @Preview(showBackground = true)
 @Composable
 private fun RedesignPreview() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.CallDetails("9876543210"),
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = remember { Navigator(navState) }
+    
     PhoneTheme {
         ContactDetailsScreen(
             contact = Contact(
@@ -536,7 +543,7 @@ private fun RedesignPreview() {
                 CallLog(phoneNumber = "9876543210", callType = CallType.INCOMING),
                 CallLog(phoneNumber = "9876543210", callType = CallType.MISSED)
             ),
-            navController = rememberNavController()
+            navigator = navigator
         )
     }
 }

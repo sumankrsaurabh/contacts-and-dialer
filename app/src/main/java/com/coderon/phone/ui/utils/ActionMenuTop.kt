@@ -25,14 +25,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
+import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 
 @Composable
 fun ActionsMenuTop(
-    isContactsScreen: Boolean = false, navController: NavController
+    isContactsScreen: Boolean = false, 
+    navigator: Navigator
 ) {
     Row(
         modifier = Modifier
@@ -43,7 +44,7 @@ fun ActionsMenuTop(
         horizontalArrangement = Arrangement.End
     ) {
         if (isContactsScreen) {
-            GlassyIconButton(onClick = { navController.navigate(Screen.AddContact.route) }) {
+            GlassyIconButton(onClick = { navigator.navigate(Screen.AddContact()) }) {
                 Icon(
                     painterResource(R.drawable.plus),
                     contentDescription = "Add Contact",
@@ -52,7 +53,7 @@ fun ActionsMenuTop(
             }
             Spacer(Modifier.width(16.dp))
         }
-        GlassyIconButton(onClick = { navController.navigate(Screen.Search.route) }) {
+        GlassyIconButton(onClick = { navigator.navigate(Screen.Search) }) {
             Icon(
                 painterResource(R.drawable.search),
                 contentDescription = "Search",
@@ -98,7 +99,12 @@ fun GlassyIconButton(
 @PreviewLightDark
 @Composable
 private fun SearchBarPreview() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Keypad,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = Navigator(navState)
     Box {
-        ActionsMenuTop(true, rememberNavController())
+        ActionsMenuTop(true, navigator)
     }
 }

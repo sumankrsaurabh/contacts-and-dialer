@@ -1,11 +1,12 @@
 package com.coderon.phone.call.ui.screens.incallui
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,11 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.coderon.phone.ui.components.Text
 import com.coderon.phone.ui.theme.PhoneTheme
 
@@ -38,17 +42,22 @@ import com.coderon.phone.ui.theme.PhoneTheme
 fun CallNotificationContent(
     name: String = "John Doe",
     phoneNumber: String = "+1 234 567 890",
+    profilePictureUrl: String? = null,
     status: String = "Incoming Call",
     onAccept: () -> Unit = {},
-    onDecline: () -> Unit = {}
+    onDecline: () -> Unit = {},
+    onContentClick: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
+            .padding(8.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .clickable { onContentClick() },
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shadowElevation = 4.dp
+        shadowElevation = 8.dp,
+        tonalElevation = 4.dp
     ) {
         Column(
             modifier = Modifier
@@ -58,19 +67,31 @@ fun CallNotificationContent(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Mock Avatar
+                // Avatar
                 Surface(
                     modifier = Modifier.size(48.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = name.firstOrNull()?.uppercase() ?: "?",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                    if (!profilePictureUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(profilePictureUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = name.firstOrNull()?.uppercase() ?: "?",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
 
@@ -81,7 +102,8 @@ fun CallNotificationContent(
                         text = name,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
                     )
                     Text(
                         text = status,

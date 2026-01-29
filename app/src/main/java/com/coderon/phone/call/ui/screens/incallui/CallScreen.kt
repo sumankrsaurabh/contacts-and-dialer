@@ -16,13 +16,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.navigation.NavController
 import com.coderon.phone.call.domain.CallState
 import com.coderon.phone.call.services.CallManager
 import com.coderon.phone.call.ui.CallScreenType
 import com.coderon.phone.ui.components.HybridAlertDialog
+import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
+import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.extentions.State
 import com.coderon.phone.ui.utils.extentions.formatCallDuration
 import com.coderon.phone.ui.utils.extentions.getCallType
@@ -30,7 +33,7 @@ import com.coderon.phone.ui.utils.extentions.getSimInfoForCall
 
 @Composable
 fun CallScreen(
-    navController: NavController
+    navigator: Navigator
 ) {
     val uiState by CallManager.uiState.collectAsState()
     val context = LocalContext.current
@@ -100,7 +103,7 @@ fun CallScreen(
                     },
                     onToggleBluetooth = { CallManager.toggleBluetooth() },
                     onAddCall = {
-                        navController.navigate(Screen.Keypad.route)
+                        navigator.navigate(Screen.Keypad)
                     },
                     onVideoCall = { CallManager.toggleVideo() },
                     playDfmTones = { CallManager.playDtmfTone(it) }
@@ -110,8 +113,10 @@ fun CallScreen(
             /* ---------------- CALL WAITING ---------------- */
 
             CallScreenType.CALL_WAITING -> {
-                val active = uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
-                val waiting = uiState.secondaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
+                val active =
+                    uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
+                val waiting =
+                    uiState.secondaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
 
                 CallWaitingScreen(
                     activeName = active.displayName ?: active.phoneNumber,
@@ -191,8 +196,10 @@ fun CallScreen(
             /* ---------------- TWO CALLS ---------------- */
 
             CallScreenType.TWO_CALLS -> {
-                val active = uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
-                val holding = uiState.secondaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
+                val active =
+                    uiState.primaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
+                val holding =
+                    uiState.secondaryCall ?: return@AnimatedContent Box(Modifier.fillMaxSize())
                 TwoCallScreen(
                     firstContactName = active.displayName ?: active.phoneNumber,
                     firstPhoneNumber = active.phoneNumber,
@@ -211,8 +218,7 @@ fun CallScreen(
             }
 
             /* ---------------- NONE ---------------- */
-
-            else -> {
+            CallScreenType.NONE -> {
                 Box(Modifier.fillMaxSize())
             }
         }
@@ -276,4 +282,17 @@ fun VideoSurface(
             }
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CallScreenPreview() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Keypad,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = Navigator(navState)
+    PhoneTheme {
+        CallScreen(navigator)
+    }
 }

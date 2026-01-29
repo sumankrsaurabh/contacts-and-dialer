@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,16 +64,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
+import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
-    navController: NavController
+    navigator: Navigator
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
@@ -100,7 +102,7 @@ fun SettingsScreen(
                         Text("Settings", fontWeight = FontWeight.Bold, fontSize = 32.sp)
                     },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                        IconButton(onClick = { navigator.goBack() }) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = "Back",
@@ -309,7 +311,13 @@ private fun SettingsDivider() {
 @Preview(showBackground = true)
 @Composable
 private fun PreviewSettings() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Settings,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search, Screen.Settings)
+    )
+    val navigator = remember { Navigator(navState) }
+    
     PhoneTheme {
-        SettingsScreen(rememberNavController())
+        SettingsScreen(navigator)
     }
 }

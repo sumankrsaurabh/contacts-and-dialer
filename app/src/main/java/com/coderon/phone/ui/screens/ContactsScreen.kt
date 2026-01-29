@@ -43,13 +43,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
@@ -63,7 +63,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ContactsScreen(
     contactsGrouped: SortedMap<Char, List<Contact>>,
-    navController: NavController
+    navigator: Navigator
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -108,7 +108,7 @@ fun ContactsScreen(
                             )
                         },
                         actions = {
-                            FilledTonalIconButton(onClick = { navController.navigate(Screen.AddContact.route) }) {
+                            FilledTonalIconButton(onClick = { navigator.navigate(Screen.AddContact()) }) {
                                 Icon(
                                     Icons.Rounded.Add,
                                     contentDescription = "Add",
@@ -164,7 +164,7 @@ fun ContactsScreen(
                                 }
                             },
                             onInfoClick = {
-                                navController.navigate(Screen.CallDetails.createRoute(phoneNumber))
+                                navigator.navigate(Screen.CallDetails(phoneNumber))
                             }
                         )
                     }
@@ -189,13 +189,19 @@ fun ContactsScreen(
 @Preview(showBackground = true)
 @Composable
 private fun PreviewHybridContacts() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Contacts,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = remember { Navigator(navState) }
+    
     PhoneTheme {
         ContactsScreen(
             contactsGrouped = TreeMap<Char, List<Contact>>().apply {
                 put('A', listOf(Contact(id = "1", displayName = "Alice", phoneNumbers = listOf(PhoneNumber("123456")))))
                 put('B', listOf(Contact(id = "2", displayName = "Bob", phoneNumbers = listOf(PhoneNumber("789012")))))
             },
-            navController = rememberNavController()
+            navigator = navigator
         )
     }
 }

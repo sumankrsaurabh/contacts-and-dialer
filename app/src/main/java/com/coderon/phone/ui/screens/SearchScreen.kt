@@ -50,8 +50,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
 import com.coderon.phone.R.drawable
 import com.coderon.phone.data.model.CallLog
@@ -60,16 +58,19 @@ import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
+import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
 fun SearchScreen(
-    navController: NavController,
+    navigator: Navigator,
     contacts: List<Contact> = emptyList(),
     logs: List<CallLog> = emptyList(),
-    onBack: () -> Unit = { navController.popBackStack() }
+    onBack: () -> Unit = { navigator.goBack() }
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var query by remember { mutableStateOf("") }
@@ -202,10 +203,10 @@ fun SearchScreen(
                             subtitle = contact.phoneNumbers.firstOrNull()?.number,
                             photoUrl = contact.profilePictureUrl,
                             onRowClick = {
-                                navController.navigate("contact_details/${contact.phoneNumbers.firstOrNull()?.number}")
+                                navigator.navigate(Screen.CallDetails(contact.phoneNumbers.firstOrNull()?.number ?: ""))
                             },
                             onInfoClick = {
-                                navController.navigate("contact_details/${contact.phoneNumbers.firstOrNull()?.number}")
+                                navigator.navigate(Screen.CallDetails(contact.phoneNumbers.firstOrNull()?.number ?: ""))
                             },
                         )
                     }
@@ -224,8 +225,8 @@ fun SearchScreen(
                             callTime = log.callTime,
                             simSlot = log.simSlot,
                             contact = log.contact,
-                            onRowClick = { navController.navigate("call_details/${log.phoneNumber}") },
-                            onInfoClick = { navController.navigate("call_details/${log.phoneNumber}") },
+                            onRowClick = { navigator.navigate(Screen.CallDetails(log.phoneNumber)) },
+                            onInfoClick = { navigator.navigate(Screen.CallDetails(log.phoneNumber)) },
                         )
                     }
                 }
@@ -274,9 +275,15 @@ private fun EmptySearchState(message: String) {
 @Preview(showBackground = true)
 @Composable
 private fun PreviewSearchHybrid() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Search,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = remember { Navigator(navState) }
+    
     PhoneTheme {
         SearchScreen(
-            navController = rememberNavController(),
+            navigator = navigator,
             contacts = listOf(
                 Contact(
                     id = "1",

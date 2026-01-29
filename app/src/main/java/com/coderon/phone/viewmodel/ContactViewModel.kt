@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
+import com.coderon.phone.domain.repository.ContactRepository
 import com.coderon.phone.domain.usecase.GetContactsUseCase
 import com.coderon.phone.domain.usecase.SaveContactUseCase
 import com.coderon.phone.domain.usecase.UpdateContactUseCase
@@ -20,7 +21,8 @@ import java.util.SortedMap
 class ContactViewModel(
     private val getContactsUseCase: GetContactsUseCase,
     private val saveContactUseCase: SaveContactUseCase,
-    private val updateContactUseCase: UpdateContactUseCase
+    private val updateContactUseCase: UpdateContactUseCase,
+    private val contactRepository: ContactRepository // Assuming it's available via Koin
 ) : ViewModel() {
 
     private val _allContacts = MutableStateFlow<List<Contact>>(emptyList())
@@ -121,6 +123,13 @@ class ContactViewModel(
                 profilePictureUri = profilePictureUri,
                 isFavorite = isFavorite
             )
+            refreshContacts()
+        }
+    }
+
+    fun deleteContact(contactId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            contactRepository.deleteContact(contactId)
             refreshContacts()
         }
     }

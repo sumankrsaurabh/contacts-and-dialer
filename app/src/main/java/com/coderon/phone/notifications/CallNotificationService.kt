@@ -165,8 +165,6 @@ class CallNotificationManager(
             .setSilent(true)
 
         // Modern CallStyle (Android 12+)
-        // Incoming calls MUST have a fullScreenIntent to be posted safely with CallStyle
-        // Ongoing calls MUST be in a foreground service.
         val style = if (isIncoming) {
             NotificationCompat.CallStyle.forIncomingCall(
                 person,
@@ -183,6 +181,7 @@ class CallNotificationManager(
         builder.setStyle(style)
 
         if (isIncoming) {
+            // Full screen intent is REQUIRED for heads-up notification on many devices
             builder.setFullScreenIntent(contentIntent, true)
         } else {
             // Ongoing state actions
@@ -258,12 +257,9 @@ class CallNotificationManager(
                         isIncoming = isIncoming,
                         avatarBitmap = bitmap
                     )
-                    // Safe notify: If incoming, always safe due to fullScreenIntent.
-                    // If ongoing, we assume the Service has already called startForeground.
                     try {
                         notificationManager.notify(CALL_NOTIFICATION_ID, notification)
                     } catch (e: Exception) {
-                        // Suppress potential validation errors during transitions
                     }
                 }
             }
@@ -288,15 +284,15 @@ class CallNotificationManager(
 
     @SuppressLint("NewApi")
     private fun createChannelIfNeeded(channelId: String, isIncoming: Boolean) {
-        if (isIncoming) NotificationManager.IMPORTANCE_MAX else NotificationManager.IMPORTANCE_HIGH
+        val importance = if (isIncoming) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
         val channelName = if (isIncoming) "Incoming Calls" else "Ongoing Calls"
 
         val channel = NotificationChannel(
             channelId,
             channelName,
-            NotificationManager.IMPORTANCE_DEFAULT
+            importance
         ).apply {
-            setSound(null, null)
+            setSound(null, null) // Silent because Telecom handles ringing
             enableVibration(isIncoming)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }

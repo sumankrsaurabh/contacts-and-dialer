@@ -44,23 +44,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.data.model.CallLog
 import com.coderon.phone.data.model.CallType
 import com.coderon.phone.ui.components.HybridAlertDialog
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridSegmentedPicker
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
 import com.coderon.phone.viewmodel.CallFilter
-import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.GroupedCallLog
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -71,7 +69,7 @@ fun CallLogScreen(
     filter: CallFilter,
     onFilterChanged: (CallFilter) -> Unit,
     onDeleteAllLogs: () -> Unit,
-    navController: NavController
+    navigator: Navigator
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -188,8 +186,8 @@ fun CallLogScreen(
                                     }
                                 },
                                 onInfoClick = {
-                                    navController.navigate(
-                                        Screen.CallDetails.createRoute(group.phoneNumber)
+                                    navigator.navigate(
+                                        Screen.CallDetails(group.phoneNumber)
                                     )
                                 }
                             )
@@ -229,6 +227,12 @@ fun CallLogScreen(
 @Preview(showBackground = true)
 @Composable
 fun CallLogPreview() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Recent,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = remember { Navigator(navState) }
+    
     PhoneTheme {
         CallLogScreen(
             callLogsByDate = mapOf(
@@ -239,7 +243,7 @@ fun CallLogPreview() {
             filter = CallFilter.ALL,
             onFilterChanged = {},
             onDeleteAllLogs = {},
-            navController = rememberNavController()
+            navigator = navigator
         )
     }
 }

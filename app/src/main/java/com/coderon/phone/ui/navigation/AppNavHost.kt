@@ -2,13 +2,11 @@ package com.coderon.phone.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
 import com.coderon.phone.call.ui.screens.incallui.CallScreen
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
@@ -26,7 +24,7 @@ import com.coderon.phone.viewmodel.ContactViewModel
 
 @Composable
 fun AppNavHost(
-    navController: NavHostController,
+    navigator: Navigator,
     contactViewModel: ContactViewModel,
     callLogViewModel: CallLogViewModel
 ) {
@@ -37,21 +35,17 @@ fun AppNavHost(
     val callLogsByDate by callLogViewModel.callLogsByDate.collectAsStateWithLifecycle()
     val callFilter by callLogViewModel.filter.collectAsStateWithLifecycle()
 
-    NavHost(
-        navController = navController,
-        startDestination = Screen.Keypad.route
-    ) {
-
+    val entryProvider: (NavKey) -> NavEntry<NavKey> = entryProvider {
         fun updateSearchQuery(query: String) {
             contactViewModel.onSearchQueryChanged(query)
             callLogViewModel.onSearchQueryChanged(query)
         }
 
         /* -------------------- KEYPAD -------------------- */
-        composable(Screen.Keypad.route) {
-            ScaffoldScreen(navController) {
+        entry<Screen.Keypad> {
+            ScaffoldScreen(navigator) {
                 DialerScreen(
-                    navController = navController,
+                    navigator = navigator,
                     contactsGrouped = groupedContacts,
                     callLogsGrouped = callLogsByDate,
                     updateSearchQuery = ::updateSearchQuery,
@@ -61,100 +55,80 @@ fun AppNavHost(
         }
 
         /* -------------------- RECENT -------------------- */
-        composable(Screen.Recent.route) {
-            ScaffoldScreen(navController) {
+        entry<Screen.Recent> {
+            ScaffoldScreen(navigator) {
                 CallLogScreen(
                     callLogsByDate = callLogsByDate,
                     filter = callFilter,
                     onFilterChanged = { callLogViewModel.onFilterChanged(it) },
                     onDeleteAllLogs = { callLogViewModel.deleteAllLogs() },
-                    navController = navController
+                    navigator = navigator
                 )
             }
         }
 
         /* -------------------- CONTACTS -------------------- */
-        composable(Screen.Contacts.route) {
-            ScaffoldScreen(navController) {
+        entry<Screen.Contacts> {
+            ScaffoldScreen(navigator) {
                 ContactsScreen(
                     contactsGrouped = groupedContacts,
-                    navController = navController
+                    navigator = navigator
                 )
             }
         }
 
         /* -------------------- SEARCH -------------------- */
-        composable(Screen.Search.route) {
-            ScaffoldScreen(navController) {
+        entry<Screen.Search> {
+            ScaffoldScreen(navigator) {
                 SearchScreen(
-                    navController = navController,
+                    navigator = navigator,
                     contacts = filteredContacts,
                     logs = callLogsByDate.values.flatten().flatMap { it.logs },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navigator.goBack() }
                 )
             }
         }
 
         /* -------------------- ADD/EDIT CONTACT -------------------- */
-        composable(
-            route = Screen.AddContact.route,
-            arguments = listOf(
-                navArgument("number") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-                navArgument("contactId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
-        ) { backStackEntry ->
-            val number = backStackEntry.arguments?.getString("number")
-            val contactId = backStackEntry.arguments?.getString("contactId")
-            
-            val existingContact = if (contactId != null) {
-                allContacts.firstOrNull { it.id == contactId }
+        entry<Screen.AddContact> { key ->
+            val existingContact = if (key.contactId != null) {
+                allContacts.firstOrNull { it.id == key.contactId }
             } else null
 
-            key(existingContact?.id ?: "new_contact") {
-                AddContactScreen(
-                    navController = navController,
-                    initialPhoneNumber = number,
-                    existingContact = existingContact,
-                    onSaveContact = { contact ->
-                        if (contactId != null) {
-                            contactViewModel.updateContact(
-                                contactId = contactId,
-                                firstName = contact.firstName,
-                                lastName = contact.lastName,
-                                displayName = contact.displayName,
-                                phoneNumbers = contact.phoneNumbers,
-                                emailAddresses = contact.emailAddresses,
-                                profilePictureUri = contact.profilePictureUrl,
-                                isFavorite = contact.isFavorite
-                            )
-                        } else {
-                            contactViewModel.saveContact(
-                                firstName = contact.firstName,
-                                lastName = contact.lastName,
-                                displayName = contact.displayName,
-                                phoneNumbers = contact.phoneNumbers,
-                                emailAddresses = contact.emailAddresses,
-                                profilePictureUri = contact.profilePictureUrl,
-                                isFavorite = contact.isFavorite
-                            )
-                        }
+            AddContactScreen(
+                navigator = navigator,
+                initialPhoneNumber = key.number,
+                existingContact = existingContact,
+                onSaveContact = { contact ->
+                    if (key.contactId != null) {
+                        contactViewModel.updateContact(
+                            contactId = key.contactId,
+                            firstName = contact.firstName,
+                            lastName = contact.lastName,
+                            displayName = contact.displayName,
+                            phoneNumbers = contact.phoneNumbers,
+                            emailAddresses = contact.emailAddresses,
+                            profilePictureUri = contact.profilePictureUrl,
+                            isFavorite = contact.isFavorite
+                        )
+                    } else {
+                        contactViewModel.saveContact(
+                            firstName = contact.firstName,
+                            lastName = contact.lastName,
+                            displayName = contact.displayName,
+                            phoneNumbers = contact.phoneNumbers,
+                            emailAddresses = contact.emailAddresses,
+                            profilePictureUri = contact.profilePictureUrl,
+                            isFavorite = contact.isFavorite
+                        )
                     }
-                )
-            }
+                }
+            )
         }
 
         /* -------------------- CONTACT DETAILS -------------------- */
-        composable(Screen.CallDetails.route) { backStackEntry ->
-            val routePhoneNumber = backStackEntry.arguments?.getString("phoneNumber").orEmpty()
-            val normalizedRouteNumber = normalizePhoneNumber(routePhoneNumber)
+        entry<Screen.CallDetails> { key ->
+            val normalizedRouteNumber = normalizePhoneNumber(key.phoneNumber)
 
             val callLogsForNumber by callLogViewModel
                 .getCallLogsForNumber(normalizedRouteNumber)
@@ -177,17 +151,22 @@ fun AppNavHost(
                     )
                 ),
                 callLogs = callLogsForNumber,
-                navController = navController,
+                navigator = navigator,
                 onToggleFavorite = { contactViewModel.toggleFavorite(it) },
                 onEditContact = { contact ->
-                    navController.navigate(Screen.AddContact.createRoute(contactId = contact.id))
+                    navigator.navigate(Screen.AddContact(contactId = contact.id))
                 }
             )
         }
 
         /* -------------------- INCALL UI -------------------- */
-        composable(Screen.CallScreen.route) {
-            CallScreen(navController)
+        entry<Screen.CallScreen> {
+            CallScreen(navigator)
         }
     }
+
+    NavDisplay(
+        entries = navigator.state.toEntries(entryProvider),
+        onBack = { navigator.goBack() }
+    )
 }

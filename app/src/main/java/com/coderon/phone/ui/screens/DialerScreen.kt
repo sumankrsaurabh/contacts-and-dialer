@@ -52,17 +52,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
-import com.coderon.phone.data.model.CallType
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.components.DialPad
 import com.coderon.phone.ui.components.HybridCallLogPill
 import com.coderon.phone.ui.components.HybridContactRow
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
@@ -76,7 +75,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun DialerScreen(
-    navController: NavController,
+    navigator: Navigator,
     contactsGrouped: SortedMap<Char, List<Contact>>,
     callLogsGrouped: Map<String, List<GroupedCallLog>>,
     updateSearchQuery: (String) -> Unit = {},
@@ -150,7 +149,7 @@ fun DialerScreen(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                         .clickable {
-                            navController.navigate(Screen.AddContact.createRoute(dialedNumber))
+                            navigator.navigate(Screen.AddContact(number = dialedNumber))
                         }
                 )
             }
@@ -220,7 +219,7 @@ fun DialerScreen(
                                         }
                                     },
                                     onInfoClick = {
-                                        navController.navigate(Screen.CallDetails.createRoute(item.phoneNumber))
+                                        navigator.navigate(Screen.CallDetails(item.phoneNumber))
                                     }
                                 )
                             }
@@ -239,11 +238,7 @@ fun DialerScreen(
                                         }
                                     },
                                     onInfoClick = {
-                                        navController.navigate(
-                                            Screen.CallDetails.createRoute(
-                                                contactNumber
-                                            )
-                                        )
+                                        navigator.navigate(Screen.CallDetails(contactNumber))
                                     }
                                 )
                             }
@@ -336,9 +331,15 @@ fun DialerScreen(
 @Preview(showBackground = true)
 @Composable
 fun DialerPreview() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Keypad,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = remember { Navigator(navState) }
+    
     PhoneTheme {
         DialerScreen(
-            navController = rememberNavController(),
+            navigator = navigator,
             contactsGrouped = TreeMap<Char, List<Contact>>().apply {
                 put('A', listOf(Contact(displayName = "Alice", phoneNumbers = listOf(PhoneNumber("123456")))))
             },

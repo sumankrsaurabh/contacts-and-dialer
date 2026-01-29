@@ -77,8 +77,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import androidx.core.net.toUri
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.coderon.phone.data.model.Contact
@@ -86,13 +85,16 @@ import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.data.model.PhoneNumberType
 import com.coderon.phone.ui.components.HybridAlertDialog
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
+import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
 fun AddContactScreen(
-    navController: NavController? = null,
+    navigator: Navigator,
     initialPhoneNumber: String? = null,
     existingContact: Contact? = null,
     onSaveContact: (Contact) -> Unit = {}
@@ -109,8 +111,8 @@ fun AddContactScreen(
 
     var firstName by remember { mutableStateOf(existingContact?.firstName ?: "") }
     var lastName by remember { mutableStateOf(existingContact?.lastName ?: "") }
-    
-    val phoneNumbers = remember { 
+
+    val phoneNumbers = remember {
         val list = mutableStateListOf<PhoneNumber>()
         if (existingContact != null && existingContact.phoneNumbers.isNotEmpty()) {
             list.addAll(existingContact.phoneNumbers)
@@ -119,8 +121,8 @@ fun AddContactScreen(
         }
         list
     }
-    
-    val emailAddresses = remember { 
+
+    val emailAddresses = remember {
         val list = mutableStateListOf<String>()
         if (existingContact != null && existingContact.emailAddresses.isNotEmpty()) {
             list.addAll(existingContact.emailAddresses)
@@ -129,25 +131,31 @@ fun AddContactScreen(
         }
         list
     }
-    
-    var photoUri by remember { mutableStateOf<Uri?>(existingContact?.profilePictureUrl?.let { Uri.parse(it) }) }
+
+    var photoUri by remember { mutableStateOf<Uri?>(existingContact?.profilePictureUrl?.let { it.toUri() }) }
     var isFavorite by remember { mutableStateOf(existingContact?.isFavorite ?: false) }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showSaveConfirmation by remember { mutableStateOf(false) }
 
-    val hasChanges = firstName != (existingContact?.firstName ?: "") || 
-                     lastName != (existingContact?.lastName ?: "") || 
-                     phoneNumbers.toList() != (existingContact?.phoneNumbers ?: listOf(PhoneNumber(initialPhoneNumber ?: "", PhoneNumberType.MOBILE))) ||
-                     emailAddresses.toList() != (existingContact?.emailAddresses ?: if (existingContact == null) listOf("") else emptyList<String>()) ||
-                     (photoUri?.toString() ?: "") != (existingContact?.profilePictureUrl ?: "") ||
-                     isFavorite != (existingContact?.isFavorite ?: false)
+    val hasChanges = firstName != (existingContact?.firstName ?: "") ||
+            lastName != (existingContact?.lastName ?: "") ||
+            phoneNumbers.toList() != (existingContact?.phoneNumbers ?: listOf(
+        PhoneNumber(
+            initialPhoneNumber ?: "",
+            PhoneNumberType.MOBILE
+        )
+    )) ||
+            emailAddresses.toList() != (existingContact?.emailAddresses
+        ?: if (existingContact == null) listOf("") else emptyList<String>()) ||
+            (photoUri?.toString() ?: "") != (existingContact?.profilePictureUrl ?: "") ||
+            isFavorite != (existingContact?.isFavorite ?: false)
 
     val handleBack = {
         if (hasChanges) {
             showDiscardDialog = true
         } else {
-            navController?.popBackStack()
+            navigator.goBack()
         }
     }
 
@@ -160,7 +168,8 @@ fun AddContactScreen(
         photoUri = it
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior =
+        TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -173,12 +182,12 @@ fun AddContactScreen(
                         .blur(20.dp)
                         .background(colorScheme.background.copy(alpha = 0.7f))
                 )
-                
+
                 LargeTopAppBar(
                     title = {
                         Text(
-                            text = if (existingContact != null) "Edit Contact" else "New Contact", 
-                            fontWeight = FontWeight.Bold, 
+                            text = if (existingContact != null) "Edit Contact" else "New Contact",
+                            fontWeight = FontWeight.Bold,
                             fontSize = 30.sp,
                             letterSpacing = (-0.5).sp
                         )
@@ -188,11 +197,17 @@ fun AddContactScreen(
                             onClick = { handleBack() },
                             modifier = Modifier.padding(start = 8.dp)
                         ) {
-                            Text("Cancel", color = colorScheme.primary, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                "Cancel",
+                                color = colorScheme.primary,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     },
                     actions = {
-                        val canSave = (firstName.isNotBlank() || lastName.isNotBlank()) && phoneNumbers.any { it.number.isNotBlank() }
+                        val canSave =
+                            (firstName.isNotBlank() || lastName.isNotBlank()) && phoneNumbers.any { it.number.isNotBlank() }
                         TextButton(
                             onClick = { showSaveConfirmation = true },
                             enabled = canSave,
@@ -200,7 +215,9 @@ fun AddContactScreen(
                         ) {
                             Text(
                                 "Done",
-                                color = if (canSave) colorScheme.primary else colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                color = if (canSave) colorScheme.primary else colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.38f
+                                ),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 17.sp
                             )
@@ -215,10 +232,11 @@ fun AddContactScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .alpha(entryAlpha.value)
-            .offset { IntOffset(0, entryOffset.value.roundToInt()) }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(entryAlpha.value)
+                .offset { IntOffset(0, entryOffset.value.roundToInt()) }
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -278,8 +296,8 @@ fun AddContactScreen(
                             onValueChange = { firstName = it }
                         )
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 20.dp), 
-                            color = colorScheme.outlineVariant.copy(alpha = 0.2f), 
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            color = colorScheme.outlineVariant.copy(alpha = 0.2f),
                             thickness = 0.5.dp
                         )
                         HybridInputField(
@@ -295,7 +313,9 @@ fun AddContactScreen(
                 item {
                     Text(
                         "PHONE",
-                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, bottom = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, bottom = 8.dp),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -305,11 +325,11 @@ fun AddContactScreen(
                 itemsIndexed(phoneNumbers) { index, phone ->
                     SectionContainer {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically, 
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             var expanded by remember { mutableStateOf(false) }
-                            
+
                             // Tag Selector
                             Surface(
                                 onClick = { expanded = true },
@@ -321,7 +341,8 @@ fun AddContactScreen(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Text(
-                                        phone.type.name.lowercase().replaceFirstChar { it.uppercase() },
+                                        phone.type.name.lowercase()
+                                            .replaceFirstChar { it.uppercase() },
                                         color = colorScheme.primary,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Medium
@@ -333,10 +354,16 @@ fun AddContactScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }) {
                                     PhoneNumberType.entries.forEach { type ->
                                         DropdownMenuItem(
-                                            text = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                            text = {
+                                                Text(
+                                                    type.name.lowercase()
+                                                        .replaceFirstChar { it.uppercase() })
+                                            },
                                             onClick = {
                                                 phoneNumbers[index] = phone.copy(type = type)
                                                 expanded = false
@@ -345,7 +372,7 @@ fun AddContactScreen(
                                     }
                                 }
                             }
-                            
+
                             HybridInputField(
                                 label = "",
                                 value = phone.number,
@@ -353,10 +380,10 @@ fun AddContactScreen(
                                 onValueChange = { phoneNumbers[index] = phone.copy(number = it) },
                                 modifier = Modifier.weight(1f)
                             )
-                            
+
                             if (phoneNumbers.size > 1 || phone.number.isNotEmpty()) {
                                 IconButton(
-                                    onClick = { 
+                                    onClick = {
                                         if (phoneNumbers.size > 1) phoneNumbers.removeAt(index)
                                         else phoneNumbers[index] = phone.copy(number = "")
                                     },
@@ -374,7 +401,7 @@ fun AddContactScreen(
                     }
                     Spacer(Modifier.height(10.dp))
                 }
-                
+
                 item {
                     Row(
                         modifier = Modifier
@@ -386,16 +413,16 @@ fun AddContactScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Rounded.Add, 
-                            contentDescription = null, 
-                            tint = Color(0xFF34C759), 
+                            Icons.Rounded.Add,
+                            contentDescription = null,
+                            tint = Color(0xFF34C759),
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            "Add Phone Number", 
-                            color = colorScheme.onSurface, 
-                            fontSize = 16.sp, 
+                            "Add Phone Number",
+                            color = colorScheme.onSurface,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -406,7 +433,9 @@ fun AddContactScreen(
                 item {
                     Text(
                         "EMAIL",
-                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, bottom = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, bottom = 8.dp),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -416,7 +445,7 @@ fun AddContactScreen(
                 itemsIndexed(emailAddresses) { index, email ->
                     SectionContainer {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically, 
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             HybridInputField(
@@ -426,10 +455,10 @@ fun AddContactScreen(
                                 onValueChange = { emailAddresses[index] = it },
                                 modifier = Modifier.weight(1f)
                             )
-                            
+
                             if (emailAddresses.size > 1 || email.isNotEmpty()) {
                                 IconButton(
-                                    onClick = { 
+                                    onClick = {
                                         if (emailAddresses.size > 1) emailAddresses.removeAt(index)
                                         else emailAddresses[index] = ""
                                     },
@@ -459,16 +488,16 @@ fun AddContactScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Rounded.Add, 
-                            contentDescription = null, 
-                            tint = Color(0xFF34C759), 
+                            Icons.Rounded.Add,
+                            contentDescription = null,
+                            tint = Color(0xFF34C759),
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            "Add Email Address", 
-                            color = colorScheme.onSurface, 
-                            fontSize = 16.sp, 
+                            "Add Email Address",
+                            color = colorScheme.onSurface,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -479,13 +508,19 @@ fun AddContactScreen(
                 item {
                     SectionContainer {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Add to Favorites", fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                "Add to Favorites",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                             Switch(
-                                checked = isFavorite, 
+                                checked = isFavorite,
                                 onCheckedChange = { isFavorite = it },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
@@ -510,7 +545,7 @@ fun AddContactScreen(
                     confirmColor = Color(0xFFFF3B30),
                     onConfirm = {
                         showDiscardDialog = false
-                        navController?.popBackStack()
+                        navigator.goBack()
                     },
                     onDismiss = { showDiscardDialog = false }
                 )
@@ -526,7 +561,10 @@ fun AddContactScreen(
                             id = existingContact?.id ?: "",
                             firstName = firstName,
                             lastName = lastName,
-                            displayName = "$firstName $lastName".trim().ifBlank { phoneNumbers.firstOrNull { it.number.isNotBlank() }?.number ?: "Unknown" },
+                            displayName = "$firstName $lastName".trim().ifBlank {
+                                phoneNumbers.firstOrNull { it.number.isNotBlank() }?.number
+                                    ?: "Unknown"
+                            },
                             phoneNumbers = phoneNumbers.filter { it.number.isNotBlank() },
                             emailAddresses = emailAddresses.filter { it.isNotBlank() },
                             profilePictureUrl = photoUri?.toString(),
@@ -534,7 +572,7 @@ fun AddContactScreen(
                         )
                         onSaveContact(contact)
                         showSaveConfirmation = false
-                        navController?.popBackStack()
+                        navigator.goBack()
                     },
                     onDismiss = { showSaveConfirmation = false }
                 )
@@ -584,7 +622,13 @@ private fun HybridInputField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f),
-            placeholder = { Text(label, color = colorScheme.onSurfaceVariant.copy(alpha = 0.35f), fontSize = 16.sp) },
+            placeholder = {
+                Text(
+                    label,
+                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                    fontSize = 16.sp
+                )
+            },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
@@ -601,7 +645,13 @@ private fun HybridInputField(
 @Preview(showBackground = true)
 @Composable
 fun PreviewAddContactComplete() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Keypad,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = Navigator(navState)
+
     PhoneTheme {
-        AddContactScreen(navController = rememberNavController())
+        AddContactScreen(navigator = navigator)
     }
 }

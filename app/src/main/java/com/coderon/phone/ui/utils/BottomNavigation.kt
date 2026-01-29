@@ -37,20 +37,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import com.coderon.phone.R
 import com.coderon.phone.ui.components.Text
+import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
+import com.coderon.phone.ui.navigation.rememberNavigationState
 
 /* ------------------------------------------------
    BOTTOM NAV VISIBILITY CONTROL
 ------------------------------------------------ */
 
-// Fixed: Provided a default mutableStateOf(true) to prevent IllegalStateException in Previews.
-// Previews of screens using LocalBottomNavVisible will now render correctly without needing
-// an explicit CompositionLocalProvider.
 val LocalBottomNavVisible = compositionLocalOf<MutableState<Boolean>> {
     mutableStateOf(true)
 }
@@ -61,7 +57,7 @@ val LocalBottomNavVisible = compositionLocalOf<MutableState<Boolean>> {
 
 @Composable
 fun ScaffoldScreen(
-    navController: NavController,
+    navigator: Navigator,
     showBottomBar: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -92,7 +88,7 @@ fun ScaffoldScreen(
                 )
 
                 IosSegmentedBottomBar(
-                    navController = navController,
+                    navigator = navigator,
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
@@ -106,12 +102,11 @@ fun ScaffoldScreen(
 
 @Composable
 fun IosSegmentedBottomBar(
-    navController: NavController,
+    navigator: Navigator,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Keypad.route
+    val currentRoute = navigator.state.topLevelRoute
 
     Box(
         modifier = modifier
@@ -123,10 +118,10 @@ fun IosSegmentedBottomBar(
             modifier = Modifier
                 .height(72.dp)
                 .fillMaxWidth(),
-            shape = RoundedCornerShape(36.dp), // Super Rounded OneUI 8 / modern iOS style
+            shape = RoundedCornerShape(36.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
             shadowElevation = 12.dp,
-            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)) // iOS Glass Rim
+            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
         ) {
             Row(
                 modifier = Modifier
@@ -136,7 +131,7 @@ fun IosSegmentedBottomBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 bottomNavItems.forEach { item ->
-                    val isSelected = currentRoute == item.screen.route
+                    val isSelected = currentRoute == item.screen
                     val tint = if (isSelected) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -157,13 +152,7 @@ fun IosSegmentedBottomBar(
                             .noRippleClickable {
                                 if (!isSelected) {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    navController.navigate(item.screen.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                                    navigator.navigate(item.screen)
                                 }
                             },
                         contentAlignment = Alignment.Center
@@ -230,8 +219,14 @@ private fun Modifier.noRippleClickable(onClick: () -> Unit) =
 @Preview(showBackground = true)
 @Composable
 private fun PerfectIosNavPreview() {
+    val navState = rememberNavigationState(
+        startRoute = Screen.Keypad,
+        topLevelRoutes = setOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    )
+    val navigator = remember { Navigator(navState) }
+    
     ScaffoldScreen(
-        navController = rememberNavController(),
+        navigator = navigator,
         showBottomBar = true
     ) {
 
