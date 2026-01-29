@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.telecom.Call
+import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
@@ -34,14 +35,19 @@ fun getCallType(context: Context): String {
 
 @SuppressLint("MissingPermission")
 fun Call.getSimInfoForCall(context: Context): String {
+    val handle = this.details.accountHandle ?: return "Unknown SIM"
+    return handle.getSimName(context)
+}
+
+@SuppressLint("MissingPermission")
+fun PhoneAccountHandle.getSimName(context: Context): String {
     val telecomManager = context.getSystemService(TelecomManager::class.java) ?: return "Unknown SIM"
     val subscriptionManager = context.getSystemService(SubscriptionManager::class.java) ?: return "Unknown SIM"
 
-    val phoneAccountHandle = this.details.accountHandle ?: return "Unknown SIM"
-    val phoneAccount = telecomManager.getPhoneAccount(phoneAccountHandle)
+    val phoneAccount = telecomManager.getPhoneAccount(this)
     
     // Attempt to get subscription ID from the account handle ID
-    val subscriptionId = phoneAccountHandle.id?.toIntOrNull()
+    val subscriptionId = this.id?.toIntOrNull()
 
     val subscriptionInfo = if (subscriptionId != null) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

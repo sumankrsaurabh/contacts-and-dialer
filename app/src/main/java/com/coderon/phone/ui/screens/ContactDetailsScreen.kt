@@ -77,6 +77,7 @@ import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.getAvailableSims
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.openMessagingApp
 import com.coderon.phone.utils.placeCall
@@ -89,7 +90,8 @@ fun ContactDetailsScreen(
     callLogs: List<CallLog>,
     navigator: Navigator,
     onToggleFavorite: (Contact) -> Unit = {},
-    onEditContact: (Contact) -> Unit = {}
+    onEditContact: (Contact) -> Unit = {},
+    defaultSimId: String? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -109,6 +111,21 @@ fun ContactDetailsScreen(
     var numberToCall by remember { mutableStateOf("") }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+
+    fun onCallClick(number: String) {
+        numberToCall = number
+        val sims = getAvailableSims(context)
+        val defaultSim = sims.find { it.id == defaultSimId }
+        
+        if (defaultSim != null) {
+            placeCall(context, number, defaultSim)
+        } else {
+            initiateCall(context, number) { available ->
+                availableSims = available
+                showSimDialog = true
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -189,11 +206,7 @@ fun ContactDetailsScreen(
                         HybridQuickActions(
                             onCall = {
                                 if (primaryNumber.isNotBlank()) {
-                                    numberToCall = primaryNumber
-                                    initiateCall(context, primaryNumber) { sims ->
-                                        availableSims = sims
-                                        showSimDialog = true
-                                    }
+                                    onCallClick(primaryNumber)
                                 }
                             },
                             onMessage = {
@@ -204,11 +217,7 @@ fun ContactDetailsScreen(
                             onVideo = {
                                 // For now, video call uses same initiateCall flow
                                 if (primaryNumber.isNotBlank()) {
-                                    numberToCall = primaryNumber
-                                    initiateCall(context, primaryNumber) { sims ->
-                                        availableSims = sims
-                                        showSimDialog = true
-                                    }
+                                    onCallClick(primaryNumber)
                                 }
                             }
                         )
@@ -224,13 +233,7 @@ fun ContactDetailsScreen(
                                 value = phone.number,
                                 icon = R.drawable.call,
                                 showDivider = index < contact.phoneNumbers.size - 1 || contact.emailAddresses.isNotEmpty(),
-                                onClick = {
-                                    numberToCall = phone.number
-                                    initiateCall(context, phone.number) { sims ->
-                                        availableSims = sims
-                                        showSimDialog = true
-                                    }
-                                }
+                                onClick = { onCallClick(phone.number) }
                             )
                         }
                         contact.emailAddresses.forEachIndexed { index, email ->
@@ -262,13 +265,7 @@ fun ContactDetailsScreen(
                                 HybridCallLogRow(
                                     log = log,
                                     showDivider = index < 9 && index < callLogs.size - 1,
-                                    onClick = {
-                                        numberToCall = log.phoneNumber
-                                        initiateCall(context, log.phoneNumber) { sims ->
-                                            availableSims = sims
-                                            showSimDialog = true
-                                        }
-                                    }
+                                    onClick = { onCallClick(log.phoneNumber) }
                                 )
                             }
                         }

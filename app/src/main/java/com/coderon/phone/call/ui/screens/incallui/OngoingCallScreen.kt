@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.coderon.phone.call.ui.screens.incallui
 
 import androidx.compose.animation.AnimatedVisibility
@@ -26,6 +24,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.Mic
@@ -33,8 +32,6 @@ import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.VideoCall
-import androidx.compose.material.icons.rounded.VolumeUp
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -81,6 +78,7 @@ fun OngoingCallScreen(
     callType: String = "HD",
     simInfo: String = "",
     profilePictureUrl: String? = null,
+    backgroundUri: String? = null,
     onEndCall: () -> Unit,
     onToggleSpeaker: () -> Unit,
     onToggleMute: () -> Unit,
@@ -111,7 +109,21 @@ fun OngoingCallScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        OneUi8DynamicBackground()
+        if (!backgroundUri.isNullOrEmpty()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(backgroundUri)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Overlay for readability
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+        } else {
+            OneUi8DynamicBackground()
+        }
 
         Column(
             modifier = Modifier
@@ -183,9 +195,9 @@ fun OngoingCallScreen(
                         isPulsing = isConnectingOrDialing
                     )
                 } else {
-                    OngoingDialPad {
-                        playDfmTones(it)
-                        CallManager.playDtmfTone(it)
+                    OngoingDialPad { digit ->
+                        playDfmTones(digit)
+                        CallManager.playDtmfTone(digit)
                     }
                 }
             }
@@ -222,7 +234,7 @@ fun OngoingCallScreen(
                                 onClick = { showKeypad = true }
                             )
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.VolumeUp,
+                                imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                                 label = "Speaker",
                                 active = currentAudioRoute == AudioRoute.SPEAKER,
                                 onClick = onToggleSpeaker

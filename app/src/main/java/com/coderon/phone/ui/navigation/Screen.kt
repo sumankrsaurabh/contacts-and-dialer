@@ -9,6 +9,7 @@ sealed interface Screen : NavKey {
     @Serializable data object Recent : Screen
     @Serializable data object Contacts : Screen
     @Serializable data object Search : Screen
+    @Serializable data object Voicemail : Screen
     
     @Serializable 
     data class AddContact(
@@ -21,4 +22,5 @@ sealed interface Screen : NavKey {
     
     @Serializable data object CallScreen : Screen
     @Serializable data object Settings : Screen
+    @Serializable data object BlockedNumbers : Screen
 }

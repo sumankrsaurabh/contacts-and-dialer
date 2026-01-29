@@ -33,7 +33,10 @@ import com.coderon.phone.ui.utils.extentions.getSimInfoForCall
 
 @Composable
 fun CallScreen(
-    navigator: Navigator
+    navigator: Navigator,
+    backgroundUri: String? = null,
+    showContactPhoto: Boolean = true,
+    keypadTonesEnabled: Boolean = true
 ) {
     val uiState by CallManager.uiState.collectAsState()
     val context = LocalContext.current
@@ -65,8 +68,9 @@ fun CallScreen(
                 IncomingCallScreen(
                     name = call.displayName,
                     phoneNumber = call.phoneNumber,
-                    profilePictureUrl = call.profilePictureUrl,
+                    profilePictureUrl = if (showContactPhoto) call.profilePictureUrl else null,
                     simInfo = call.call.getSimInfoForCall(context),
+                    backgroundUri = backgroundUri,
                     onAnswer = { CallManager.accept() },
                     onDecline = { CallManager.reject() }
                 )
@@ -80,7 +84,8 @@ fun CallScreen(
                 OngoingCallScreen(
                     contactName = call.displayName ?: call.phoneNumber,
                     contactPhoneNumber = call.phoneNumber,
-                    profilePictureUrl = call.profilePictureUrl,
+                    profilePictureUrl = if (showContactPhoto) call.profilePictureUrl else null,
+                    backgroundUri = backgroundUri,
                     state = when (call.state) {
                         CallState.ACTIVE -> State.ACTIVE
                         CallState.HOLDING -> State.HOLD
@@ -106,7 +111,7 @@ fun CallScreen(
                         navigator.navigate(Screen.Keypad)
                     },
                     onVideoCall = { CallManager.toggleVideo() },
-                    playDfmTones = { CallManager.playDtmfTone(it) }
+                    playDfmTones = { if (keypadTonesEnabled) CallManager.playDtmfTone(it) }
                 )
             }
 
@@ -123,7 +128,7 @@ fun CallScreen(
                     activeNumber = active.phoneNumber,
                     waitingName = waiting.displayName,
                     waitingNumber = waiting.phoneNumber,
-                    profilePictureUrl = waiting.profilePictureUrl,
+                    profilePictureUrl = if (showContactPhoto) waiting.profilePictureUrl else null,
                     onAcceptWaiting = { CallManager.accept() },
                     onRejectWaiting = { waiting.call.disconnect() },
                     onEndActiveAcceptWaiting = {

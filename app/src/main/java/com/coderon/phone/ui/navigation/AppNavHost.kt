@@ -11,22 +11,32 @@ import com.coderon.phone.call.ui.screens.incallui.CallScreen
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
 import com.coderon.phone.ui.screens.AddContactScreen
+import com.coderon.phone.ui.screens.BlockedNumbersScreen
 import com.coderon.phone.ui.screens.CallLogScreen
 import com.coderon.phone.ui.screens.ContactDetailsScreen
 import com.coderon.phone.ui.screens.ContactsScreen
 import com.coderon.phone.ui.screens.DialerScreen
 import com.coderon.phone.ui.screens.SearchScreen
+import com.coderon.phone.ui.screens.SettingsScreen
+import com.coderon.phone.ui.screens.VoicemailScreen
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.normalizePhoneNumber
 import com.coderon.phone.utils.playTones
+import com.coderon.phone.viewmodel.BlockedNumbersViewModel
 import com.coderon.phone.viewmodel.CallLogViewModel
 import com.coderon.phone.viewmodel.ContactViewModel
+import com.coderon.phone.viewmodel.SettingsViewModel
+import com.coderon.phone.viewmodel.VoicemailViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun AppNavHost(
     navigator: Navigator,
     contactViewModel: ContactViewModel,
-    callLogViewModel: CallLogViewModel
+    callLogViewModel: CallLogViewModel,
+    settingsViewModel: SettingsViewModel = koinViewModel(),
+    blockedNumbersViewModel: BlockedNumbersViewModel = koinViewModel(),
+    voicemailViewModel: VoicemailViewModel = koinViewModel()
 ) {
     val groupedContacts by contactViewModel.groupedContacts.collectAsStateWithLifecycle()
     val allContacts by contactViewModel.allContacts.collectAsStateWithLifecycle()
@@ -34,6 +44,20 @@ fun AppNavHost(
     
     val callLogsByDate by callLogViewModel.callLogsByDate.collectAsStateWithLifecycle()
     val callFilter by callLogViewModel.filter.collectAsStateWithLifecycle()
+
+    val keypadTonesEnabled by settingsViewModel.keypadTonesEnabled.collectAsStateWithLifecycle()
+    val ringtoneEnabled by settingsViewModel.ringtoneEnabled.collectAsStateWithLifecycle()
+    val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+    val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+    val backgroundUri by settingsViewModel.callScreenBackground.collectAsStateWithLifecycle()
+    val vibrateOnAnswer by settingsViewModel.vibrateOnAnswer.collectAsStateWithLifecycle()
+    val flashOnCall by settingsViewModel.flashOnCall.collectAsStateWithLifecycle()
+    val showContactPhoto by settingsViewModel.showContactPhoto.collectAsStateWithLifecycle()
+    val defaultSimId by settingsViewModel.defaultSimId.collectAsStateWithLifecycle()
+    val availableSims by settingsViewModel.availableSims.collectAsStateWithLifecycle()
+
+    val blockedNumbers by blockedNumbersViewModel.blockedNumbers.collectAsStateWithLifecycle()
+    val voicemails by voicemailViewModel.voicemails.collectAsStateWithLifecycle()
 
     val entryProvider: (NavKey) -> NavEntry<NavKey> = entryProvider {
         fun updateSearchQuery(query: String) {
@@ -49,7 +73,8 @@ fun AppNavHost(
                     contactsGrouped = groupedContacts,
                     callLogsGrouped = callLogsByDate,
                     updateSearchQuery = ::updateSearchQuery,
-                    playTones = { playTones(it) }
+                    playTones = { if (keypadTonesEnabled) playTones(it) },
+                    defaultSimId = defaultSimId
                 )
             }
         }
@@ -85,6 +110,18 @@ fun AppNavHost(
                     contacts = filteredContacts,
                     logs = callLogsByDate.values.flatten().flatMap { it.logs },
                     onBack = { navigator.goBack() }
+                )
+            }
+        }
+
+        /* -------------------- VOICEMAIL -------------------- */
+        entry<Screen.Voicemail> {
+            ScaffoldScreen(navigator) {
+                VoicemailScreen(
+                    navigator = navigator,
+                    voicemails = voicemails,
+                    onDeleteVoicemail = { voicemailViewModel.deleteVoicemail(it) },
+                    onPlayVoicemail = { /* Play logic */ }
                 )
             }
         }
@@ -161,7 +198,48 @@ fun AppNavHost(
 
         /* -------------------- INCALL UI -------------------- */
         entry<Screen.CallScreen> {
-            CallScreen(navigator)
+            CallScreen(
+                navigator = navigator,
+                backgroundUri = backgroundUri,
+                showContactPhoto = showContactPhoto,
+                keypadTonesEnabled = keypadTonesEnabled
+            )
+        }
+
+        /* -------------------- SETTINGS -------------------- */
+        entry<Screen.Settings> {
+            SettingsScreen(
+                navigator = navigator,
+                ringtoneEnabled = ringtoneEnabled,
+                onRingtoneToggled = { settingsViewModel.setRingtoneEnabled(it) },
+                keypadTonesEnabled = keypadTonesEnabled,
+                onKeypadTonesToggled = { settingsViewModel.setKeypadTonesEnabled(it) },
+                themeMode = themeMode,
+                onThemeModeChanged = { settingsViewModel.setThemeMode(it) },
+                dynamicColor = dynamicColor,
+                onDynamicColorToggled = { settingsViewModel.setDynamicColor(it) },
+                onCallScreenBackgroundChanged = { settingsViewModel.setCallScreenBackground(it) },
+                vibrateOnAnswer = vibrateOnAnswer,
+                onVibrateOnAnswerToggled = { settingsViewModel.setVibrateOnAnswer(it) },
+                flashOnCall = flashOnCall,
+                onFlashOnCallToggled = { settingsViewModel.setFlashOnCall(it) },
+                showContactPhoto = showContactPhoto,
+                onShowContactPhotoToggled = { settingsViewModel.setShowContactPhoto(it) },
+                defaultSimId = defaultSimId,
+                availableSims = availableSims,
+                onDefaultSimChanged = { settingsViewModel.setDefaultSimId(it) },
+                onNavigateToBlockedNumbers = { navigator.navigate(Screen.BlockedNumbers) }
+            )
+        }
+
+        /* -------------------- BLOCKED NUMBERS -------------------- */
+        entry<Screen.BlockedNumbers> {
+            BlockedNumbersScreen(
+                navigator = navigator,
+                blockedNumbers = blockedNumbers,
+                onBlockNumber = { blockedNumbersViewModel.blockNumber(it) },
+                onUnblockNumber = { blockedNumbersViewModel.unblockNumber(it) }
+            )
         }
     }
 

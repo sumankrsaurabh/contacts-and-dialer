@@ -74,6 +74,7 @@ fun IncomingCallScreen(
     profilePictureUrl: String? = null,
     callType: String = "Incoming Call",
     simInfo: String = "SIM 1",
+    backgroundUri: String? = null,
     onAnswer: () -> Unit,
     onDecline: () -> Unit
 ) {
@@ -90,7 +91,21 @@ fun IncomingCallScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        OneUi8DynamicBackground()
+        if (!backgroundUri.isNullOrEmpty()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(backgroundUri)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Overlay for readability
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+        } else {
+            OneUi8DynamicBackground()
+        }
 
         /* ---------- CONTENT ---------- */
         Column(

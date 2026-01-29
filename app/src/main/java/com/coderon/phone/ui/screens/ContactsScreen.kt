@@ -20,9 +20,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
@@ -53,6 +55,7 @@ import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.getAvailableSims
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
 import kotlinx.coroutines.launch
@@ -63,7 +66,8 @@ import kotlin.math.roundToInt
 @Composable
 fun ContactsScreen(
     contactsGrouped: SortedMap<Char, List<Contact>>,
-    navigator: Navigator
+    navigator: Navigator,
+    defaultSimId: String? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -85,6 +89,21 @@ fun ContactsScreen(
     val bottomNavVisible = LocalBottomNavVisible.current
     LaunchedEffect(showSimDialog) {
         bottomNavVisible.value = !showSimDialog
+    }
+
+    fun onCallClick(number: String) {
+        phoneNumberToDial = number
+        val sims = getAvailableSims(context)
+        val defaultSim = sims.find { it.id == defaultSimId }
+        
+        if (defaultSim != null) {
+            placeCall(context, number, defaultSim)
+        } else {
+            initiateCall(context, number) { available ->
+                availableSims = available
+                showSimDialog = true
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -113,6 +132,13 @@ fun ContactsScreen(
                                     Icons.Rounded.Add,
                                     contentDescription = "Add",
                                     tint = colorScheme.primary
+                                )
+                            }
+                            IconButton(onClick = { navigator.navigate(Screen.Settings) }) {
+                                Icon(
+                                    Icons.Rounded.Settings,
+                                    contentDescription = "Settings",
+                                    tint = colorScheme.onSurfaceVariant
                                 )
                             }
                         },
@@ -156,11 +182,7 @@ fun ContactsScreen(
                             photoUrl = contact.profilePictureUrl,
                             onRowClick = {
                                 if (phoneNumber.isNotBlank()) {
-                                    phoneNumberToDial = phoneNumber
-                                    initiateCall(context, phoneNumber) { sims ->
-                                        availableSims = sims
-                                        showSimDialog = true
-                                    }
+                                    onCallClick(phoneNumber)
                                 }
                             },
                             onInfoClick = {

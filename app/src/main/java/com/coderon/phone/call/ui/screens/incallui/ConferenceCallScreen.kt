@@ -235,7 +235,7 @@ private fun ConferenceActionButton(
 @Preview(showBackground = true)
 @Composable
 private fun PreviewConferenceCallScreen() {
-    PhoneTheme(darkTheme = true) {
+    PhoneTheme() {
         ConferenceCallScreen(
             participants = listOf(
                 "Alice Johnson",

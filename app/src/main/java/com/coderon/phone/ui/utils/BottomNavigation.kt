@@ -161,12 +161,21 @@ fun IosSegmentedBottomBar(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(
-                                painter = painterResource(item.icon),
-                                contentDescription = item.label,
-                                tint = tint,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            if (item.vectorIcon != null) {
+                                Icon(
+                                    imageVector = item.vectorIcon,
+                                    contentDescription = item.label,
+                                    tint = tint,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else if (item.icon != null) {
+                                Icon(
+                                    painter = painterResource(item.icon),
+                                    contentDescription = item.label,
+                                    tint = tint,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                             if (isSelected) {
                                 Spacer(Modifier.height(2.dp))
                                 Text(
@@ -189,16 +198,17 @@ fun IosSegmentedBottomBar(
 ------------------------------------------------ */
 
 private val bottomNavItems = listOf(
-    BottomNavigationItem(Screen.Keypad, "Keypad", R.drawable.ic_dialpad),
-    BottomNavigationItem(Screen.Recent, "Recents", R.drawable.ic_recent),
-    BottomNavigationItem(Screen.Contacts, "Contacts", R.drawable.ic_contacts),
-    BottomNavigationItem(Screen.Search, "Search", R.drawable.search),
+    BottomNavigationItem(Screen.Keypad, "Keypad", icon = R.drawable.ic_dialpad),
+    BottomNavigationItem(Screen.Recent, "Recents", icon = R.drawable.ic_recent),
+    BottomNavigationItem(Screen.Contacts, "Contacts", icon = R.drawable.ic_contacts),
+    BottomNavigationItem(Screen.Search, "Search", icon = R.drawable.search),
 )
 
 private data class BottomNavigationItem(
     val screen: Screen,
     val label: String,
-    val icon: Int
+    val icon: Int? = null,
+    val vectorIcon: androidx.compose.ui.graphics.vector.ImageVector? = null
 )
 
 /* ------------------------------------------------

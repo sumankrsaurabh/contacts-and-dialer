@@ -30,8 +30,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -65,6 +68,7 @@ import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.getAvailableSims
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
 import com.coderon.phone.viewmodel.GroupedCallLog
@@ -79,7 +83,8 @@ fun DialerScreen(
     contactsGrouped: SortedMap<Char, List<Contact>>,
     callLogsGrouped: Map<String, List<GroupedCallLog>>,
     updateSearchQuery: (String) -> Unit = {},
-    playTones: (Char) -> Unit
+    playTones: (Char) -> Unit,
+    defaultSimId: String? = null
 ) {
     var dialedNumber by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -109,6 +114,21 @@ fun DialerScreen(
 
     val colorScheme = MaterialTheme.colorScheme
 
+    fun onCallClick(number: String) {
+        phoneNumberToDial = number
+        val sims = getAvailableSims(context)
+        val defaultSim = sims.find { it.id == defaultSimId }
+        
+        if (defaultSim != null) {
+            placeCall(context, number, defaultSim)
+        } else {
+            initiateCall(context, number) { available ->
+                availableSims = available
+                showSimDialog = true
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -119,7 +139,23 @@ fun DialerScreen(
                 .alpha(entryAlpha.value)
                 .offset { IntOffset(0, entryOffset.value.roundToInt()) }
         ) {
-            Spacer(Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { navigator.navigate(Screen.Settings) }) {
+                    Icon(
+                        Icons.Rounded.Settings,
+                        contentDescription = "Settings",
+                        tint = colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
 
             /* ---------- DIALED TEXT ---------- */
             Text(
@@ -211,13 +247,7 @@ fun DialerScreen(
                                     simSlot = item.simSlot,
                                     contact = item.contact,
                                     callCount = item.logs.size,
-                                    onRowClick = {
-                                        phoneNumberToDial = item.phoneNumber
-                                        initiateCall(context, item.phoneNumber) { sims ->
-                                            availableSims = sims
-                                            showSimDialog = true
-                                        }
-                                    },
+                                    onRowClick = { onCallClick(item.phoneNumber) },
                                     onInfoClick = {
                                         navigator.navigate(Screen.CallDetails(item.phoneNumber))
                                     }
@@ -230,13 +260,7 @@ fun DialerScreen(
                                     name = item.displayName,
                                     subtitle = contactNumber,
                                     photoUrl = item.profilePictureUrl,
-                                    onRowClick = {
-                                        phoneNumberToDial = contactNumber
-                                        initiateCall(context, contactNumber) { sims ->
-                                            availableSims = sims
-                                            showSimDialog = true
-                                        }
-                                    },
+                                    onRowClick = { onCallClick(contactNumber) },
                                     onInfoClick = {
                                         navigator.navigate(Screen.CallDetails(contactNumber))
                                     }
@@ -268,11 +292,7 @@ fun DialerScreen(
                 FilledIconButton(
                     onClick = {
                         if (dialedNumber.isNotBlank()) {
-                            phoneNumberToDial = dialedNumber
-                            initiateCall(context, dialedNumber) { sims ->
-                                availableSims = sims
-                                showSimDialog = true
-                            }
+                            onCallClick(dialedNumber)
                         }
                     },
                     modifier = Modifier.size(72.dp),

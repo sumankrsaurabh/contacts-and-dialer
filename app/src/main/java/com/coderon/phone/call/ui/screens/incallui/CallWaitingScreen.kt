@@ -57,6 +57,7 @@ fun CallWaitingScreen(
     waitingName: String?,
     waitingNumber: String,
     profilePictureUrl: String? = null,
+    backgroundUri: String? = null,
     onAcceptWaiting: () -> Unit,
     onRejectWaiting: () -> Unit,
     onEndActiveAcceptWaiting: () -> Unit
@@ -70,7 +71,21 @@ fun CallWaitingScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        OneUi8DynamicBackground()
+        if (!backgroundUri.isNullOrEmpty()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(backgroundUri)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Overlay for readability
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+        } else {
+            OneUi8DynamicBackground()
+        }
 
         Column(
             modifier = Modifier
@@ -90,15 +105,26 @@ fun CallWaitingScreen(
                         .clip(CircleShape),
                     color = Color.White.copy(alpha = 0.1f)
                 ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(profilePictureUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    if (profilePictureUrl != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(profilePictureUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = (waitingName ?: waitingNumber).firstOrNull()?.uppercase() ?: "?",
+                                fontSize = 64.sp,
+                                fontWeight = FontWeight.Light,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(24.dp))

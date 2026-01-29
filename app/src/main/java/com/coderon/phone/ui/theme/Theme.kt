@@ -39,11 +39,16 @@ fun oneUiDarkScheme(
 
 @Composable
 fun PhoneTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    themeMode: Int = 0,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        1 -> false // Light
+        2 -> true  // Dark
+        else -> isSystemInDarkTheme() // System
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

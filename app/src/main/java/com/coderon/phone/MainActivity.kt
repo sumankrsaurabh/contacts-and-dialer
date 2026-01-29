@@ -14,14 +14,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coderon.phone.ui.MyApp
 import com.coderon.phone.ui.screens.RequestDefaultDialerScreen
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.utils.getDefaultDialerIntent
 import com.coderon.phone.utils.isDefaultDialer
+import com.coderon.phone.viewmodel.SettingsViewModel
+import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
 
@@ -35,7 +39,14 @@ class MainActivity : ComponentActivity() {
         intentState.value = intent
 
         setContent {
-            PhoneTheme {
+            val settingsViewModel: SettingsViewModel = koinViewModel()
+            val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+
+            PhoneTheme(
+                themeMode = themeMode,
+                dynamicColor = dynamicColor
+            ) {
 
                 val isDefaultDialerState =
                     remember { mutableStateOf(isDefaultDialer(this)) }

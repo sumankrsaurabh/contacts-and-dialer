@@ -152,7 +152,7 @@ fun RequestDefaultDialerScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = "Your privacy is our priority. Change anytime in Settings.",
                 fontSize = 13.sp,
@@ -200,7 +200,7 @@ private fun FeatureItem(icon: ImageVector, label: String) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewRequestDefaultDialerScreen() {
-    PhoneTheme(darkTheme = true) {
+    PhoneTheme {
         RequestDefaultDialerScreen {}
     }
 }

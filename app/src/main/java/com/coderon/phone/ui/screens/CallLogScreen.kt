@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +58,7 @@ import com.coderon.phone.ui.navigation.rememberNavigationState
 import com.coderon.phone.ui.theme.PhoneTheme
 import com.coderon.phone.ui.utils.LocalBottomNavVisible
 import com.coderon.phone.ui.utils.SimSelectionDialog
+import com.coderon.phone.utils.getAvailableSims
 import com.coderon.phone.utils.initiateCall
 import com.coderon.phone.utils.placeCall
 import com.coderon.phone.viewmodel.CallFilter
@@ -69,7 +72,8 @@ fun CallLogScreen(
     filter: CallFilter,
     onFilterChanged: (CallFilter) -> Unit,
     onDeleteAllLogs: () -> Unit,
-    navigator: Navigator
+    navigator: Navigator,
+    defaultSimId: String? = null
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -96,6 +100,21 @@ fun CallLogScreen(
     // Confirmation State
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
+    fun onCallClick(number: String) {
+        phoneNumberToDial = number
+        val sims = getAvailableSims(context)
+        val defaultSim = sims.find { it.id == defaultSimId }
+        
+        if (defaultSim != null) {
+            placeCall(context, number, defaultSim)
+        } else {
+            initiateCall(context, number) { available ->
+                availableSims = available
+                showSimDialog = true
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = colorScheme.background,
@@ -118,6 +137,13 @@ fun CallLogScreen(
                                     Icons.Rounded.DeleteSweep,
                                     contentDescription = "Clear All",
                                     tint = colorScheme.primary
+                                )
+                            }
+                            IconButton(onClick = { navigator.navigate(Screen.Settings) }) {
+                                Icon(
+                                    Icons.Rounded.Settings,
+                                    contentDescription = "Settings",
+                                    tint = colorScheme.onSurfaceVariant
                                 )
                             }
                         },
@@ -178,13 +204,7 @@ fun CallLogScreen(
                                 simSlot = group.simSlot,
                                 contact = group.contact,
                                 callCount = group.logs.size,
-                                onRowClick = {
-                                    initiateCall(context, group.phoneNumber) { sims ->
-                                        availableSims = sims
-                                        phoneNumberToDial = group.phoneNumber
-                                        showSimDialog = true
-                                    }
-                                },
+                                onRowClick = { onCallClick(group.phoneNumber) },
                                 onInfoClick = {
                                     navigator.navigate(
                                         Screen.CallDetails(group.phoneNumber)

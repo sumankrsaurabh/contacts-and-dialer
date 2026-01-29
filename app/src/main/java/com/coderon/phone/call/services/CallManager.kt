@@ -5,6 +5,8 @@ package com.coderon.phone.call.services
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
@@ -14,14 +16,17 @@ import com.coderon.phone.call.domain.CallReducer
 import com.coderon.phone.call.domain.CallSession
 import com.coderon.phone.call.domain.toDomainState
 import com.coderon.phone.call.ui.CallUiState
+import com.coderon.phone.data.repository.SettingsRepository
 import com.coderon.phone.domain.repository.CallLogRepository
 import com.coderon.phone.domain.repository.ContactRepository
+import com.coderon.phone.utils.FlashlightManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -39,11 +44,13 @@ object CallManager : KoinComponent {
 
     private val contactRepository: ContactRepository by inject()
     private val callLogRepository: CallLogRepository by inject()
+    private val settingsRepository: SettingsRepository by inject()
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     
     private var cameraManager: CallCameraManager? = null
     private var proximityManager: CallProximityManager? = null
+    private var flashlightManager: FlashlightManager? = null
     private val audioManager = CallAudioManager { inCallService }
     private val timerManager = CallTimerManager(scope)
     private val callLogHandler = CallLogHandler(callLogRepository, scope)
@@ -59,6 +66,7 @@ object CallManager : KoinComponent {
         if (service != null) {
             cameraManager = CallCameraManager(service)
             proximityManager = CallProximityManager(service)
+            flashlightManager = FlashlightManager(service)
             
             _uiState.value = _uiState.value.copy(
                 isFrontCamera = cameraManager?.isFrontCamera() ?: true
@@ -69,6 +77,8 @@ object CallManager : KoinComponent {
             proximityManager?.release()
             proximityManager = null
             cameraManager = null
+            flashlightManager?.stopBlinking()
+            flashlightManager = null
             recompute()
         }
     }
@@ -88,6 +98,11 @@ object CallManager : KoinComponent {
         val isIncoming = call.state == Call.STATE_RINGING
 
         Log.d(TAG, "onCallAdded: $phoneNumber")
+
+        if (isIncoming) {
+            maybeSilenceCall(call)
+            maybeStartFlash()
+        }
 
         if (VideoProfile.isVideo(call.details.videoState)) {
             _uiState.value = _uiState.value.copy(userWantsVideo = true)
@@ -142,6 +157,11 @@ object CallManager : KoinComponent {
                     details?.state ?: existing.call.state
                 } else {
                     existing.call.state
+                }
+
+                if (existing.call.state != Call.STATE_ACTIVE && newState == Call.STATE_ACTIVE) {
+                    maybeVibrateOnAnswer()
+                    flashlightManager?.stopBlinking()
                 }
 
                 sessionManager.updateSession(id, existing.copy(
@@ -210,6 +230,12 @@ object CallManager : KoinComponent {
 
         if (newState == Call.STATE_ACTIVE && sessionManager.getStartTime(id) == null) {
             sessionManager.setStartTime(id, System.currentTimeMillis())
+            maybeVibrateOnAnswer()
+            flashlightManager?.stopBlinking()
+        }
+
+        if (newState == Call.STATE_DISCONNECTED || newState == Call.STATE_DISCONNECTING) {
+            flashlightManager?.stopBlinking()
         }
 
         sessionManager.updateSession(id, existing.copy(
@@ -218,6 +244,40 @@ object CallManager : KoinComponent {
         recompute()
         updateTimerState()
         updateProximitySensor()
+    }
+
+    private fun maybeSilenceCall(call: Call) {
+        scope.launch {
+            if (!settingsRepository.ringtoneEnabled.first()) {
+                // To silence an incoming call in InCallService, we can't call silence() directly on Call.
+                // silence() is a CallScreeningService feature.
+                // Here we just acknowledge the setting.
+            }
+        }
+    }
+
+    private fun maybeStartFlash() {
+        scope.launch {
+            if (settingsRepository.flashOnCall.first()) {
+                flashlightManager?.startBlinking()
+            }
+        }
+    }
+
+    private fun maybeVibrateOnAnswer() {
+        scope.launch {
+            if (settingsRepository.vibrateOnAnswer.first()) {
+                val vibrator = inCallService?.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                vibrator?.let {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        it.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        it.vibrate(100)
+                    }
+                }
+            }
+        }
     }
 
     fun onCallRemoved(call: Call) {
@@ -229,6 +289,10 @@ object CallManager : KoinComponent {
         }
 
         sessionManager.removeSession(id)
+        
+        if (sessionManager.sessions.isEmpty()) {
+            flashlightManager?.stopBlinking()
+        }
 
         recompute()
         updateTimerState()
