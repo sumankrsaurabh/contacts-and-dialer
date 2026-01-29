@@ -69,11 +69,11 @@ fun MyApp(intentState: State<Intent?>) {
     /* ------------------------------------------------
        AUTO NAVIGATION & POPUP LOGIC
     ------------------------------------------------ */
-    val activeCallId = callUiState.primaryCall?.id
+    val hasActiveCall = callUiState.primaryCall != null
     val isIncoming = callUiState.screen == CallScreenType.INCOMING
 
-    LaunchedEffect(activeCallId, isIncoming) {
-        if (activeCallId != null) {
+    LaunchedEffect(hasActiveCall, isIncoming, currentRoute) {
+        if (hasActiveCall) {
             // Automatically navigate to CallScreen for non-incoming calls (outgoing/ongoing)
             // For incoming calls, we show a popup if the app is in the foreground
             if (!isIncoming && currentRoute != Screen.CallScreen) {

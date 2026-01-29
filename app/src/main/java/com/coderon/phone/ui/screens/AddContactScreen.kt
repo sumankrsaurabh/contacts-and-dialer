@@ -224,9 +224,12 @@ fun AddContactScreen(
                         }
                     },
                     scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.largeTopAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
-                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.8f)
+                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.8f),
+                        navigationIconContentColor = Color.Unspecified,
+                        titleContentColor = Color.Unspecified,
+                        actionIconContentColor = Color.Unspecified
                     )
                 )
             }
