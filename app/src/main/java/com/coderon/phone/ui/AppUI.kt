@@ -8,9 +8,11 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -28,20 +30,16 @@ import com.coderon.phone.ui.navigation.AppNavHost
 import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.navigation.rememberNavigationState
-import com.coderon.phone.viewmodel.CallLogViewModel
-import com.coderon.phone.viewmodel.ContactViewModel
-import org.koin.androidx.compose.koinViewModel
 
 /* ------------------------------------------------
    ROOT APP
 ------------------------------------------------ */
 @RequiresPermission(Manifest.permission.READ_PHONE_STATE)
 @Composable
-fun MyApp(intentState: State<Intent?>) {
-
-    val contactViewModel: ContactViewModel = koinViewModel()
-    val callLogViewModel: CallLogViewModel = koinViewModel()
-
+fun MyApp(
+    intentState: State<Intent?>,
+    onFinish: () -> Unit = {}
+) {
     // Navigation 3 State
     val navigationState = rememberNavigationState(
         startRoute = Screen.Keypad,
@@ -50,7 +48,7 @@ fun MyApp(intentState: State<Intent?>) {
     val navigator = remember { Navigator(navigationState) }
 
     val callUiState by CallManager.uiState.collectAsStateWithLifecycle()
-    
+
     // Use the actual top of the current stack for route comparisons
     val currentRoute = navigationState.backStacks[navigationState.topLevelRoute]?.lastOrNull()
 
@@ -83,17 +81,18 @@ fun MyApp(intentState: State<Intent?>) {
             // No active calls, ensure we aren't stuck on the CallScreen
             if (currentRoute == Screen.CallScreen) {
                 navigator.goBack()
+                onFinish()
             }
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         /* -------------------- MAIN NAV HOST -------------------- */
-        AppNavHost(
-            navigator = navigator,
-            contactViewModel = contactViewModel,
-            callLogViewModel = callLogViewModel
-        )
+        AppNavHost(navigator = navigator)
 
         /* -------------------- IN-APP HEADS-UP POPUP -------------------- */
         // Show popup if there is an incoming call and we are NOT on the CallScreen

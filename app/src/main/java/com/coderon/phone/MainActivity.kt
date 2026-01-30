@@ -2,10 +2,13 @@ package com.coderon.phone
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -19,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.coderon.phone.notifications.CallNotificationManager
 import com.coderon.phone.ui.MyApp
 import com.coderon.phone.ui.screens.RequestDefaultDialerScreen
 import com.coderon.phone.ui.theme.PhoneTheme
@@ -30,6 +34,7 @@ import org.koin.androidx.compose.koinViewModel
 class MainActivity : ComponentActivity() {
 
     private val intentState: MutableState<Intent?> = mutableStateOf(null)
+    private var openedForCall = false
 
     @SuppressLint("MissingPermission", "SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,6 +42,9 @@ class MainActivity : ComponentActivity() {
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         intentState.value = intent
+        checkIntent(intent)
+
+        showOnLockscreen()
 
         setContent {
             val settingsViewModel: SettingsViewModel = koinViewModel()
@@ -93,7 +101,14 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        MyApp(intentState)
+                        MyApp(
+                            intentState = intentState,
+                            onFinish = {
+                                if (openedForCall) {
+                                    finishAndRemoveTask()
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -104,5 +119,30 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intentState.value = intent
+        checkIntent(intent)
+        showOnLockscreen()
+    }
+
+    private fun checkIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(CallNotificationManager.EXTRA_SHOW_CALL, false) == true) {
+            openedForCall = true
+        }
+    }
+
+    private fun showOnLockscreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+            keyguardManager.requestDismissKeyguard(this, null)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+            )
+        }
     }
 }

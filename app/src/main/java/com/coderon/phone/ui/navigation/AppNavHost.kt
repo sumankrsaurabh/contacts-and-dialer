@@ -1,13 +1,7 @@
 package com.coderon.phone.ui.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -38,8 +32,8 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AppNavHost(
     navigator: Navigator,
-    contactViewModel: ContactViewModel,
-    callLogViewModel: CallLogViewModel,
+    contactViewModel: ContactViewModel = koinViewModel(),
+    callLogViewModel: CallLogViewModel = koinViewModel(),
     settingsViewModel: SettingsViewModel = koinViewModel(),
     blockedNumbersViewModel: BlockedNumbersViewModel = koinViewModel(),
     voicemailViewModel: VoicemailViewModel = koinViewModel()
@@ -65,10 +59,6 @@ fun AppNavHost(
 
     val blockedNumbers by blockedNumbersViewModel.blockedNumbers.collectAsStateWithLifecycle()
     val voicemails by voicemailViewModel.voicemails.collectAsStateWithLifecycle()
-
-    remember {
-        listOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
-    }
 
     val entryProvider: (NavKey) -> NavEntry<NavKey> = entryProvider {
         fun updateSearchQuery(query: String) {
@@ -259,14 +249,8 @@ fun AppNavHost(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        NavDisplay(
-            entries = navigator.state.toEntries(entryProvider),
-            onBack = { navigator.goBack() }
-        )
-    }
+    NavDisplay(
+        entries = navigator.state.toEntries(entryProvider),
+        onBack = { navigator.goBack() }
+    )
 }

@@ -137,15 +137,18 @@ class CallService : InCallService() {
     }
 
     private fun maybeLaunchUi() {
-        if (!CallManager.uiState.value.shouldLaunchUi) return
+        val uiState = CallManager.uiState.value
+        if (!uiState.shouldLaunchUi) return
 
         try {
             val intent = Intent(this, MainActivity::class.java).apply {
+                action = CallNotificationManager.ACTION_SHOW_CALL
                 addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or
                             Intent.FLAG_ACTIVITY_SINGLE_TOP or
                             Intent.FLAG_ACTIVITY_CLEAR_TOP
                 )
+                putExtra(CallNotificationManager.EXTRA_SHOW_CALL, true)
             }
             startActivity(intent)
         } catch (_: Exception) {

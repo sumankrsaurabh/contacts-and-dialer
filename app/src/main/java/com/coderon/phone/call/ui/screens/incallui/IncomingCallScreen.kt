@@ -12,6 +12,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +47,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -102,7 +102,11 @@ fun IncomingCallScreen(
                 contentScale = ContentScale.Crop
             )
             // Overlay for readability
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+            )
         } else {
             OneUi8DynamicBackground()
         }
@@ -126,10 +130,10 @@ fun IncomingCallScreen(
                 Text(
                     text = name ?: phoneNumber,
                     fontSize = 36.sp,
-                    fontWeight = FontWeight.Light,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White,
                     textAlign = TextAlign.Center,
-                    letterSpacing = (-1).sp
+                    letterSpacing = (1).sp
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -140,11 +144,11 @@ fun IncomingCallScreen(
                     fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.6f)
                 )
-                
+
                 if (simInfo.isNotEmpty()) {
                     Surface(
                         color = Color.White.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(24.dp),
                         modifier = Modifier.padding(top = 12.dp)
                     ) {
                         Text(
@@ -239,7 +243,7 @@ private fun PulseAvatar(name: String, photoUrl: String?) {
                     Text(
                         text = name.firstOrNull()?.uppercase() ?: "?",
                         fontSize = 72.sp,
-                        fontWeight = FontWeight.ExtraLight,
+                        fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                 }
@@ -273,15 +277,27 @@ private fun ModernCallSlider(
                 .background(
                     Brush.horizontalGradient(
                         listOf(
-                            Color(0xFFFF4757).copy(alpha = 0.15f * ((-offsetX.value / maxDrag).coerceIn(0f, 1f) + 0.2f)),
+                            Color(0xFFFF4757).copy(
+                                alpha = (0.15f * ((-offsetX.value / maxDrag).coerceIn(
+                                    0f,
+                                    1f
+                                ) + 0.2f)).coerceIn(0f, 1f)
+                            ),
                             Color.White.copy(alpha = 0.1f),
-                            Color(0xFF2ECC71).copy(alpha = 0.15f * ((offsetX.value / maxDrag).coerceIn(0f, 1f) + 0.2f))
+                            Color(0xFF2ECC71).copy(
+                                alpha = (0.15f * ((offsetX.value / maxDrag).coerceIn(
+                                    0f,
+                                    1f
+                                ) + 0.2f)).coerceIn(0f, 1f)
+                            )
                         )
                     )
                 )
         ) {
             Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -310,7 +326,12 @@ private fun ModernCallSlider(
                         onHorizontalDrag = { change, dragAmount ->
                             change.consume()
                             scope.launch {
-                                offsetX.snapTo((offsetX.value + dragAmount).coerceIn(-maxDrag, maxDrag))
+                                offsetX.snapTo(
+                                    (offsetX.value + dragAmount).coerceIn(
+                                        -maxDrag,
+                                        maxDrag
+                                    )
+                                )
                             }
                         },
                         onDragEnd = {
@@ -320,12 +341,17 @@ private fun ModernCallSlider(
                                         onAnswer()
                                         offsetX.animateTo(0f, spring())
                                     }
+
                                     offsetX.value <= -maxDrag * 0.75f -> {
                                         onDecline()
                                         offsetX.animateTo(0f, spring())
                                     }
+
                                     else -> {
-                                        offsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                                        offsetX.animateTo(
+                                            0f,
+                                            spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                                        )
                                     }
                                 }
                             }
@@ -334,25 +360,16 @@ private fun ModernCallSlider(
                 }
         ) {
             Surface(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .border(4.dp, Color.White.copy(.8f), CircleShape),
                 shape = CircleShape,
                 color = when {
                     offsetX.value > 10f -> Color(0xFF2ECC71)
                     offsetX.value < -10f -> Color(0xFFFF4757)
-                    else -> Color.White
+                    else -> Color.Transparent
                 },
-                shadowElevation = 12.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    val iconScale = 1f + (kotlin.math.abs(offsetX.value) / maxDrag) * 0.2f
-                    Icon(
-                        painter = painterResource(if (offsetX.value < 0) R.drawable.end_call else R.drawable.call),
-                        contentDescription = null,
-                        tint = if (offsetX.value == 0f) Color.Black else Color.White,
-                        modifier = Modifier.size(34.dp).graphicsLayer(scaleX = iconScale, scaleY = iconScale)
-                    )
-                }
-            }
+            ) {}
         }
     }
 }

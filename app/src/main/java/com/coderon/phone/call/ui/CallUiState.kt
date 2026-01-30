@@ -48,7 +48,7 @@ data class CallUiState(
         get() = primaryCall == null && secondaryCall == null
 
     val isIncoming: Boolean
-        get() = primaryCall?.state == CallState.RINGING
+        get() = primaryCall?.state == CallState.RINGING || secondaryCall?.state == CallState.RINGING
 
     val isOngoing: Boolean
         get() = primaryCall?.state == CallState.ACTIVE || primaryCall?.state == CallState.DIALING || primaryCall?.state == CallState.CONNECTING
