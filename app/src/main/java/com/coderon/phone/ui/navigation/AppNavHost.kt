@@ -1,7 +1,13 @@
 package com.coderon.phone.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -41,12 +47,13 @@ fun AppNavHost(
     val groupedContacts by contactViewModel.groupedContacts.collectAsStateWithLifecycle()
     val allContacts by contactViewModel.allContacts.collectAsStateWithLifecycle()
     val filteredContacts by contactViewModel.filteredContacts.collectAsStateWithLifecycle()
-    
+
     val callLogsByDate by callLogViewModel.callLogsByDate.collectAsStateWithLifecycle()
     val callFilter by callLogViewModel.filter.collectAsStateWithLifecycle()
 
     val keypadTonesEnabled by settingsViewModel.keypadTonesEnabled.collectAsStateWithLifecycle()
     val ringtoneEnabled by settingsViewModel.ringtoneEnabled.collectAsStateWithLifecycle()
+    val ringtoneUri by settingsViewModel.ringtoneUri.collectAsStateWithLifecycle()
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
     val backgroundUri by settingsViewModel.callScreenBackground.collectAsStateWithLifecycle()
@@ -58,6 +65,10 @@ fun AppNavHost(
 
     val blockedNumbers by blockedNumbersViewModel.blockedNumbers.collectAsStateWithLifecycle()
     val voicemails by voicemailViewModel.voicemails.collectAsStateWithLifecycle()
+
+    remember {
+        listOf(Screen.Keypad, Screen.Recent, Screen.Contacts, Screen.Search)
+    }
 
     val entryProvider: (NavKey) -> NavEntry<NavKey> = entryProvider {
         fun updateSearchQuery(query: String) {
@@ -87,7 +98,8 @@ fun AppNavHost(
                     filter = callFilter,
                     onFilterChanged = { callLogViewModel.onFilterChanged(it) },
                     onDeleteAllLogs = { callLogViewModel.deleteAllLogs() },
-                    navigator = navigator
+                    navigator = navigator,
+                    defaultSimId = defaultSimId
                 )
             }
         }
@@ -97,7 +109,8 @@ fun AppNavHost(
             ScaffoldScreen(navigator) {
                 ContactsScreen(
                     contactsGrouped = groupedContacts,
-                    navigator = navigator
+                    navigator = navigator,
+                    defaultSimId = defaultSimId
                 )
             }
         }
@@ -116,7 +129,7 @@ fun AppNavHost(
 
         /* -------------------- VOICEMAIL -------------------- */
         entry<Screen.Voicemail> {
-            ScaffoldScreen(navigator) {
+            ScaffoldScreen(navigator, showBottomBar = false) {
                 VoicemailScreen(
                     navigator = navigator,
                     voicemails = voicemails,
@@ -212,12 +225,15 @@ fun AppNavHost(
                 navigator = navigator,
                 ringtoneEnabled = ringtoneEnabled,
                 onRingtoneToggled = { settingsViewModel.setRingtoneEnabled(it) },
+                ringtoneUri = ringtoneUri,
+                onRingtoneUriChanged = { settingsViewModel.setRingtoneUri(it) },
                 keypadTonesEnabled = keypadTonesEnabled,
                 onKeypadTonesToggled = { settingsViewModel.setKeypadTonesEnabled(it) },
                 themeMode = themeMode,
                 onThemeModeChanged = { settingsViewModel.setThemeMode(it) },
                 dynamicColor = dynamicColor,
                 onDynamicColorToggled = { settingsViewModel.setDynamicColor(it) },
+                callScreenBackground = backgroundUri,
                 onCallScreenBackgroundChanged = { settingsViewModel.setCallScreenBackground(it) },
                 vibrateOnAnswer = vibrateOnAnswer,
                 onVibrateOnAnswerToggled = { settingsViewModel.setVibrateOnAnswer(it) },
@@ -243,8 +259,14 @@ fun AppNavHost(
         }
     }
 
-    NavDisplay(
-        entries = navigator.state.toEntries(entryProvider),
-        onBack = { navigator.goBack() }
-    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        NavDisplay(
+            entries = navigator.state.toEntries(entryProvider),
+            onBack = { navigator.goBack() }
+        )
+    }
 }

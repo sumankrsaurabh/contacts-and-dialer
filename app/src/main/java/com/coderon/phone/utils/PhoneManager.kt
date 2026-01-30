@@ -32,17 +32,33 @@ fun getDefaultDialerIntent(context: Context): Intent? {
 @SuppressLint("MissingPermission")
 fun getAvailableSims(context: Context): List<PhoneAccountHandle> {
     val telecomManager = context.getSystemService(TelecomManager::class.java)
-    return telecomManager.callCapablePhoneAccounts
+    return telecomManager?.callCapablePhoneAccounts ?: emptyList()
 }
 
 @SuppressLint("MissingPermission")
 fun initiateCall(
     context: Context,
     phoneNumber: String,
+    preferredSimId: String? = null,
     onSimSelectionRequired: (List<PhoneAccountHandle>) -> Unit
 ) {
-    val telecomManager = context.getSystemService(TelecomManager::class.java)
+    val telecomManager = context.getSystemService(TelecomManager::class.java) ?: return
     val availableAccounts = telecomManager.callCapablePhoneAccounts
+    
+    if (availableAccounts.isEmpty()) {
+        Toast.makeText(context, "No SIM available", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    // Check if we have a preferred SIM set in app settings
+    val preferredAccount = availableAccounts.find { it.id == preferredSimId }
+    
+    if (preferredAccount != null) {
+        placeCall(context, phoneNumber, preferredAccount)
+        return
+    }
+
+    // If preferred is null (Ask every time) or not found, try system default
     val defaultAccount = telecomManager.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL)
 
     when {

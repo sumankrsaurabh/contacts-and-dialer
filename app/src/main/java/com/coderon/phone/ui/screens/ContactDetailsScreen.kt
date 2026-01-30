@@ -250,6 +250,7 @@ fun ContactDetailsScreen(
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
                                         // Handle no email app
+                                        e.printStackTrace()
                                     }
                                 }
                             )
@@ -306,7 +307,7 @@ fun ContactDetailsScreen(
                     availableAccounts = availableSims,
                     onSimSelected = { handle ->
                         showSimDialog = false
-                        placeCall(context, numberToCall, handle)
+                        handle?.let { placeCall(context, numberToCall, handle)}
                     },
                     onDismiss = { showSimDialog = false }
                 )

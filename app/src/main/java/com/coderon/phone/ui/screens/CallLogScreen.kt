@@ -220,9 +220,10 @@ fun CallLogScreen(
         if (showSimDialog) {
             SimSelectionDialog(
                 availableAccounts = availableSims,
+                includeAskEveryTime = false,
                 onSimSelected = { handle ->
                     showSimDialog = false
-                    placeCall(context, phoneNumberToDial, handle)
+                    handle?.let { placeCall(context, phoneNumberToDial, it) }
                 },
                 onDismiss = { showSimDialog = false }
             )

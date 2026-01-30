@@ -22,9 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.QuestionMark
 import androidx.compose.material.icons.rounded.SimCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -34,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,15 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coderon.phone.ui.components.Text
 
-/**
- * Premium SIM Selection Dialog redesigned to match iOS smoothness, 
- * OneUI 8 extreme rounding, and Material 3 adaptive tokens.
- */
 @Composable
 fun SimSelectionDialog(
     availableAccounts: List<PhoneAccountHandle>,
-    onSimSelected: (PhoneAccountHandle) -> Unit,
+    onSimSelected: (PhoneAccountHandle?) -> Unit,
     onDismiss: () -> Unit,
+    includeAskEveryTime: Boolean = false,
     context: Context = LocalContext.current,
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -61,7 +58,6 @@ fun SimSelectionDialog(
             .clickable(onClick = onDismiss, indication = null, interactionSource = null),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // iOS Style Blurred Overlay
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -69,7 +65,6 @@ fun SimSelectionDialog(
                 .blur(15.dp)
         )
 
-        // OneUI 8 Style Rounded Sheet
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -84,7 +79,6 @@ fun SimSelectionDialog(
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Drag Handle
                 Box(
                     modifier = Modifier
                         .size(36.dp, 4.dp)
@@ -104,7 +98,7 @@ fun SimSelectionDialog(
                 Spacer(Modifier.height(8.dp))
 
                 Text(
-                    text = "Choose which SIM to use for this call",
+                    text = "Choose which SIM to use",
                     fontSize = 15.sp,
                     color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp)
@@ -112,15 +106,24 @@ fun SimSelectionDialog(
 
                 Spacer(Modifier.height(32.dp))
 
-                // Options list as distinct Pills (matched with HybridContactRow/HybridCallLogPill)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    if (includeAskEveryTime) {
+                        SimOptionPill(
+                            title = "Ask every time",
+                            label = "Select SIM manually for each call",
+                            icon = Icons.Rounded.QuestionMark,
+                            onClick = { onSimSelected(null) }
+                        )
+                    }
+                    
                     availableAccounts.forEachIndexed { index, account ->
                         SimOptionPill(
-                            index = index,
+                            title = "SIM ${index + 1}",
                             label = getSimInfo(context, account),
+                            icon = Icons.Rounded.SimCard,
                             onClick = { onSimSelected(account) }
                         )
                     }
@@ -134,8 +137,9 @@ fun SimSelectionDialog(
 
 @Composable
 private fun SimOptionPill(
-    index: Int,
+    title: String,
     label: String,
+    icon: ImageVector,
     onClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -150,7 +154,6 @@ private fun SimOptionPill(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Container (Matched with ProfileAvatar styling)
             Surface(
                 modifier = Modifier.size(46.dp),
                 shape = CircleShape,
@@ -158,7 +161,7 @@ private fun SimOptionPill(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Rounded.SimCard,
+                        imageVector = icon,
                         contentDescription = null,
                         tint = colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(22.dp)
@@ -170,7 +173,7 @@ private fun SimOptionPill(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "SIM ${index + 1}",
+                    text = title,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = colorScheme.primary,
@@ -202,6 +205,7 @@ fun SimSelectionDialogPreview() {
     SimSelectionDialog(
         availableAccounts = emptyList(),
         onSimSelected = {},
-        onDismiss = {}
+        onDismiss = {},
+        includeAskEveryTime = true
     )
 }

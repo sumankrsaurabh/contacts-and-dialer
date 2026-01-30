@@ -200,7 +200,7 @@ fun ContactsScreen(
                 availableAccounts = availableSims,
                 onSimSelected = { handle ->
                     showSimDialog = false
-                    placeCall(context, phoneNumberToDial, handle)
+                    handle?.let { placeCall(context, phoneNumberToDial, handle)}
                 },
                 onDismiss = { showSimDialog = false }
             )
