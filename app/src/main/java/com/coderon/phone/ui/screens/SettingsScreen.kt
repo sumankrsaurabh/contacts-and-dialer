@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +40,7 @@ import androidx.compose.material.icons.rounded.ColorLens
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
@@ -114,6 +114,12 @@ fun SettingsScreen(
     defaultSimId: String?,
     availableSims: List<PhoneAccountHandle>,
     onDefaultSimChanged: (String?) -> Unit,
+    autoRecordAll: Boolean = false,
+    onAutoRecordAllToggled: (Boolean) -> Unit = {},
+    autoRecordUnknown: Boolean = false,
+    onAutoRecordUnknownToggled: (Boolean) -> Unit = {},
+    autoRecordContacts: Boolean = false,
+    onAutoRecordContactsToggled: (Boolean) -> Unit = {},
     onNavigateToBlockedNumbers: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -197,6 +203,34 @@ fun SettingsScreen(
                         title = "Blocked Numbers",
                         onClick = onNavigateToBlockedNumbers
                     )
+                }
+            }
+
+            // Call Recording Section
+            item {
+                SettingsSection(title = "CALL RECORDING") {
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.Mic,
+                        title = "Auto record all calls",
+                        checked = autoRecordAll,
+                        onCheckedChange = onAutoRecordAllToggled
+                    )
+                    if (!autoRecordAll) {
+                        SettingsDivider()
+                        SettingsToggleRow(
+                            icon = Icons.Rounded.Mic,
+                            title = "Auto record unknown numbers",
+                            checked = autoRecordUnknown,
+                            onCheckedChange = onAutoRecordUnknownToggled
+                        )
+                        SettingsDivider()
+                        SettingsToggleRow(
+                            icon = Icons.Rounded.Mic,
+                            title = "Auto record contacts",
+                            checked = autoRecordContacts,
+                            onCheckedChange = onAutoRecordContactsToggled
+                        )
+                    }
                 }
             }
 
@@ -347,14 +381,8 @@ fun SettingsScreen(
         }
 
         if (showSimDialog) {
-            val accountsWithAskEveryTime = mutableListOf<PhoneAccountHandle?>().apply {
-                add(null)
-                addAll(availableSims)
-            }
-            
             SimSelectionDialog(
                 availableAccounts = availableSims,
-                includeAskEveryTime = true,
                 onSimSelected = { handle ->
                     onDefaultSimChanged(handle?.id)
                     showSimDialog = false

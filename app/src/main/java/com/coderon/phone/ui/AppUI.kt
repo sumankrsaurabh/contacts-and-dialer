@@ -38,7 +38,8 @@ import com.coderon.phone.ui.navigation.rememberNavigationState
 @Composable
 fun MyApp(
     intentState: State<Intent?>,
-    onFinish: () -> Unit = {}
+    onFinish: () -> Unit = {},
+    onManualInteraction: () -> Unit = {}
 ) {
     // Navigation 3 State
     val navigationState = rememberNavigationState(
@@ -83,6 +84,17 @@ fun MyApp(
                 navigator.goBack()
                 onFinish()
             }
+        }
+    }
+
+    /* ------------------------------------------------
+       MANUAL INTERACTION DETECTION
+    ------------------------------------------------ */
+    // If the user navigates away from the CallScreen manually while a call is active,
+    // we consider it a manual interaction.
+    LaunchedEffect(currentRoute) {
+        if (hasActiveCall && currentRoute != Screen.CallScreen && currentRoute != null) {
+            onManualInteraction()
         }
     }
 

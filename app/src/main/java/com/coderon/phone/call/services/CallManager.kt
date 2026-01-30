@@ -12,6 +12,7 @@ import android.telecom.CallAudioState
 import android.telecom.InCallService
 import android.telecom.VideoProfile
 import android.util.Log
+import android.widget.Toast
 import com.coderon.phone.call.domain.CallReducer
 import com.coderon.phone.call.domain.CallSession
 import com.coderon.phone.call.domain.toDomainState
@@ -51,6 +52,7 @@ object CallManager : KoinComponent {
     private var cameraManager: CallCameraManager? = null
     private var proximityManager: CallProximityManager? = null
     private var flashlightManager: FlashlightManager? = null
+    private var recorderManager: CallRecorderManager? = null
     private val audioManager = CallAudioManager { inCallService }
     private val timerManager = CallTimerManager(scope)
     private val callLogHandler = CallLogHandler(callLogRepository, scope)
@@ -67,11 +69,13 @@ object CallManager : KoinComponent {
             cameraManager = CallCameraManager(service)
             proximityManager = CallProximityManager(service)
             flashlightManager = FlashlightManager(service)
+            recorderManager = CallRecorderManager(service)
             
             _uiState.value = _uiState.value.copy(
                 isFrontCamera = cameraManager?.isFrontCamera() ?: true
             )
         } else {
+            stopRecording()
             sessionManager.clear()
             timerManager.stopTimer { _uiState.value = _uiState.value.copy(callDurationSeconds = it) }
             proximityManager?.release()
@@ -79,6 +83,7 @@ object CallManager : KoinComponent {
             cameraManager = null
             flashlightManager?.stopBlinking()
             flashlightManager = null
+            recorderManager = null
             recompute()
         }
     }
@@ -162,6 +167,7 @@ object CallManager : KoinComponent {
                 if (existing.call.state != Call.STATE_ACTIVE && newState == Call.STATE_ACTIVE) {
                     maybeVibrateOnAnswer()
                     flashlightManager?.stopBlinking()
+                    maybeAutoRecord(existing.phoneNumber)
                 }
 
                 sessionManager.updateSession(id, existing.copy(
@@ -232,10 +238,14 @@ object CallManager : KoinComponent {
             sessionManager.setStartTime(id, System.currentTimeMillis())
             maybeVibrateOnAnswer()
             flashlightManager?.stopBlinking()
+            maybeAutoRecord(existing.phoneNumber)
         }
 
         if (newState == Call.STATE_DISCONNECTED || newState == Call.STATE_DISCONNECTING) {
             flashlightManager?.stopBlinking()
+            if (sessionManager.sessions.size <= 1) {
+                stopRecording()
+            }
         }
 
         sessionManager.updateSession(id, existing.copy(
@@ -280,6 +290,27 @@ object CallManager : KoinComponent {
         }
     }
 
+    private fun maybeAutoRecord(phoneNumber: String) {
+        scope.launch {
+            val recordAll = settingsRepository.autoRecordAll.first()
+            val recordUnknown = settingsRepository.autoRecordUnknown.first()
+            val recordContacts = settingsRepository.autoRecordContacts.first()
+
+            val isContact = contactResolver.resolveContact(phoneNumber) != null
+            
+            val shouldRecord = when {
+                recordAll -> true
+                recordUnknown && !isContact -> true
+                recordContacts && isContact -> true
+                else -> false
+            }
+
+            if (shouldRecord) {
+                toggleRecording(phoneNumber)
+            }
+        }
+    }
+
     fun onCallRemoved(call: Call) {
         val id = System.identityHashCode(call)
         val session = sessionManager.getSession(id)
@@ -292,6 +323,7 @@ object CallManager : KoinComponent {
         
         if (sessionManager.sessions.isEmpty()) {
             flashlightManager?.stopBlinking()
+            stopRecording()
         }
 
         recompute()
@@ -383,5 +415,32 @@ object CallManager : KoinComponent {
             )
             recompute()
         }
+    }
+
+    /* ---------------- RECORDING ACTIONS ---------------- */
+
+    fun toggleRecording(phoneNumber: String? = null) {
+        val recorder = recorderManager ?: return
+        val number = phoneNumber ?: _uiState.value.primaryCall?.phoneNumber ?: return
+
+        if (recorder.isRecording()) {
+            val path = recorder.stopRecording()
+            _uiState.value = _uiState.value.copy(isRecording = false)
+            if (path != null) {
+                inCallService?.let { Toast.makeText(it, "Recording saved", Toast.LENGTH_SHORT).show() }
+            }
+        } else {
+            val success = recorder.startRecording(number)
+            if (success) {
+                _uiState.value = _uiState.value.copy(isRecording = true)
+            } else {
+                inCallService?.let { Toast.makeText(it, "Recording failed", Toast.LENGTH_SHORT).show() }
+            }
+        }
+    }
+
+    private fun stopRecording() {
+        recorderManager?.stopRecording()
+        _uiState.value = _uiState.value.copy(isRecording = false)
     }
 }

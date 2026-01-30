@@ -34,7 +34,10 @@ import org.koin.androidx.compose.koinViewModel
 class MainActivity : ComponentActivity() {
 
     private val intentState: MutableState<Intent?> = mutableStateOf(null)
-    private var openedForCall = false
+    
+    // This flag determines if the activity should finish itself after a call ends.
+    // It is true if the activity was cold-started by the system to handle an incoming call.
+    private var isAutoCloseEnabled = false
 
     @SuppressLint("MissingPermission", "SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,7 +45,11 @@ class MainActivity : ComponentActivity() {
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         intentState.value = intent
-        checkIntent(intent)
+        
+        // If activity is created with the call extra, it means it started for a call.
+        if (intent?.getBooleanExtra(CallNotificationManager.EXTRA_SHOW_CALL, false) == true) {
+            isAutoCloseEnabled = true
+        }
 
         showOnLockscreen()
 
@@ -65,12 +72,10 @@ class MainActivity : ComponentActivity() {
                     isDefaultDialerState.value = isDefaultDialer(this)
                 }
 
-                // Runtime Permissions for Notifications, Camera, and Audio
+                // Runtime Permissions
                 val permissionsLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions()
-                ) { _ ->
-                    // Permissions handled
-                }
+                ) { _ -> }
 
                 LaunchedEffect(Unit) {
                     val permissions = mutableListOf(
@@ -104,9 +109,14 @@ class MainActivity : ComponentActivity() {
                         MyApp(
                             intentState = intentState,
                             onFinish = {
-                                if (openedForCall) {
+                                if (isAutoCloseEnabled) {
                                     finishAndRemoveTask()
                                 }
+                            },
+                            onManualInteraction = {
+                                // If the user performs a manual action (navigates away from call screen),
+                                // we should no longer auto-close the app.
+                                isAutoCloseEnabled = false
                             }
                         )
                     }
@@ -119,14 +129,11 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intentState.value = intent
-        checkIntent(intent)
+        
+        // Note: We don't set isAutoCloseEnabled here because if the app was already open
+        // (even in background), we respect the original start condition.
+        
         showOnLockscreen()
-    }
-
-    private fun checkIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra(CallNotificationManager.EXTRA_SHOW_CALL, false) == true) {
-            openedForCall = true
-        }
     }
 
     private fun showOnLockscreen() {

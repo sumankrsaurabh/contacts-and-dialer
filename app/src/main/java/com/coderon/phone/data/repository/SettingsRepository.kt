@@ -27,6 +27,9 @@ class SettingsRepository(private val context: Context) {
         val VIBRATE_ON_ANSWER = booleanPreferencesKey("vibrate_on_answer")
         val FLASH_ON_CALL = booleanPreferencesKey("flash_on_call")
         val SHOW_CONTACT_PHOTO = booleanPreferencesKey("show_contact_photo")
+        val AUTO_RECORD_ALL = booleanPreferencesKey("auto_record_all")
+        val AUTO_RECORD_UNKNOWN = booleanPreferencesKey("auto_record_unknown")
+        val AUTO_RECORD_CONTACTS = booleanPreferencesKey("auto_record_contacts")
     }
 
     val ringtoneEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -67,6 +70,18 @@ class SettingsRepository(private val context: Context) {
 
     val showContactPhoto: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.SHOW_CONTACT_PHOTO] ?: true
+    }
+
+    val autoRecordAll: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AUTO_RECORD_ALL] ?: false
+    }
+
+    val autoRecordUnknown: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AUTO_RECORD_UNKNOWN] ?: false
+    }
+
+    val autoRecordContacts: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AUTO_RECORD_CONTACTS] ?: false
     }
 
     suspend fun setRingtoneEnabled(enabled: Boolean) {
@@ -129,6 +144,24 @@ class SettingsRepository(private val context: Context) {
     suspend fun setShowContactPhoto(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.SHOW_CONTACT_PHOTO] = enabled
+        }
+    }
+
+    suspend fun setAutoRecordAll(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.AUTO_RECORD_ALL] = enabled
+        }
+    }
+
+    suspend fun setAutoRecordUnknown(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.AUTO_RECORD_UNKNOWN] = enabled
+        }
+    }
+
+    suspend fun setAutoRecordContacts(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.AUTO_RECORD_CONTACTS] = enabled
         }
     }
 }

@@ -19,6 +19,7 @@ data class CallUiState(
     val isConference: Boolean = false,
     val isMuted: Boolean = false,
     val isVideo: Boolean = false,
+    val isRecording: Boolean = false,
 
     /* ---------------- AUDIO ---------------- */
 

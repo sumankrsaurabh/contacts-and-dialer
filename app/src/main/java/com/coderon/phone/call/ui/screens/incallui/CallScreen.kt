@@ -1,9 +1,12 @@
 package com.coderon.phone.call.ui.screens.incallui
 
+import android.content.Intent
+import android.provider.CalendarContract
 import android.telecom.InCallService
 import android.telecom.VideoProfile
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,12 +17,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import com.coderon.phone.call.domain.CallState
 import com.coderon.phone.call.services.CallManager
+import com.coderon.phone.call.services.CallRecorderManager
 import com.coderon.phone.call.ui.CallScreenType
 import com.coderon.phone.ui.components.HybridAlertDialog
 import com.coderon.phone.ui.navigation.Navigator
@@ -40,6 +48,10 @@ fun CallScreen(
 ) {
     val uiState by CallManager.uiState.collectAsState()
     val context = LocalContext.current
+    
+    // Call Recorder Backend Integration
+    val recorderManager = remember { CallRecorderManager(context) }
+    var isRecording by remember { mutableStateOf(recorderManager.isRecording()) }
 
     uiState.incomingVideoUpgradeRequest?.let {
         HybridAlertDialog(
@@ -72,7 +84,33 @@ fun CallScreen(
                     simInfo = call.call.getSimInfoForCall(context),
                     backgroundUri = backgroundUri,
                     onAnswer = { CallManager.accept() },
-                    onDecline = { CallManager.reject() }
+                    onDecline = { CallManager.reject() },
+                    onSendMessage = { message ->
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = "smsto:${call.phoneNumber}".toUri()
+                            putExtra("sms_body", message)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "Could not send message", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onRemindMe = {
+                        val intent = Intent(Intent.ACTION_INSERT).apply {
+                            data = CalendarContract.Events.CONTENT_URI
+                            putExtra(CalendarContract.Events.TITLE, "Call back ${call.displayName ?: call.phoneNumber}")
+                            putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, false)
+                            putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, System.currentTimeMillis() + 3600000) // 1 hour later
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "Calendar app not found", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
             }
 
@@ -99,7 +137,13 @@ fun CallScreen(
                     callDuration = uiState.callDurationSeconds.formatCallDuration(),
                     simInfo = call.call.getSimInfoForCall(context),
                     callType = getCallType(context),
-                    onEndCall = { CallManager.disconnectPrimary() },
+                    onEndCall = { 
+                        if (isRecording) {
+                            recorderManager.stopRecording()
+                            isRecording = false
+                        }
+                        CallManager.disconnectPrimary() 
+                    },
                     onToggleSpeaker = { CallManager.toggleSpeaker() },
                     onToggleMute = { CallManager.toggleMute() },
                     onToggleHold = {
@@ -111,6 +155,32 @@ fun CallScreen(
                         navigator.navigate(Screen.Keypad)
                     },
                     onVideoCall = { CallManager.toggleVideo() },
+                    onRecordCall = { 
+                        if (isRecording) {
+                            val path = recorderManager.stopRecording()
+                            isRecording = false
+                            if (path != null) {
+                                Toast.makeText(context, "Recording saved: $path", Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            val success = recorderManager.startRecording(call.phoneNumber)
+                            if (success) {
+                                isRecording = true
+                                Toast.makeText(context, "Recording started", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Recording failed (Check permissions)", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onAddNote = { 
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Call Note: ${call.displayName ?: call.phoneNumber}")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Save note to..."))
+                    },
+                    isRecording = isRecording,
                     playDfmTones = { if (keypadTonesEnabled) CallManager.playDtmfTone(it) }
                 )
             }

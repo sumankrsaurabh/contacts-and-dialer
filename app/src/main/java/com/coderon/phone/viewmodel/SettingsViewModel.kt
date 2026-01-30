@@ -48,6 +48,15 @@ class SettingsViewModel(
     val showContactPhoto: StateFlow<Boolean> = repository.showContactPhoto
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val autoRecordAll: StateFlow<Boolean> = repository.autoRecordAll
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val autoRecordUnknown: StateFlow<Boolean> = repository.autoRecordUnknown
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val autoRecordContacts: StateFlow<Boolean> = repository.autoRecordContacts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     private val _availableSims = MutableStateFlow<List<PhoneAccountHandle>>(emptyList())
     val availableSims: StateFlow<List<PhoneAccountHandle>> = _availableSims.asStateFlow()
 
@@ -93,5 +102,17 @@ class SettingsViewModel(
 
     fun setShowContactPhoto(enabled: Boolean) {
         viewModelScope.launch { repository.setShowContactPhoto(enabled) }
+    }
+
+    fun setAutoRecordAll(enabled: Boolean) {
+        viewModelScope.launch { repository.setAutoRecordAll(enabled) }
+    }
+
+    fun setAutoRecordUnknown(enabled: Boolean) {
+        viewModelScope.launch { repository.setAutoRecordUnknown(enabled) }
+    }
+
+    fun setAutoRecordContacts(enabled: Boolean) {
+        viewModelScope.launch { repository.setAutoRecordContacts(enabled) }
     }
 }

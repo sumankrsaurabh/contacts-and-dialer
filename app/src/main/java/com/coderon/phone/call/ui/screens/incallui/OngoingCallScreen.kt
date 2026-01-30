@@ -26,11 +26,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.NoteAdd
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.RadioButtonChecked
 import androidx.compose.material.icons.rounded.VideoCall
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -86,7 +89,9 @@ fun OngoingCallScreen(
     onToggleBluetooth: () -> Unit,
     onAddCall: () -> Unit = {},
     onVideoCall: () -> Unit = {},
-    bluetoothDeviceConnected: Boolean = true,
+    onRecordCall: () -> Unit = {},
+    onAddNote: () -> Unit = {},
+    isRecording: Boolean = false,
     playDfmTones: (Char) -> Unit
 ) {
     var showKeypad by remember { mutableStateOf(false) }
@@ -153,18 +158,28 @@ fun OngoingCallScreen(
 
                 Spacer(Modifier.height(4.dp))
 
-                Text(
-                    text = when (state) {
-                        State.HOLD -> "On Hold"
-                        State.DIALING -> "Dialing..."
-                        State.CONNECTING -> "Connecting..."
-                        State.DISCONNECTING -> "Disconnecting..."
-                        else -> callDuration
-                    },
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isOnHold) Color(0xFFF1C40F) else Color.White.copy(alpha = 0.7f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isRecording) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Color.Red, CircleShape)
+                        )
+                        Spacer(Modifier.padding(horizontal = 4.dp))
+                    }
+                    Text(
+                        text = when (state) {
+                            State.HOLD -> "On Hold"
+                            State.DIALING -> "Dialing..."
+                            State.CONNECTING -> "Connecting..."
+                            State.DISCONNECTING -> "Disconnecting..."
+                            else -> callDuration
+                        },
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isOnHold) Color(0xFFF1C40F) else Color.White.copy(alpha = 0.7f)
+                    )
+                }
 
                 if (simInfo.isNotEmpty()) {
                     Surface(
@@ -213,8 +228,8 @@ fun OngoingCallScreen(
                     exit = fadeOut(tween(400))
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 32.dp),
-                        verticalArrangement = Arrangement.spacedBy(32.dp)
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -238,6 +253,12 @@ fun OngoingCallScreen(
                                 label = "Speaker",
                                 active = currentAudioRoute == AudioRoute.SPEAKER,
                                 onClick = onToggleSpeaker
+                            )
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.Bluetooth,
+                                label = "Bluetooth",
+                                active = currentAudioRoute == AudioRoute.BLUETOOTH,
+                                onClick = onToggleBluetooth
                             )
                         }
                         Row(
@@ -264,6 +285,26 @@ fun OngoingCallScreen(
                                 active = isOnHold,
                                 enabled = isActive || isOnHold,
                                 onClick = onToggleHold
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.RadioButtonChecked,
+                                label = if (isRecording) "Stop Rec" else "Record",
+                                active = isRecording,
+                                enabled = isActive,
+                                activeColor = Color.Red,
+                                onClick = onRecordCall
+                            )
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.NoteAdd,
+                                label = "Notes",
+                                active = false,
+                                enabled = isActive,
+                                onClick = onAddNote
                             )
                         }
                     }
@@ -369,6 +410,7 @@ private fun ModernInCallAction(
     label: String,
     active: Boolean,
     enabled: Boolean = true,
+    activeColor: Color = Color.White,
     onClick: () -> Unit
 ) {
     val alpha = if (enabled) 1f else 0.4f
@@ -378,23 +420,23 @@ private fun ModernInCallAction(
     ) {
         Surface(
             onClick = { if (enabled) onClick() },
-            modifier = Modifier.size(72.dp),
+            modifier = Modifier.size(64.dp),
             shape = CircleShape,
-            color = if (active) Color.White else Color.White.copy(alpha = 0.12f)
+            color = if (active) activeColor else Color.White.copy(alpha = 0.12f)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = imageVector,
                     contentDescription = label,
-                    tint = if (active) Color.Black else Color.White,
-                    modifier = Modifier.size(28.dp)
+                    tint = if (active) (if (activeColor == Color.White) Color.Black else Color.White) else Color.White,
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             text = label,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             color = Color.White.copy(alpha = 0.8f),
             fontWeight = FontWeight.Medium
         )

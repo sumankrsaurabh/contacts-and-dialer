@@ -56,6 +56,10 @@ fun AppNavHost(
     val showContactPhoto by settingsViewModel.showContactPhoto.collectAsStateWithLifecycle()
     val defaultSimId by settingsViewModel.defaultSimId.collectAsStateWithLifecycle()
     val availableSims by settingsViewModel.availableSims.collectAsStateWithLifecycle()
+    
+    val autoRecordAll by settingsViewModel.autoRecordAll.collectAsStateWithLifecycle()
+    val autoRecordUnknown by settingsViewModel.autoRecordUnknown.collectAsStateWithLifecycle()
+    val autoRecordContacts by settingsViewModel.autoRecordContacts.collectAsStateWithLifecycle()
 
     val blockedNumbers by blockedNumbersViewModel.blockedNumbers.collectAsStateWithLifecycle()
     val voicemails by voicemailViewModel.voicemails.collectAsStateWithLifecycle()
@@ -234,6 +238,12 @@ fun AppNavHost(
                 defaultSimId = defaultSimId,
                 availableSims = availableSims,
                 onDefaultSimChanged = { settingsViewModel.setDefaultSimId(it) },
+                autoRecordAll = autoRecordAll,
+                onAutoRecordAllToggled = { settingsViewModel.setAutoRecordAll(it) },
+                autoRecordUnknown = autoRecordUnknown,
+                onAutoRecordUnknownToggled = { settingsViewModel.setAutoRecordUnknown(it) },
+                autoRecordContacts = autoRecordContacts,
+                onAutoRecordContactsToggled = { settingsViewModel.setAutoRecordContacts(it) },
                 onNavigateToBlockedNumbers = { navigator.navigate(Screen.BlockedNumbers) }
             )
         }

@@ -2,6 +2,7 @@
 
 package com.coderon.phone.call.ui.screens.incallui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -11,8 +12,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -27,19 +31,25 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Message
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -47,6 +57,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -76,10 +87,13 @@ fun IncomingCallScreen(
     simInfo: String = "SIM 1",
     backgroundUri: String? = null,
     onAnswer: () -> Unit,
-    onDecline: () -> Unit
+    onDecline: () -> Unit,
+    onSendMessage: (String) -> Unit = {},
+    onRemindMe: () -> Unit = {}
 ) {
     val entryAlpha = remember { Animatable(0f) }
     val entryOffset = remember { Animatable(40f) }
+    var showQuickResponse by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         launch { entryAlpha.animateTo(1f, tween(1000, easing = LinearEasing)) }
@@ -102,11 +116,7 @@ fun IncomingCallScreen(
                 contentScale = ContentScale.Crop
             )
             // Overlay for readability
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f))
-            )
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
         } else {
             OneUi8DynamicBackground()
         }
@@ -130,10 +140,10 @@ fun IncomingCallScreen(
                 Text(
                     text = name ?: phoneNumber,
                     fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Light,
                     color = Color.White,
                     textAlign = TextAlign.Center,
-                    letterSpacing = (1).sp
+                    letterSpacing = (-1).sp
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -144,11 +154,11 @@ fun IncomingCallScreen(
                     fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.6f)
                 )
-
+                
                 if (simInfo.isNotEmpty()) {
                     Surface(
                         color = Color.White.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.padding(top = 12.dp)
                     ) {
                         Text(
@@ -183,8 +193,16 @@ fun IncomingCallScreen(
                         .padding(horizontal = 64.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IncomingActionIcon(Icons.Rounded.NotificationsActive, "remind me")
-                    IncomingActionIcon(Icons.AutoMirrored.Rounded.Message, "message")
+                    IncomingActionIcon(
+                        icon = Icons.Rounded.NotificationsActive, 
+                        label = "remind me",
+                        onClick = onRemindMe
+                    )
+                    IncomingActionIcon(
+                        icon = Icons.AutoMirrored.Rounded.Message, 
+                        label = "message",
+                        onClick = { showQuickResponse = true }
+                    )
                 }
 
                 Spacer(Modifier.height(64.dp))
@@ -195,6 +213,90 @@ fun IncomingCallScreen(
                     onDecline = onDecline
                 )
             }
+        }
+
+        // Quick Response Bottom Sheet
+        AnimatedVisibility(
+            visible = showQuickResponse,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            QuickResponsePanel(
+                onResponseSelected = { 
+                    onSendMessage(it)
+                    showQuickResponse = false
+                    onDecline()
+                },
+                onDismiss = { showQuickResponse = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickResponsePanel(
+    onResponseSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val responses = listOf(
+        "Can't talk now. What's up?",
+        "I'll call you right back.",
+        "I'm on my way.",
+        "Sorry, I'm in a meeting.",
+        "Can I call you later?"
+    )
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
+        color = Color(0xFF1C1C1E).copy(alpha = 0.95f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Quick response",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.Close, contentDescription = "Close", tint = Color.White.copy(alpha = 0.6f))
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            LazyColumn {
+                items(responses) { response ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onResponseSelected(response) }
+                            .padding(vertical = 16.dp)
+                    ) {
+                        Text(response, color = Color.White, fontSize = 16.sp)
+                    }
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                }
+            }
+            
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -243,7 +345,7 @@ private fun PulseAvatar(name: String, photoUrl: String?) {
                     Text(
                         text = name.firstOrNull()?.uppercase() ?: "?",
                         fontSize = 72.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraLight,
                         color = Color.White
                     )
                 }
@@ -277,27 +379,15 @@ private fun ModernCallSlider(
                 .background(
                     Brush.horizontalGradient(
                         listOf(
-                            Color(0xFFFF4757).copy(
-                                alpha = (0.15f * ((-offsetX.value / maxDrag).coerceIn(
-                                    0f,
-                                    1f
-                                ) + 0.2f)).coerceIn(0f, 1f)
-                            ),
+                            Color(0xFFFF4757).copy(alpha = (0.15f * ((-offsetX.value / maxDrag).coerceIn(0f, 1f) + 0.2f)).coerceIn(0f, 1f)),
                             Color.White.copy(alpha = 0.1f),
-                            Color(0xFF2ECC71).copy(
-                                alpha = (0.15f * ((offsetX.value / maxDrag).coerceIn(
-                                    0f,
-                                    1f
-                                ) + 0.2f)).coerceIn(0f, 1f)
-                            )
+                            Color(0xFF2ECC71).copy(alpha = (0.15f * ((offsetX.value / maxDrag).coerceIn(0f, 1f) + 0.2f)).coerceIn(0f, 1f))
                         )
                     )
                 )
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 32.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -326,12 +416,7 @@ private fun ModernCallSlider(
                         onHorizontalDrag = { change, dragAmount ->
                             change.consume()
                             scope.launch {
-                                offsetX.snapTo(
-                                    (offsetX.value + dragAmount).coerceIn(
-                                        -maxDrag,
-                                        maxDrag
-                                    )
-                                )
+                                offsetX.snapTo((offsetX.value + dragAmount).coerceIn(-maxDrag, maxDrag))
                             }
                         },
                         onDragEnd = {
@@ -341,17 +426,12 @@ private fun ModernCallSlider(
                                         onAnswer()
                                         offsetX.animateTo(0f, spring())
                                     }
-
                                     offsetX.value <= -maxDrag * 0.75f -> {
                                         onDecline()
                                         offsetX.animateTo(0f, spring())
                                     }
-
                                     else -> {
-                                        offsetX.animateTo(
-                                            0f,
-                                            spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                                        )
+                                        offsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
                                     }
                                 }
                             }
@@ -360,25 +440,34 @@ private fun ModernCallSlider(
                 }
         ) {
             Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .border(4.dp, Color.White.copy(.8f), CircleShape),
+                modifier = Modifier.fillMaxSize(),
                 shape = CircleShape,
                 color = when {
                     offsetX.value > 10f -> Color(0xFF2ECC71)
                     offsetX.value < -10f -> Color(0xFFFF4757)
-                    else -> Color.Transparent
+                    else -> Color.White
                 },
-            ) {}
+                shadowElevation = 12.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    val iconScale = 1f + (kotlin.math.abs(offsetX.value) / maxDrag) * 0.2f
+                    Icon(
+                        painter = painterResource(if (offsetX.value < 0) R.drawable.end_call else R.drawable.call),
+                        contentDescription = null,
+                        tint = if (offsetX.value == 0f) Color.Black else Color.White,
+                        modifier = Modifier.size(34.dp).graphicsLayer(scaleX = iconScale, scaleY = iconScale)
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun IncomingActionIcon(icon: ImageVector, label: String) {
+private fun IncomingActionIcon(icon: ImageVector, label: String, onClick: () -> Unit = {}) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { }
+        modifier = Modifier.clickable(onClick = onClick)
     ) {
         Surface(
             modifier = Modifier.size(54.dp),
