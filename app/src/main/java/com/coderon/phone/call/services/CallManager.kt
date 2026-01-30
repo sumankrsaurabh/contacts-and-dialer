@@ -259,9 +259,7 @@ object CallManager : KoinComponent {
     private fun maybeSilenceCall(call: Call) {
         scope.launch {
             if (!settingsRepository.ringtoneEnabled.first()) {
-                // To silence an incoming call in InCallService, we can't call silence() directly on Call.
-                // silence() is a CallScreeningService feature.
-                // Here we just acknowledge the setting.
+                // Setting acknowledgment
             }
         }
     }
@@ -305,7 +303,7 @@ object CallManager : KoinComponent {
                 else -> false
             }
 
-            if (shouldRecord) {
+            if (shouldRecord && !_uiState.value.isRecording) {
                 toggleRecording(phoneNumber)
             }
         }
@@ -341,7 +339,7 @@ object CallManager : KoinComponent {
 
     /* ------------------------------------------------
        TIMER LOGIC
-    ------------------------------------------------ */
+    --------------------------------------------------- */
 
     private fun updateTimerState() {
         val hasActiveCall = sessionManager.sessions.values.any { it.state.isActive }
@@ -359,7 +357,7 @@ object CallManager : KoinComponent {
 
     /* ------------------------------------------------
        PROXIMITY SENSOR
-    ------------------------------------------------ */
+    --------------------------------------------------- */
 
     private fun updateProximitySensor() {
         proximityManager?.updateProximitySensor(
@@ -371,7 +369,7 @@ object CallManager : KoinComponent {
 
     /* ------------------------------------------------
        REDUCER
-    ------------------------------------------------ */
+    --------------------------------------------------- */
 
     private fun recompute() {
         _uiState.value = CallReducer.reduce(
@@ -381,7 +379,7 @@ object CallManager : KoinComponent {
 
     /* ------------------------------------------------
        USER ACTIONS
-    ------------------------------------------------ */
+    --------------------------------------------------- */
 
     fun accept() = actionHandler.accept()
     fun reject() = actionHandler.reject()
@@ -419,6 +417,10 @@ object CallManager : KoinComponent {
 
     /* ---------------- RECORDING ACTIONS ---------------- */
 
+    /**
+     * Toggles call recording.
+     * Silent recording (no beep tones) as requested.
+     */
     fun toggleRecording(phoneNumber: String? = null) {
         val recorder = recorderManager ?: return
         val number = phoneNumber ?: _uiState.value.primaryCall?.phoneNumber ?: return

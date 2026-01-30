@@ -60,11 +60,11 @@ class MainActivity : ComponentActivity() {
 
             PhoneTheme(
                 themeMode = themeMode,
-                dynamicColor = dynamicColor
+                dynamicColor = dynamicColor,
             ) {
 
-                val isDefaultDialerState =
-                    remember { mutableStateOf(isDefaultDialer(this)) }
+                val isDefaultDialerStateValue = isDefaultDialer(this)
+                val isDefaultDialerState = remember { mutableStateOf(isDefaultDialerStateValue) }
 
                 val defaultDialerLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult()

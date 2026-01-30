@@ -12,43 +12,43 @@ class CallRecorderManager(private val context: Context) {
     private var _isRecording = false
     private var currentFile: File? = null
 
+    companion object {
+        private const val TAG = "CallRecorderManager"
+    }
+
+    /**
+     * Optimized Call Recording for Default Dialer (Android 14+ compliant).
+     * Uses MediaRecorder with specific voice-optimized settings.
+     */
     fun startRecording(phoneNumber: String): Boolean {
         if (_isRecording) return false
 
-        val directory = File(context.getExternalFilesDir(null), "CallRecordings")
-        if (!directory.exists()) directory.mkdirs()
+        val dir = File(context.getExternalFilesDir(null), "CallRecordings").apply { mkdirs() }
+        currentFile = File(dir, "Call_${phoneNumber}_${System.currentTimeMillis()}.amr")
 
-        val fileName = "Call_${phoneNumber}_${System.currentTimeMillis()}.mp4"
-        currentFile = File(directory, fileName)
-
-        // Try multiple audio sources, starting with the most effective for a Dialer app
-        val sources = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            listOf(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                MediaRecorder.AudioSource.MIC,
-                MediaRecorder.AudioSource.VOICE_RECOGNITION
-            )
-        } else {
-            listOf(
-                MediaRecorder.AudioSource.VOICE_CALL, // Might work on older versions or if system app
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                MediaRecorder.AudioSource.MIC
-            )
-        }
+        // Prioritized sources for call recording. 
+        // VOICE_COMMUNICATION is the standard for VoIP and PSTN calls on modern Android.
+        val sources = listOf(
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.MIC
+        )
 
         for (source in sources) {
             if (tryStartWithSource(source)) {
-                Log.d("CallRecorderManager", "Recording started with source: $source")
+                Log.i(TAG, "Recording started successfully with source: $source")
                 return true
             }
         }
 
+        Log.e(TAG, "Failed to initialize any audio source for recording.")
         return false
     }
 
     private fun tryStartWithSource(source: Int): Boolean {
         return try {
-            recorder?.release()
+            stopAndRelease()
+
             recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
             } else {
@@ -56,10 +56,11 @@ class CallRecorderManager(private val context: Context) {
                 MediaRecorder()
             }.apply {
                 setAudioSource(source)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(44100)
-                setAudioEncodingBitRate(128000)
+                // Using 3GPP/AMR_NB for maximum compatibility with call-audio hardware paths.
+                // Many devices route call audio specifically to these legacy encoders.
+                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                // Note: Do not set sampling rate or bitrate manually for AMR_NB to avoid hardware mismatches.
                 setOutputFile(currentFile!!.absolutePath)
                 prepare()
                 start()
@@ -67,43 +68,48 @@ class CallRecorderManager(private val context: Context) {
             _isRecording = true
             true
         } catch (e: Exception) {
-            Log.e("CallRecorderManager", "Failed to start recording with source $source", e)
-            recorder?.reset()
-            recorder?.release()
-            recorder = null
-            _isRecording = false
+            Log.w(TAG, "Source $source failed: ${e.message}")
+            stopAndRelease()
             false
         }
     }
 
     fun stopRecording(): String? {
         if (!_isRecording) return null
+        val path = currentFile?.absolutePath
+        try {
+            recorder?.stop()
+        } catch (e: Exception) {
+            Log.e(TAG, "Stop failed", e)
+        } finally {
+            stopAndRelease()
+            _isRecording = false
+        }
+        return path
+    }
 
+    private fun stopAndRelease() {
         try {
             recorder?.apply {
-                stop()
                 reset()
                 release()
             }
-        } catch (e: Exception) {
-            Log.e("CallRecorderManager", "stopRecording failed", e)
+        } catch (_: Exception) {
         } finally {
             recorder = null
-            _isRecording = false
         }
-
-        return currentFile?.absolutePath
     }
 
-    fun isRecording() = _isRecording
+    fun isRecording(): Boolean = _isRecording
 
     fun getRecordingsForNumber(phoneNumber: String): List<File> {
-        val directory = File(context.getExternalFilesDir(null), "CallRecordings")
-        if (!directory.exists()) return emptyList()
-        
-        return directory.listFiles { file ->
+        val dir = File(context.getExternalFilesDir(null), "CallRecordings")
+        if (!dir.exists()) return emptyList()
+
+        return dir.listFiles { file ->
             val name = file.name
-            name.startsWith("Call_${phoneNumber}_") && (name.endsWith(".mp4") || name.endsWith(".amr"))
-        }?.toList()?.sortedByDescending { it.lastModified() } ?: emptyList()
+            name.startsWith("Call_${phoneNumber}_") &&
+                (name.endsWith(".amr") || name.endsWith(".3gp") || name.endsWith(".mp4") || name.endsWith(".wav"))
+        }?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 }
