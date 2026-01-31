@@ -183,7 +183,7 @@ fun OngoingCallScreen(
                 if (simInfo.isNotEmpty()) {
                     Surface(
                         color = Color.White.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(24.dp),
                         modifier = Modifier.padding(top = 12.dp)
                     ) {
                         Text(
