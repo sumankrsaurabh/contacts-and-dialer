@@ -1,10 +1,6 @@
 package com.coderon.phone.ui.components
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -28,8 +24,9 @@ fun HybridAlertDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(32.dp), // OneUI 8 / iOS consistent rounding
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 0.dp,
         title = {
             Text(
                 text = title,
@@ -42,10 +39,11 @@ fun HybridAlertDialog(
         text = {
             Text(
                 text = message,
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = 22.sp
             )
         },
         confirmButton = {
@@ -63,7 +61,8 @@ fun HybridAlertDialog(
                 Text(
                     text = cancelText,
                     color = MaterialTheme.colorScheme.primary,
-                    fontSize = 17.sp
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }

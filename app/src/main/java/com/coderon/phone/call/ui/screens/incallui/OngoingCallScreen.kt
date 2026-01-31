@@ -30,7 +30,6 @@ import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
-import androidx.compose.material.icons.rounded.NoteAdd
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RadioButtonChecked
@@ -217,7 +216,7 @@ fun OngoingCallScreen(
                 }
             }
 
-            /* ---------- CONTROLS ---------- */
+            /* ---------- CONTROLS (3x3 Layout) ---------- */
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -231,6 +230,7 @@ fun OngoingCallScreen(
                         modifier = Modifier.padding(horizontal = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
+                        // Row 1
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
@@ -243,41 +243,30 @@ fun OngoingCallScreen(
                                 onClick = onToggleMute
                             )
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.Dialpad,
-                                label = "Keypad",
-                                active = false,
-                                onClick = { showKeypad = true }
-                            )
-                            ModernInCallAction(
-                                imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
-                                label = "Speaker",
-                                active = currentAudioRoute == AudioRoute.SPEAKER,
-                                onClick = onToggleSpeaker
-                            )
-                            ModernInCallAction(
                                 imageVector = Icons.Rounded.Bluetooth,
                                 label = "Bluetooth",
                                 active = currentAudioRoute == AudioRoute.BLUETOOTH,
                                 onClick = onToggleBluetooth
                             )
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.VideoCall,
+                                label = "Video call",
+                                active = false,
+                                enabled = isActive,
+                                onClick = onVideoCall
+                            )
                         }
+                        // Row 2
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             ModernInCallAction(
                                 imageVector = Icons.Rounded.Add,
-                                label = "Add Call",
+                                label = "Add call",
                                 active = false,
                                 enabled = isActive,
                                 onClick = onAddCall
-                            )
-                            ModernInCallAction(
-                                imageVector = Icons.Rounded.VideoCall,
-                                label = "Video",
-                                active = false,
-                                enabled = isActive,
-                                onClick = onVideoCall
                             )
                             ModernInCallAction(
                                 imageVector = if (isOnHold) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
@@ -286,68 +275,100 @@ fun OngoingCallScreen(
                                 enabled = isActive || isOnHold,
                                 onClick = onToggleHold
                             )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
                             ModernInCallAction(
                                 imageVector = Icons.Rounded.RadioButtonChecked,
-                                label = if (isRecording) "Stop Rec" else "Record",
+                                label = if (isRecording) "Stop" else "Record",
                                 active = isRecording,
                                 enabled = isActive,
                                 activeColor = Color.Red,
                                 onClick = onRecordCall
                             )
+                        }
+                        // Row 3: Speaker (bottomleft), End call (center), Keypad (bottomright)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.NoteAdd,
-                                label = "Notes",
+                                imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
+                                label = "Speaker",
+                                active = currentAudioRoute == AudioRoute.SPEAKER,
+                                onClick = onToggleSpeaker
+                            )
+                            
+                            // Reusable End Call Button with Label
+                            EndCallWithLabel(onClick = onEndCall)
+
+                            ModernInCallAction(
+                                imageVector = Icons.Rounded.Dialpad,
+                                label = "Keypad",
                                 active = false,
-                                enabled = isActive,
-                                onClick = onAddNote
+                                onClick = { showKeypad = true }
                             )
                         }
                     }
                 }
 
                 if (showKeypad) {
-                    Surface(
-                        onClick = { showKeypad = false },
-                        color = Color.White.copy(alpha = 0.15f),
-                        shape = CircleShape,
-                        modifier = Modifier.padding(vertical = 24.dp)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(bottom = 24.dp)
                     ) {
-                        Text(
-                            "Hide Keypad",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
-                        )
+                        Surface(
+                            onClick = { showKeypad = false },
+                            color = Color.White.copy(alpha = 0.15f),
+                            shape = CircleShape
+                        ) {
+                            Text(
+                                "Hide Keypad",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                            )
+                        }
+
+                        Spacer(Modifier.height(24.dp))
+
+                        // End Call button visible when dialpad is shown - now identical to the one in grid
+                        EndCallWithLabel(onClick = onEndCall)
                     }
                 } else {
+                    // Bottom spacer
                     Spacer(Modifier.height(48.dp))
-                }
-
-                // Modern End Call Button
-                Surface(
-                    onClick = onEndCall,
-                    modifier = Modifier.size(80.dp),
-                    shape = CircleShape,
-                    color = Color(0xFFFF3B30),
-                    shadowElevation = 12.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painter = painterResource(R.drawable.end_call),
-                            contentDescription = "End",
-                            tint = Color.White,
-                            modifier = Modifier.size(38.dp)
-                        )
-                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun EndCallWithLabel(onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.size(64.dp),
+            shape = CircleShape,
+            color = Color(0xFFFF3B30),
+            shadowElevation = 8.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    painter = painterResource(R.drawable.end_call),
+                    contentDescription = "End",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "End",
+            fontSize = 11.sp,
+            color = Color.White.copy(alpha = 0.8f),
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 

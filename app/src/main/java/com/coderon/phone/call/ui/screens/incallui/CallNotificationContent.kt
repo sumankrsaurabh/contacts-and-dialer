@@ -1,5 +1,6 @@
 package com.coderon.phone.call.ui.screens.incallui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -48,114 +50,126 @@ fun CallNotificationContent(
     onDecline: () -> Unit = {},
     onContentClick: () -> Unit = {}
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(32.dp))
             .clickable { onContentClick() },
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shadowElevation = 8.dp,
-        tonalElevation = 4.dp
+        shape = RoundedCornerShape(32.dp),
+        color = colorScheme.surfaceContainer.copy(alpha = 0.85f),
+        shadowElevation = 12.dp
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+        // Glassmorphic effect background
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .blur(20.dp)
+                    .background(colorScheme.surfaceContainer.copy(alpha = 0.4f))
+            )
+
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
             ) {
-                // Avatar
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (!profilePictureUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(profilePictureUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = name.firstOrNull()?.uppercase() ?: "?",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                    // Avatar
+                    Surface(
+                        modifier = Modifier.size(52.dp),
+                        shape = CircleShape,
+                        color = colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    ) {
+                        if (!profilePictureUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(profilePictureUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = name.firstOrNull()?.uppercase() ?: "?",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
+                    }
+
+                    Spacer(Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = name,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurface,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = status,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
 
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.height(20.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = name,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = status,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onDecline,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF3B30),
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(24.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Rounded.CallEnd, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Decline", fontWeight = FontWeight.Bold)
-                }
+                    Button(
+                        onClick = onDecline,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFF3B30),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(26.dp)
+                    ) {
+                        Icon(Icons.Rounded.CallEnd, contentDescription = null, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Decline", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
 
-                Button(
-                    onClick = onAccept,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF34C759),
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Accept", fontWeight = FontWeight.Bold)
+                    Button(
+                        onClick = onAccept,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF34C759),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(26.dp)
+                    ) {
+                        Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Accept", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
                 }
             }
         }
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF2F2F7)
+@Preview(showBackground = true, backgroundColor = 0x00000000)
 @Composable
 private fun PreviewCallNotification() {
     PhoneTheme {

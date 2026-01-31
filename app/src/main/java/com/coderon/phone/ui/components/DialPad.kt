@@ -1,9 +1,11 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package com.coderon.phone.ui.components
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
@@ -28,9 +32,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun DialPad(
     playTones: (Char) -> Unit = {},
-    onDigitPress: (String) -> Unit = {}
+    onDigitPress: (String) -> Unit = {},
+    onDigitLongPress: (String) -> Unit = {},
+    hapticFeedbackEnabled: Boolean = true
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val haptic = LocalHapticFeedback.current
     val digitLetters = mapOf(
         "1" to "",
         "2" to "ABC", "3" to "DEF",
@@ -68,14 +75,29 @@ fun DialPad(
                                 colorScheme.surfaceContainerHigh,
                                 CircleShape
                             )
-                            .clickable {
-                                onDigitPress(digit)
-                                playTones(digit.first())
-                                scope.launch {
-                                    scale.animateTo(0.92f, spring())
-                                    scale.animateTo(1f, spring())
+                            .combinedClickable(
+                                onClick = {
+                                    onDigitPress(digit)
+                                    playTones(digit.first())
+                                    if (hapticFeedbackEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    scope.launch {
+                                        scale.animateTo(0.92f, spring())
+                                        scale.animateTo(1f, spring())
+                                    }
+                                },
+                                onLongClick = {
+                                    onDigitLongPress(digit)
+                                    if (hapticFeedbackEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    scope.launch {
+                                        scale.animateTo(0.85f, spring())
+                                        scale.animateTo(1f, spring())
+                                    }
                                 }
-                            },
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {

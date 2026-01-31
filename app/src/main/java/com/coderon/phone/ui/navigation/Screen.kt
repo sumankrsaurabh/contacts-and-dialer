@@ -21,6 +21,15 @@ sealed interface Screen : NavKey {
     data class CallDetails(val phoneNumber: String) : Screen
     
     @Serializable data object CallScreen : Screen
+    @Serializable 
+    data class PostCallSummary(
+        val phoneNumber: String,
+        val duration: Long,
+        val isIncoming: Boolean,
+        val timestamp: Long
+    ) : Screen
+
     @Serializable data object Settings : Screen
     @Serializable data object BlockedNumbers : Screen
+    @Serializable data object SpeedDial : Screen
 }

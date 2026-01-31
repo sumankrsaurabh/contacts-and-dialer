@@ -42,8 +42,18 @@ data class CallUiState(
 
     /* ---------------- SCREEN ---------------- */
 
-    val screen: CallScreenType = CallScreenType.NONE
+    val screen: CallScreenType = CallScreenType.NONE,
+
+    /* ---------------- SUMMARY ---------------- */
+    val lastCallSummary: CallSummary? = null
 ) {
+
+    data class CallSummary(
+        val phoneNumber: String,
+        val durationSeconds: Long,
+        val isIncoming: Boolean,
+        val timestamp: Long
+    )
 
     val hasNoCalls: Boolean
         get() = primaryCall == null && secondaryCall == null

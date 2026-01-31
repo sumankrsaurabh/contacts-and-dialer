@@ -16,8 +16,10 @@ import com.coderon.phone.ui.screens.CallLogScreen
 import com.coderon.phone.ui.screens.ContactDetailsScreen
 import com.coderon.phone.ui.screens.ContactsScreen
 import com.coderon.phone.ui.screens.DialerScreen
+import com.coderon.phone.ui.screens.PostCallSummaryScreen
 import com.coderon.phone.ui.screens.SearchScreen
 import com.coderon.phone.ui.screens.SettingsScreen
+import com.coderon.phone.ui.screens.SpeedDialScreen
 import com.coderon.phone.ui.screens.VoicemailScreen
 import com.coderon.phone.ui.utils.ScaffoldScreen
 import com.coderon.phone.utils.normalizePhoneNumber
@@ -61,6 +63,25 @@ fun AppNavHost(
     val autoRecordUnknown by settingsViewModel.autoRecordUnknown.collectAsStateWithLifecycle()
     val autoRecordContacts by settingsViewModel.autoRecordContacts.collectAsStateWithLifecycle()
 
+    val contactSortOrder by settingsViewModel.contactSortOrder.collectAsStateWithLifecycle()
+    val contactDisplayNameFormat by settingsViewModel.contactDisplayNameFormat.collectAsStateWithLifecycle()
+    val showPostCallDetails by settingsViewModel.showPostCallDetails.collectAsStateWithLifecycle()
+    val vibrationPattern by settingsViewModel.vibrationPattern.collectAsStateWithLifecycle()
+    val oneHandedMode by settingsViewModel.oneHandedMode.collectAsStateWithLifecycle()
+    val hapticFeedbackEnabled by settingsViewModel.hapticFeedbackEnabled.collectAsStateWithLifecycle()
+    val swipeToCallEnabled by settingsViewModel.swipeToCallEnabled.collectAsStateWithLifecycle()
+    val speedDials by settingsViewModel.speedDials.collectAsStateWithLifecycle()
+    val dialPadSoundTheme by settingsViewModel.dialPadSoundTheme.collectAsStateWithLifecycle()
+
+    val announceCallerName by settingsViewModel.announceCallerName.collectAsStateWithLifecycle()
+    val blockUnknownNumbers by settingsViewModel.blockUnknownNumbers.collectAsStateWithLifecycle()
+    val spamProtectionEnabled by settingsViewModel.spamProtectionEnabled.collectAsStateWithLifecycle()
+    val flipToSilence by settingsViewModel.flipToSilence.collectAsStateWithLifecycle()
+    val fullScreenCallerPhoto by settingsViewModel.fullScreenCallerPhoto.collectAsStateWithLifecycle()
+    val autoAnswerEnabled by settingsViewModel.autoAnswerEnabled.collectAsStateWithLifecycle()
+    val autoAnswerDelay by settingsViewModel.autoAnswerDelay.collectAsStateWithLifecycle()
+    val proximitySensorEnabled by settingsViewModel.proximitySensorEnabled.collectAsStateWithLifecycle()
+
     val blockedNumbers by blockedNumbersViewModel.blockedNumbers.collectAsStateWithLifecycle()
     val voicemails by voicemailViewModel.voicemails.collectAsStateWithLifecycle()
 
@@ -78,8 +99,12 @@ fun AppNavHost(
                     contactsGrouped = groupedContacts,
                     callLogsGrouped = callLogsByDate,
                     updateSearchQuery = ::updateSearchQuery,
-                    playTones = { if (keypadTonesEnabled) playTones(it) },
-                    defaultSimId = defaultSimId
+                    playTones = { if (keypadTonesEnabled) playTones(it, dialPadSoundTheme) },
+                    defaultSimId = defaultSimId,
+                    showContactPhoto = showContactPhoto,
+                    oneHandedMode = oneHandedMode,
+                    hapticFeedbackEnabled = hapticFeedbackEnabled,
+                    onSpeedDial = { digit -> speedDials[digit] }
                 )
             }
         }
@@ -93,7 +118,9 @@ fun AppNavHost(
                     onFilterChanged = { callLogViewModel.onFilterChanged(it) },
                     onDeleteAllLogs = { callLogViewModel.deleteAllLogs() },
                     navigator = navigator,
-                    defaultSimId = defaultSimId
+                    defaultSimId = defaultSimId,
+                    showContactPhoto = showContactPhoto,
+                    swipeEnabled = swipeToCallEnabled
                 )
             }
         }
@@ -104,7 +131,10 @@ fun AppNavHost(
                 ContactsScreen(
                     contactsGrouped = groupedContacts,
                     navigator = navigator,
-                    defaultSimId = defaultSimId
+                    defaultSimId = defaultSimId,
+                    showContactPhoto = showContactPhoto,
+                    displayNameFormat = contactDisplayNameFormat,
+                    swipeEnabled = swipeToCallEnabled
                 )
             }
         }
@@ -116,7 +146,7 @@ fun AppNavHost(
                     navigator = navigator,
                     contacts = filteredContacts,
                     logs = callLogsByDate.values.flatten().flatMap { it.logs },
-                    onBack = { navigator.goBack() }
+                    onBack = { navigator.goBack() },
                 )
             }
         }
@@ -199,7 +229,9 @@ fun AppNavHost(
                 onToggleFavorite = { contactViewModel.toggleFavorite(it) },
                 onEditContact = { contact ->
                     navigator.navigate(Screen.AddContact(contactId = contact.id))
-                }
+                },
+                defaultSimId = defaultSimId,
+                showContactPhoto = showContactPhoto
             )
         }
 
@@ -209,7 +241,19 @@ fun AppNavHost(
                 navigator = navigator,
                 backgroundUri = backgroundUri,
                 showContactPhoto = showContactPhoto,
+                fullScreenCallerPhoto = fullScreenCallerPhoto,
                 keypadTonesEnabled = keypadTonesEnabled
+            )
+        }
+
+        /* -------------------- POST CALL SUMMARY -------------------- */
+        entry<Screen.PostCallSummary> { key ->
+            PostCallSummaryScreen(
+                phoneNumber = key.phoneNumber,
+                duration = key.duration,
+                isIncoming = key.isIncoming,
+                timestamp = key.timestamp,
+                navigator = navigator
             )
         }
 
@@ -244,7 +288,40 @@ fun AppNavHost(
                 onAutoRecordUnknownToggled = { settingsViewModel.setAutoRecordUnknown(it) },
                 autoRecordContacts = autoRecordContacts,
                 onAutoRecordContactsToggled = { settingsViewModel.setAutoRecordContacts(it) },
-                onNavigateToBlockedNumbers = { navigator.navigate(Screen.BlockedNumbers) }
+                contactSortOrder = contactSortOrder,
+                onContactSortOrderChanged = { settingsViewModel.setContactSortOrder(it) },
+                contactDisplayNameFormat = contactDisplayNameFormat,
+                onContactDisplayNameFormatChanged = { settingsViewModel.setContactDisplayNameFormat(it) },
+                showPostCallDetails = showPostCallDetails,
+                onShowPostCallDetailsToggled = { settingsViewModel.setShowPostCallDetails(it) },
+                vibrationPattern = vibrationPattern,
+                onVibrationPatternChanged = { settingsViewModel.setVibrationPattern(it) },
+                announceCallerName = announceCallerName,
+                onAnnounceCallerNameToggled = { settingsViewModel.setAnnounceCallerName(it) },
+                blockUnknownNumbers = blockUnknownNumbers,
+                onBlockUnknownNumbersToggled = { settingsViewModel.setBlockUnknownNumbers(it) },
+                spamProtectionEnabled = spamProtectionEnabled,
+                onSpamProtectionToggled = { settingsViewModel.setSpamProtectionEnabled(it) },
+                flipToSilence = flipToSilence,
+                onFlipToSilenceToggled = { settingsViewModel.setFlipToSilence(it) },
+                oneHandedMode = oneHandedMode,
+                onOneHandedModeChanged = { settingsViewModel.setOneHandedMode(it) },
+                dialPadSoundTheme = dialPadSoundTheme,
+                onDialPadSoundThemeChanged = { settingsViewModel.setDialPadSoundTheme(it) },
+                swipeToCallEnabled = swipeToCallEnabled,
+                onSwipeToCallEnabledToggled = { settingsViewModel.setSwipeToCallEnabled(it) },
+                hapticFeedbackEnabled = hapticFeedbackEnabled,
+                onHapticFeedbackToggled = { settingsViewModel.setHapticFeedbackEnabled(it) },
+                fullScreenCallerPhoto = fullScreenCallerPhoto,
+                onFullScreenCallerPhotoToggled = { settingsViewModel.setFullScreenCallerPhoto(it) },
+                autoAnswerEnabled = autoAnswerEnabled,
+                onAutoAnswerEnabledToggled = { settingsViewModel.setAutoAnswerEnabled(it) },
+                autoAnswerDelay = autoAnswerDelay,
+                onAutoAnswerDelayChanged = { settingsViewModel.setAutoAnswerDelay(it) },
+                proximitySensorEnabled = proximitySensorEnabled,
+                onProximitySensorEnabledToggled = { settingsViewModel.setProximitySensorEnabled(it) },
+                onNavigateToBlockedNumbers = { navigator.navigate(Screen.BlockedNumbers) },
+                onNavigateToSpeedDial = { navigator.navigate(Screen.SpeedDial) }
             )
         }
 
@@ -255,6 +332,16 @@ fun AppNavHost(
                 blockedNumbers = blockedNumbers,
                 onBlockNumber = { blockedNumbersViewModel.blockNumber(it) },
                 onUnblockNumber = { blockedNumbersViewModel.unblockNumber(it) }
+            )
+        }
+
+        /* -------------------- SPEED DIAL -------------------- */
+        entry<Screen.SpeedDial> {
+            SpeedDialScreen(
+                navigator = navigator,
+                speedDials = speedDials,
+                contacts = allContacts,
+                onSetSpeedDial = { digit, number -> settingsViewModel.setSpeedDial(digit, number) }
             )
         }
     }

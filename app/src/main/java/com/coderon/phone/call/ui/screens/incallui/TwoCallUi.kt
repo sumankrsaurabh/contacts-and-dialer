@@ -120,10 +120,10 @@ fun TwoCallScreen(
                 Text(
                     text = firstContactName.ifBlank { firstPhoneNumber },
                     fontSize = 34.sp,
-                    fontWeight = FontWeight.Light,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White,
                     textAlign = TextAlign.Center,
-                    letterSpacing = (-1).sp
+                    letterSpacing = (1).sp
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -143,7 +143,7 @@ fun TwoCallScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(32.dp),
                 color = Color.White.copy(alpha = 0.08f),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
             ) {
@@ -164,7 +164,7 @@ fun TwoCallScreen(
                         Text(
                             text = secondContactName.ifBlank { secondPhoneNumber },
                             fontSize = 20.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color.White,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -201,31 +201,31 @@ fun TwoCallScreen(
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(32.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    ModernTwoCallAction(
+                    ModernInCallAction(
                         imageVector = Icons.Rounded.Merge,
                         label = "Merge",
                         active = false,
                         onClick = onMergeCalls
                     )
-                    ModernTwoCallAction(
+                    ModernInCallAction(
                         imageVector = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
                         label = "Mute",
                         active = isMuted,
                         onClick = onToggleMute
                     )
-                    ModernTwoCallAction(
+                    ModernInCallAction(
                         imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                         label = "Speaker",
                         active = currentAudioRoute == AudioRoute.SPEAKER.name,
                         onClick = onToggleSpeaker
                     )
-                    ModernTwoCallAction(
+                    ModernInCallAction(
                         imageVector = Icons.Rounded.Bluetooth,
                         label = "Bluetooth",
                         active = currentAudioRoute == AudioRoute.BLUETOOTH.name,
@@ -258,32 +258,38 @@ fun TwoCallScreen(
 }
 
 @Composable
-private fun ModernTwoCallAction(
+private fun ModernInCallAction(
     imageVector: ImageVector,
     label: String,
     active: Boolean,
+    enabled: Boolean = true,
+    activeColor: Color = Color.White,
     onClick: () -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    val alpha = if (enabled) 1f else 0.4f
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.alpha(alpha)
+    ) {
         Surface(
-            onClick = onClick,
-            modifier = Modifier.size(72.dp),
+            onClick = { if (enabled) onClick() },
+            modifier = Modifier.size(64.dp),
             shape = CircleShape,
-            color = if (active) Color.White else Color.White.copy(alpha = 0.12f)
+            color = if (active) activeColor else Color.White.copy(alpha = 0.12f)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = imageVector,
                     contentDescription = label,
-                    tint = if (active) Color.Black else Color.White,
-                    modifier = Modifier.size(28.dp)
+                    tint = if (active) (if (activeColor == Color.White) Color.Black else Color.White) else Color.White,
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             text = label,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             color = Color.White.copy(alpha = 0.8f),
             fontWeight = FontWeight.Medium
         )

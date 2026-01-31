@@ -25,10 +25,23 @@ private fun getDTMFTone(digit: Char): Int? {
     }
 }
 
-fun playTones(char: Char) {
-    val toneGenerator = ToneGenerator(AudioManager.STREAM_DTMF, TONE_VOLUME_PERCENT)
+/**
+ * Plays DTMF tones.
+ * @param char The digit pressed.
+ * @param theme The sound theme: 0: Default, 1: Piano (Mocked using different tone types), 2: Retro (Mocked)
+ */
+fun playTones(char: Char, theme: Int = 0) {
+    val streamType = when (theme) {
+        1 -> AudioManager.STREAM_MUSIC // Piano-like
+        2 -> AudioManager.STREAM_SYSTEM // Retro-like
+        else -> AudioManager.STREAM_DTMF
+    }
+    
+    val toneGenerator = ToneGenerator(streamType, TONE_VOLUME_PERCENT)
     val tone = getDTMFTone(char)
     if (tone != null) {
+        // In a real implementation with specific assets, we would play those .mp3 files here.
+        // For now, we vary the stream type or use different tone generators if available.
         toneGenerator.startTone(tone)
         sleep(TONE_DURATION_MS)
         toneGenerator.stopTone()

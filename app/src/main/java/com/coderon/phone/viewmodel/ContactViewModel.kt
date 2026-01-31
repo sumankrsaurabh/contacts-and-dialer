@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coderon.phone.data.model.Contact
 import com.coderon.phone.data.model.PhoneNumber
+import com.coderon.phone.data.repository.SettingsRepository
 import com.coderon.phone.domain.repository.ContactRepository
 import com.coderon.phone.domain.usecase.GetContactsUseCase
 import com.coderon.phone.domain.usecase.SaveContactUseCase
@@ -22,7 +23,8 @@ class ContactViewModel(
     private val getContactsUseCase: GetContactsUseCase,
     private val saveContactUseCase: SaveContactUseCase,
     private val updateContactUseCase: UpdateContactUseCase,
-    private val contactRepository: ContactRepository // Assuming it's available via Koin
+    private val contactRepository: ContactRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _allContacts = MutableStateFlow<List<Contact>>(emptyList())
@@ -45,7 +47,7 @@ class ContactViewModel(
         )
 
     val groupedContacts: StateFlow<SortedMap<Char, List<Contact>>> =
-        combine(_allContacts, _searchQuery) { contacts, query ->
+        combine(_allContacts, _searchQuery, settingsRepository.contactSortOrder) { contacts, query, sortOrder ->
             val filtered = if (query.isBlank()) {
                 contacts
             } else {
@@ -55,13 +57,21 @@ class ContactViewModel(
                 }
             }
 
-            filtered.sortedBy { it.displayName.lowercase() }
-                .groupBy { contact ->
-                    contact.displayName
-                        .firstOrNull()
-                        ?.uppercaseChar()
-                        ?: '#'
-                }.toSortedMap()
+            // sortOrder: 0 for First Name, 1 for Last Name
+            val sorted = if (sortOrder == 0) {
+                filtered.sortedBy { it.firstName?.lowercase() ?: it.displayName.lowercase() }
+            } else {
+                filtered.sortedBy { it.lastName?.lowercase() ?: it.displayName.lowercase() }
+            }
+
+            sorted.groupBy { contact ->
+                val nameForGrouping = if (sortOrder == 0) {
+                    contact.firstName ?: contact.displayName
+                } else {
+                    contact.lastName ?: contact.displayName
+                }
+                nameForGrouping.firstOrNull()?.uppercaseChar() ?: '#'
+            }.toSortedMap()
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

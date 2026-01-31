@@ -44,6 +44,7 @@ fun CallScreen(
     navigator: Navigator,
     backgroundUri: String? = null,
     showContactPhoto: Boolean = true,
+    fullScreenCallerPhoto: Boolean = false,
     keypadTonesEnabled: Boolean = true
 ) {
     val uiState by CallManager.uiState.collectAsState()
@@ -83,6 +84,7 @@ fun CallScreen(
                     profilePictureUrl = if (showContactPhoto) call.profilePictureUrl else null,
                     simInfo = call.call.getSimInfoForCall(context),
                     backgroundUri = backgroundUri,
+                    fullScreenPhoto = fullScreenCallerPhoto,
                     onAnswer = { CallManager.accept() },
                     onDecline = { CallManager.reject() },
                     onSendMessage = { message ->

@@ -86,6 +86,7 @@ fun IncomingCallScreen(
     callType: String = "Incoming Call",
     simInfo: String = "SIM 1",
     backgroundUri: String? = null,
+    fullScreenPhoto: Boolean = false,
     onAnswer: () -> Unit,
     onDecline: () -> Unit,
     onSendMessage: (String) -> Unit = {},
@@ -105,10 +106,17 @@ fun IncomingCallScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        if (!backgroundUri.isNullOrEmpty()) {
+        // Background logic: Priority - Full Screen Contact Photo > Custom Background > Dynamic Background
+        val activeBackground = if (fullScreenPhoto && !profilePictureUrl.isNullOrEmpty()) {
+            profilePictureUrl
+        } else if (!backgroundUri.isNullOrEmpty()) {
+            backgroundUri
+        } else null
+
+        if (activeBackground != null) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(backgroundUri)
+                    .data(activeBackground)
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
@@ -116,7 +124,7 @@ fun IncomingCallScreen(
                 contentScale = ContentScale.Crop
             )
             // Overlay for readability
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
         } else {
             OneUi8DynamicBackground()
         }
@@ -174,11 +182,15 @@ fun IncomingCallScreen(
 
             Spacer(Modifier.height(64.dp))
 
-            // Avatar with Pulse Animation
-            PulseAvatar(
-                name = name ?: phoneNumber,
-                photoUrl = profilePictureUrl
-            )
+            // Show avatar only if not in full screen mode (to avoid redundancy)
+            if (!fullScreenPhoto || profilePictureUrl.isNullOrEmpty()) {
+                PulseAvatar(
+                    name = name ?: phoneNumber,
+                    photoUrl = profilePictureUrl
+                )
+            } else {
+                Spacer(Modifier.height(160.dp)) // Maintain spacing
+            }
 
             Spacer(Modifier.weight(1f))
 
@@ -207,7 +219,6 @@ fun IncomingCallScreen(
 
                 Spacer(Modifier.height(64.dp))
 
-                // New Modern Call Slider
                 ModernCallSlider(
                     onAnswer = onAnswer,
                     onDecline = onDecline

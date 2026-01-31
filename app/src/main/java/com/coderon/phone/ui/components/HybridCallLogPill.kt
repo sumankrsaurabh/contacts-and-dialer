@@ -42,7 +42,8 @@ fun HybridCallLogPill(
     contact: Contact?,
     callCount: Int = 1,
     onRowClick: () -> Unit,
-    onInfoClick: () -> Unit
+    onInfoClick: () -> Unit,
+    showContactPhoto: Boolean = true
 ) {
     val colorScheme = MaterialTheme.colorScheme
     
@@ -67,12 +68,13 @@ fun HybridCallLogPill(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ProfileAvatar(
-                name = name,
-                photoUrl = contact?.profilePictureUrl
-            )
-
-            Spacer(Modifier.width(16.dp))
+            if (showContactPhoto) {
+                ProfileAvatar(
+                    name = name,
+                    photoUrl = contact?.profilePictureUrl
+                )
+                Spacer(Modifier.width(16.dp))
+            }
 
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

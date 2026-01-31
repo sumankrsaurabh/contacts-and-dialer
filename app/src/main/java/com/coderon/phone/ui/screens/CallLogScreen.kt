@@ -73,7 +73,9 @@ fun CallLogScreen(
     onFilterChanged: (CallFilter) -> Unit,
     onDeleteAllLogs: () -> Unit,
     navigator: Navigator,
-    defaultSimId: String? = null
+    defaultSimId: String? = null,
+    showContactPhoto: Boolean = true,
+    swipeEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -184,14 +186,11 @@ fun CallLogScreen(
                         item(key = date) {
                             Text(
                                 text = date.uppercase(),
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.padding(
-                                    start = 14.dp,
-                                    top = 24.dp,
-                                    bottom = 10.dp
-                                )
+                                color = colorScheme.primary.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(start = 28.dp, bottom = 12.dp, top = 24.dp),
+                                letterSpacing = 0.8.sp
                             )
                         }
 
@@ -202,7 +201,7 @@ fun CallLogScreen(
                                 callType = group.callType,
                                 callTime = group.callTime,
                                 simSlot = group.simSlot,
-                                contact = group.contact,
+                                contact = if (showContactPhoto) group.contact else null,
                                 callCount = group.logs.size,
                                 onRowClick = { onCallClick(group.phoneNumber) },
                                 onInfoClick = {

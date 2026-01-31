@@ -1,6 +1,7 @@
 package com.coderon.phone.ui.screens
 
 import android.telecom.PhoneAccountHandle
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -83,7 +84,11 @@ fun DialerScreen(
     callLogsGrouped: Map<String, List<GroupedCallLog>>,
     updateSearchQuery: (String) -> Unit = {},
     playTones: (Char) -> Unit,
-    defaultSimId: String? = null
+    defaultSimId: String? = null,
+    showContactPhoto: Boolean = true,
+    oneHandedMode: Int = 0, // 0: Disabled, 1: Left, 2: Right
+    hapticFeedbackEnabled: Boolean = true,
+    onSpeedDial: (Int) -> String? = { null }
 ) {
     var dialedNumber by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -230,8 +235,9 @@ fun DialerScreen(
                             text = "SUGGESTIONS",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                            color = colorScheme.primary.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(start = 24.dp, bottom = 12.dp),
+                            letterSpacing = 0.8.sp
                         )
                     }
 
@@ -244,7 +250,7 @@ fun DialerScreen(
                                     callType = item.callType,
                                     callTime = item.callTime,
                                     simSlot = item.simSlot,
-                                    contact = item.contact,
+                                    contact = if (showContactPhoto) item.contact else null,
                                     callCount = item.logs.size,
                                     onRowClick = { onCallClick(item.phoneNumber) },
                                     onInfoClick = {
@@ -258,7 +264,7 @@ fun DialerScreen(
                                 HybridContactRow(
                                     name = item.displayName,
                                     subtitle = contactNumber,
-                                    photoUrl = item.profilePictureUrl,
+                                    photoUrl = if (showContactPhoto) item.profilePictureUrl else null,
                                     onRowClick = { onCallClick(contactNumber) },
                                     onInfoClick = {
                                         navigator.navigate(Screen.CallDetails(contactNumber))
@@ -270,66 +276,98 @@ fun DialerScreen(
                 }
             }
 
-            DialPad(
-                playTones = playTones,
-                onDigitPress = {
-                    if (dialedNumber.length < 15) {
-                        dialedNumber += it
-                    }
+            // DialPad with One-handed Mode Support
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = if (oneHandedMode != 0) 24.dp else 0.dp),
+                contentAlignment = when (oneHandedMode) {
+                    1 -> Alignment.BottomStart
+                    2 -> Alignment.BottomEnd
+                    else -> Alignment.BottomCenter
                 }
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(Modifier.width(56.dp))
-
-                FilledIconButton(
-                    onClick = {
-                        if (dialedNumber.isNotBlank()) {
-                            onCallClick(dialedNumber)
-                        }
-                    },
-                    modifier = Modifier.size(72.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    shape = CircleShape
+                Column(
+                    modifier = Modifier.fillMaxWidth(if (oneHandedMode != 0) 0.75f else 1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.call),
-                        contentDescription = "Call",
-                        modifier = Modifier.size(34.dp)
+                    DialPad(
+                        playTones = playTones,
+                        onDigitPress = {
+                            if (dialedNumber.length < 15) {
+                                dialedNumber += it
+                            }
+                        },
+                        onDigitLongPress = { digit ->
+                            val d = digit.toIntOrNull()
+                            if (d != null && d in 1..9) {
+                                val speedDialNumber = onSpeedDial(d)
+                                if (!speedDialNumber.isNullOrBlank()) {
+                                    onCallClick(speedDialNumber)
+                                } else if (d == 1) {
+                                    // Default Voicemail number
+                                    onCallClick("123") 
+                                } else {
+                                    Toast.makeText(context, "No speed dial set for $d", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        hapticFeedbackEnabled = hapticFeedbackEnabled
                     )
-                }
 
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(
-                            colorScheme.surfaceVariant.copy(
-                                alpha = if (dialedNumber.isEmpty()) 0.4f else 1f
+                    Spacer(Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.width(56.dp))
+
+                        FilledIconButton(
+                            onClick = {
+                                if (dialedNumber.isNotBlank()) {
+                                    onCallClick(dialedNumber)
+                                }
+                            },
+                            modifier = Modifier.size(72.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
-                            CircleShape
-                        )
-                        .combinedClickable(
-                            enabled = dialedNumber.isNotEmpty(),
-                            onClick = { dialedNumber = dialedNumber.dropLast(1) },
-                            onLongClick = { dialedNumber = "" }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.delete),
-                        contentDescription = "Delete",
-                        tint = colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
+                            shape = CircleShape
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.call),
+                                contentDescription = "Call",
+                                modifier = Modifier.size(34.dp)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(
+                                    colorScheme.surfaceVariant.copy(
+                                        alpha = if (dialedNumber.isEmpty()) 0.4f else 1f
+                                    ),
+                                    CircleShape
+                                )
+                                .combinedClickable(
+                                    enabled = dialedNumber.isNotEmpty(),
+                                    onClick = { dialedNumber = dialedNumber.dropLast(1) },
+                                    onLongClick = { dialedNumber = "" }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.delete),
+                                contentDescription = "Delete",
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

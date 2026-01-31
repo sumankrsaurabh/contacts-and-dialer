@@ -188,8 +188,7 @@ fun AddContactScreen(
                         Text(
                             text = if (existingContact != null) "Edit Contact" else "New Contact",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 30.sp,
-                            letterSpacing = (-0.5).sp
+                            fontSize = 32.sp
                         )
                     },
                     navigationIcon = {
@@ -226,10 +225,7 @@ fun AddContactScreen(
                     scrollBehavior = scrollBehavior,
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
-                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.8f),
-                        navigationIconContentColor = Color.Unspecified,
-                        titleContentColor = Color.Unspecified,
-                        actionIconContentColor = Color.Unspecified
+                        scrolledContainerColor = colorScheme.surfaceContainer.copy(alpha = 0.8f)
                     )
                 )
             }
@@ -254,7 +250,7 @@ fun AddContactScreen(
                         modifier = Modifier
                             .size(140.dp)
                             .clip(CircleShape)
-                            .background(colorScheme.surfaceContainerHigh)
+                            .background(colorScheme.surfaceContainerLow)
                             .clickable { imagePicker.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
@@ -287,7 +283,7 @@ fun AddContactScreen(
                             }
                         }
                     }
-                    Spacer(Modifier.height(36.dp))
+                    Spacer(Modifier.height(32.dp))
                 }
 
                 // Names Section
@@ -299,8 +295,8 @@ fun AddContactScreen(
                             onValueChange = { firstName = it }
                         )
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                            color = colorScheme.outlineVariant.copy(alpha = 0.2f),
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp),
+                            color = colorScheme.outlineVariant.copy(alpha = 0.3f),
                             thickness = 0.5.dp
                         )
                         HybridInputField(
@@ -309,7 +305,7 @@ fun AddContactScreen(
                             onValueChange = { lastName = it }
                         )
                     }
-                    Spacer(Modifier.height(28.dp))
+                    Spacer(Modifier.height(24.dp))
                 }
 
                 // Phone Numbers Section
@@ -318,10 +314,11 @@ fun AddContactScreen(
                         "PHONE",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, bottom = 8.dp),
+                            .padding(start = 24.dp, bottom = 12.dp),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        letterSpacing = 0.8.sp
                     )
                 }
 
@@ -390,29 +387,29 @@ fun AddContactScreen(
                                         if (phoneNumbers.size > 1) phoneNumbers.removeAt(index)
                                         else phoneNumbers[index] = phone.copy(number = "")
                                     },
-                                    modifier = Modifier.padding(end = 8.dp)
+                                    modifier = Modifier.padding(end = 12.dp)
                                 ) {
                                     Icon(
                                         Icons.Rounded.RemoveCircle,
                                         contentDescription = "Remove",
                                         tint = Color(0xFFFF3B30),
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
                         }
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
 
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { phoneNumbers.add(PhoneNumber("", PhoneNumberType.MOBILE)) }
-                            .padding(8.dp),
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -425,7 +422,7 @@ fun AddContactScreen(
                         Text(
                             "Add Phone Number",
                             color = colorScheme.onSurface,
-                            fontSize = 16.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -438,10 +435,11 @@ fun AddContactScreen(
                         "EMAIL",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, bottom = 8.dp),
+                            .padding(start = 24.dp, bottom = 12.dp),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        letterSpacing = 0.8.sp
                     )
                 }
 
@@ -465,29 +463,29 @@ fun AddContactScreen(
                                         if (emailAddresses.size > 1) emailAddresses.removeAt(index)
                                         else emailAddresses[index] = ""
                                     },
-                                    modifier = Modifier.padding(end = 8.dp)
+                                    modifier = Modifier.padding(end = 12.dp)
                                 ) {
                                     Icon(
                                         Icons.Rounded.RemoveCircle,
                                         contentDescription = "Remove",
                                         tint = Color(0xFFFF3B30),
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
                         }
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
 
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { emailAddresses.add("") }
-                            .padding(8.dp),
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -500,7 +498,7 @@ fun AddContactScreen(
                         Text(
                             "Add Email Address",
                             color = colorScheme.onSurface,
-                            fontSize = 16.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -513,7 +511,7 @@ fun AddContactScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                                .padding(horizontal = 24.dp, vertical = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -588,7 +586,7 @@ fun AddContactScreen(
 private fun SectionContainer(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         content = { Column(content = content) }
     )
@@ -607,16 +605,16 @@ private fun HybridInputField(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(60.dp)
-            .padding(horizontal = 16.dp),
+            .height(64.dp)
+            .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (label.isNotEmpty()) {
             Text(
                 text = label,
-                fontSize = 16.sp,
+                fontSize = 17.sp,
                 color = colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                modifier = Modifier.width(100.dp),
+                modifier = Modifier.width(110.dp),
                 fontWeight = FontWeight.Medium
             )
         }
@@ -629,7 +627,7 @@ private fun HybridInputField(
                 Text(
                     label,
                     color = colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                    fontSize = 16.sp
+                    fontSize = 17.sp
                 )
             },
             colors = TextFieldDefaults.colors(

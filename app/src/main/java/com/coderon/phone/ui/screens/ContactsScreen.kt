@@ -67,7 +67,10 @@ import kotlin.math.roundToInt
 fun ContactsScreen(
     contactsGrouped: SortedMap<Char, List<Contact>>,
     navigator: Navigator,
-    defaultSimId: String? = null
+    defaultSimId: String? = null,
+    showContactPhoto: Boolean = true,
+    displayNameFormat: Int = 0, // 0: First Last, 1: Last First
+    swipeEnabled: Boolean = true
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -169,17 +172,28 @@ fun ContactsScreen(
                             text = letter.toString(),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                            color = colorScheme.primary.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(start = 28.dp, bottom = 12.dp, top = 16.dp),
+                            letterSpacing = 0.8.sp
                         )
                     }
 
                     items(list, key = { it.id }) { contact ->
                         val phoneNumber = contact.phoneNumbers.firstOrNull()?.number.orEmpty()
+                        val displayName = if (displayNameFormat == 0) {
+                            contact.displayName
+                        } else {
+                            if (!contact.lastName.isNullOrBlank() && !contact.firstName.isNullOrBlank()) {
+                                "${contact.lastName} ${contact.firstName}"
+                            } else {
+                                contact.displayName
+                            }
+                        }
+                        
                         HybridContactRow(
-                            name = contact.displayName,
+                            name = displayName,
                             subtitle = phoneNumber,
-                            photoUrl = contact.profilePictureUrl,
+                            photoUrl = if (showContactPhoto) contact.profilePictureUrl else null,
                             onRowClick = {
                                 if (phoneNumber.isNotBlank()) {
                                     onCallClick(phoneNumber)

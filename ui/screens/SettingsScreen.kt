@@ -15,74 +15,15 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.AdsClick
-import androidx.compose.material.icons.rounded.Audiotrack
-import androidx.compose.material.icons.rounded.AutoMode
-import androidx.compose.material.icons.rounded.Block
-import androidx.compose.material.icons.rounded.ColorLens
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.DisplaySettings
-import androidx.compose.material.icons.rounded.Feedback
-import androidx.compose.material.icons.rounded.FlashOn
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Keyboard
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.PhonelinkRing
-import androidx.compose.material.icons.rounded.PhotoSizeSelectActual
-import androidx.compose.material.icons.rounded.RecordVoiceOver
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Sensors
-import androidx.compose.material.icons.rounded.SimCard
-import androidx.compose.material.icons.rounded.SortByAlpha
-import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.Swipe
-import androidx.compose.material.icons.rounded.Timer
-import androidx.compose.material.icons.rounded.TouchApp
-import androidx.compose.material.icons.rounded.Vibration
-import androidx.compose.material.icons.rounded.Voicemail
-import androidx.compose.material.icons.rounded.Wallpaper
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -170,8 +111,7 @@ fun SettingsScreen(
     onAutoAnswerDelayChanged: (Int) -> Unit = {},
     proximitySensorEnabled: Boolean = true,
     onProximitySensorEnabledToggled: (Boolean) -> Unit = {},
-    onNavigateToBlockedNumbers: () -> Unit,
-    onNavigateToSpeedDial: () -> Unit
+    onNavigateToBlockedNumbers: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -233,86 +173,73 @@ fun SettingsScreen(
                 .alpha(entryAlpha.value)
                 .offset { IntOffset(0, entryOffset.value.roundToInt()) },
             contentPadding = PaddingValues(bottom = 40.dp, top = 16.dp, start = 16.dp, end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            
-            // 1. QUICK ACCESS
+            // Communication Section
             item {
-                SettingsSection(title = "QUICK ACCESS") {
+                SettingsSection(title = "COMMUNICATION") {
                     SettingsRow(
-                        icon = Icons.Rounded.Speed,
-                        title = "Speed dial",
-                        subtitle = "Call favorites with one tap",
-                        onClick = onNavigateToSpeedDial
+                        icon = Icons.Rounded.Voicemail,
+                        title = "Voicemail",
+                        onClick = { navigator.navigate(Screen.Voicemail) }
                     )
                     SettingsDivider()
                     SettingsRow(
                         icon = Icons.Rounded.Block,
                         title = "Blocked Numbers",
-                        subtitle = "Manage restricted callers",
                         onClick = onNavigateToBlockedNumbers
                     )
                     SettingsDivider()
-                    SettingsRow(
-                        icon = Icons.Rounded.Voicemail,
-                        title = "Voicemail",
-                        subtitle = "Messages and setup",
-                        onClick = { navigator.navigate(Screen.Voicemail) }
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.Security,
+                        title = "Block unknown numbers",
+                        checked = blockUnknownNumbers,
+                        onCheckedChange = onBlockUnknownNumbersToggled
+                    )
+                    SettingsDivider()
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.VerifiedUser,
+                        title = "Spam Protection",
+                        checked = spamProtectionEnabled,
+                        onCheckedChange = onSpamProtectionToggled
                     )
                 }
             }
 
-            // 2. CALL HANDLING
+            // Contacts Customization
             item {
-                SettingsSection(title = "CALL HANDLING") {
-                    val currentSimName = availableSims.find { it.id == defaultSimId }?.getSimName(context) ?: "Ask every time"
+                SettingsSection(title = "CONTACTS") {
                     SettingsRow(
-                        icon = Icons.Rounded.SimCard,
-                        title = "Default SIM",
-                        subtitle = currentSimName,
-                        onClick = { showSimDialog = true }
+                        icon = Icons.Rounded.SortByAlpha,
+                        title = "Sort order",
+                        subtitle = if (contactSortOrder == 0) "First name" else "Last name",
+                        onClick = { onContactSortOrderChanged(if (contactSortOrder == 0) 1 else 0) }
+                    )
+                    SettingsDivider()
+                    SettingsRow(
+                        icon = Icons.Rounded.DisplaySettings,
+                        title = "Name format",
+                        subtitle = if (contactDisplayNameFormat == 0) "First name first" else "Last name first",
+                        onClick = { onContactDisplayNameFormatChanged(if (contactDisplayNameFormat == 0) 1 else 0) }
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.AutoMode,
-                        title = "Auto-answer calls",
-                        checked = autoAnswerEnabled,
-                        onCheckedChange = onAutoAnswerEnabledToggled
-                    )
-                    if (autoAnswerEnabled) {
-                        SettingsDivider()
-                        SettingsRow(
-                            icon = Icons.Rounded.Timer,
-                            title = "Auto-answer delay",
-                            subtitle = "$autoAnswerDelay seconds",
-                            onClick = { onAutoAnswerDelayChanged(if (autoAnswerDelay >= 10) 2 else autoAnswerDelay + 2) }
-                        )
-                    }
-                    SettingsDivider()
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.PhonelinkRing,
-                        title = "Flip to silence",
-                        checked = flipToSilence,
-                        onCheckedChange = onFlipToSilenceToggled
+                        icon = Icons.Rounded.Image,
+                        title = "Show contact photos",
+                        checked = showContactPhoto,
+                        onCheckedChange = onShowContactPhotoToggled
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Sensors,
-                        title = "Proximity sensor",
-                        checked = proximitySensorEnabled,
-                        onCheckedChange = onProximitySensorEnabledToggled
-                    )
-                    SettingsDivider()
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.History,
-                        title = "Post-call summary",
-                        checked = showPostCallDetails,
-                        onCheckedChange = onShowPostCallDetailsToggled
+                        icon = Icons.Rounded.Swipe,
+                        title = "Swipe to call or message",
+                        checked = swipeToCallEnabled,
+                        onCheckedChange = onSwipeToCallEnabledToggled
                     )
                 }
             }
 
-            // 3. CALL RECORDING
+            // Call Recording Section
             item {
                 SettingsSection(title = "CALL RECORDING") {
                     SettingsToggleRow(
@@ -325,7 +252,7 @@ fun SettingsScreen(
                         SettingsDivider()
                         SettingsToggleRow(
                             icon = Icons.Rounded.Mic,
-                            title = "Auto record unknown",
+                            title = "Auto record unknown numbers",
                             checked = autoRecordUnknown,
                             onCheckedChange = onAutoRecordUnknownToggled
                         )
@@ -340,9 +267,9 @@ fun SettingsScreen(
                 }
             }
 
-            // 4. ALERTS & FEEDBACK
+            // Audio & Feedback Section
             item {
-                SettingsSection(title = "ALERTS & FEEDBACK") {
+                SettingsSection(title = "AUDIO & FEEDBACK") {
                     SettingsToggleRow(
                         icon = Icons.Rounded.NotificationsActive,
                         title = "Ringtone",
@@ -353,7 +280,7 @@ fun SettingsScreen(
                         SettingsDivider()
                         SettingsRow(
                             icon = Icons.Rounded.MusicNote,
-                            title = "Choose Ringtone",
+                            title = "Select Ringtone",
                             onClick = {
                                 val intent = android.content.Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
                                     .apply {
@@ -367,10 +294,35 @@ fun SettingsScreen(
                     }
                     SettingsDivider()
                     SettingsToggleRow(
+                        icon = Icons.Rounded.Keyboard,
+                        title = "Keypad Tones",
+                        checked = keypadTonesEnabled,
+                        onCheckedChange = onKeypadTonesToggled
+                    )
+                    if (keypadTonesEnabled) {
+                        SettingsDivider()
+                        SettingsRow(
+                            icon = Icons.Rounded.Audiotrack,
+                            title = "Keypad sound theme",
+                            subtitle = when (dialPadSoundTheme) {
+                                1 -> "Piano"; 2 -> "Retro"; else -> "Default"
+                            },
+                            onClick = { onDialPadSoundThemeChanged((dialPadSoundTheme + 1) % 3) }
+                        )
+                    }
+                    SettingsDivider()
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.RecordVoiceOver,
+                        title = "Announce caller name",
+                        checked = announceCallerName,
+                        onCheckedChange = onAnnounceCallerNameToggled
+                    )
+                    SettingsDivider()
+                    SettingsToggleRow(
                         icon = Icons.Rounded.Vibration,
-                        title = "Vibrate on answer",
-                        checked = vibrateOnAnswer,
-                        onCheckedChange = onVibrateOnAnswerToggled
+                        title = "Haptic feedback",
+                        checked = hapticFeedbackEnabled,
+                        onCheckedChange = onHapticFeedbackToggled
                     )
                     SettingsDivider()
                     SettingsRow(
@@ -381,36 +333,15 @@ fun SettingsScreen(
                         },
                         onClick = { onVibrationPatternChanged((vibrationPattern + 1) % 3) }
                     )
-                    SettingsDivider()
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.FlashOn,
-                        title = "Flash on call",
-                        checked = flashOnCall,
-                        onCheckedChange = onFlashOnCallToggled
-                    )
-                    SettingsDivider()
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.RecordVoiceOver,
-                        title = "Announce caller",
-                        checked = announceCallerName,
-                        onCheckedChange = onAnnounceCallerNameToggled
-                    )
-                    SettingsDivider()
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.TouchApp,
-                        title = "Haptic feedback",
-                        checked = hapticFeedbackEnabled,
-                        onCheckedChange = onHapticFeedbackToggled
-                    )
                 }
             }
 
-            // 5. LOOK & FEEL
+            // Customization Section
             item {
                 SettingsSection(title = "LOOK & FEEL") {
                     SettingsRow(
                         icon = Icons.Rounded.Palette,
-                        title = "App Theme",
+                        title = "Theme",
                         subtitle = when (themeMode) {
                             1 -> "Light"; 2 -> "Dark"; else -> "System"
                         },
@@ -435,7 +366,7 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.PhotoSizeSelectActual,
-                        title = "Full screen photo",
+                        title = "Full screen caller photo",
                         checked = fullScreenCallerPhoto,
                         onCheckedChange = onFullScreenCallerPhotoToggled
                     )
@@ -444,21 +375,21 @@ fun SettingsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(42.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(colorScheme.primary.copy(alpha = 0.1f)),
+                                    .background(colorScheme.primary.copy(alpha = 0.12f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Rounded.Wallpaper,
                                     contentDescription = null,
                                     tint = colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                             Spacer(Modifier.width(16.dp))
                             Text(
-                                "Call Background",
+                                "Call Screen Background",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.weight(1f)
@@ -513,82 +444,71 @@ fun SettingsScreen(
                 }
             }
 
-            // 6. CONTACTS
+            // Call Handling Section
             item {
-                SettingsSection(title = "CONTACTS") {
+                SettingsSection(title = "CALL HANDLING") {
+                    val currentSimName = availableSims.find { it.id == defaultSimId }?.getSimName(context) ?: "Ask every time"
                     SettingsRow(
-                        icon = Icons.Rounded.SortByAlpha,
-                        title = "Sort order",
-                        subtitle = if (contactSortOrder == 0) "First name" else "Last name",
-                        onClick = { onContactSortOrderChanged(if (contactSortOrder == 0) 1 else 0) }
-                    )
-                    SettingsDivider()
-                    SettingsRow(
-                        icon = Icons.Rounded.DisplaySettings,
-                        title = "Name format",
-                        subtitle = if (contactDisplayNameFormat == 0) "First name first" else "Last name first",
-                        onClick = { onContactDisplayNameFormatChanged(if (contactDisplayNameFormat == 0) 1 else 0) }
+                        icon = Icons.Rounded.SimCard,
+                        title = "Default SIM for calls",
+                        subtitle = currentSimName,
+                        onClick = { showSimDialog = true }
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.AccountCircle,
-                        title = "Show photos",
-                        checked = showContactPhoto,
-                        onCheckedChange = onShowContactPhotoToggled
+                        icon = Icons.Rounded.Vibration,
+                        title = "Vibrate on answer",
+                        checked = vibrateOnAnswer,
+                        onCheckedChange = onVibrateOnAnswerToggled
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Swipe,
-                        title = "Swipe actions",
-                        checked = swipeToCallEnabled,
-                        onCheckedChange = onSwipeToCallEnabledToggled
+                        icon = Icons.Rounded.FlashOn,
+                        title = "Flash on incoming call",
+                        checked = flashOnCall,
+                        onCheckedChange = onFlashOnCallToggled
                     )
-                }
-            }
-
-            // 7. KEYPAD
-            item {
-                SettingsSection(title = "KEYPAD") {
+                    SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Keyboard,
-                        title = "Keypad Tones",
-                        checked = keypadTonesEnabled,
-                        onCheckedChange = onKeypadTonesToggled
+                        icon = Icons.Rounded.History,
+                        title = "Show post-call summary",
+                        checked = showPostCallDetails,
+                        onCheckedChange = onShowPostCallDetailsToggled
                     )
-                    if (keypadTonesEnabled) {
+                    SettingsDivider()
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.PhonelinkRing,
+                        title = "Flip to silence",
+                        checked = flipToSilence,
+                        onCheckedChange = onFlipToSilenceToggled
+                    )
+                    SettingsDivider()
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.AutoMode,
+                        title = "Auto-answer calls",
+                        checked = autoAnswerEnabled,
+                        onCheckedChange = onAutoAnswerEnabledToggled
+                    )
+                    if (autoAnswerEnabled) {
                         SettingsDivider()
                         SettingsRow(
-                            icon = Icons.Rounded.Audiotrack,
-                            title = "Sound theme",
-                            subtitle = when (dialPadSoundTheme) {
-                                1 -> "Piano"; 2 -> "Retro"; else -> "Default"
-                            },
-                            onClick = { onDialPadSoundThemeChanged((dialPadSoundTheme + 1) % 3) }
+                            icon = Icons.Rounded.Timer,
+                            title = "Auto-answer delay",
+                            subtitle = "$autoAnswerDelay seconds",
+                            onClick = { onAutoAnswerDelayChanged(if (autoAnswerDelay >= 10) 2 else autoAnswerDelay + 2) }
                         )
                     }
-                }
-            }
-
-            // 8. PRIVACY & SECURITY
-            item {
-                SettingsSection(title = "PRIVACY & SECURITY") {
-                    SettingsToggleRow(
-                        icon = Icons.Rounded.Block,
-                        title = "Block unknown",
-                        checked = blockUnknownNumbers,
-                        onCheckedChange = onBlockUnknownNumbersToggled
-                    )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Security,
-                        title = "Spam Protection",
-                        checked = spamProtectionEnabled,
-                        onCheckedChange = onSpamProtectionToggled
+                        icon = Icons.Rounded.Sensors,
+                        title = "Use proximity sensor",
+                        checked = proximitySensorEnabled,
+                        onCheckedChange = onProximitySensorEnabledToggled
                     )
                 }
             }
 
-            // 9. ABOUT
+            // Advanced Section
             item {
                 SettingsSection(title = "ABOUT") {
                     SettingsRow(
@@ -792,8 +712,7 @@ private fun PreviewSettingsScreen() {
             defaultSimId = null,
             availableSims = emptyList(),
             onDefaultSimChanged = {},
-            onNavigateToBlockedNumbers = {},
-            onNavigateToSpeedDial = {}
+            onNavigateToBlockedNumbers = {}
         )
     }
 }

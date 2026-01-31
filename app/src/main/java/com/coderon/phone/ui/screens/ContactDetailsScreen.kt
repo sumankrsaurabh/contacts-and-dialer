@@ -97,7 +97,8 @@ fun ContactDetailsScreen(
     navigator: Navigator,
     onToggleFavorite: (Contact) -> Unit = {},
     onEditContact: (Contact) -> Unit = {},
-    defaultSimId: String? = null
+    defaultSimId: String? = null,
+    showContactPhoto: Boolean = true
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -232,7 +233,11 @@ fun ContactDetailsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        HybridAvatar(contact)
+                        if (showContactPhoto) {
+                            HybridAvatar(contact)
+                        } else {
+                            HybridAvatarPlaceholder(contact)
+                        }
                         Spacer(Modifier.height(28.dp))
                         HybridQuickActions(
                             onCall = {
@@ -379,15 +384,21 @@ private fun HybridAvatar(contact: Contact) {
                 modifier = Modifier.fillMaxSize()
             )
         } else {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = contact.displayName.firstOrNull()?.uppercase() ?: "?",
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.Light,
-                    color = colorScheme.onSurfaceVariant
-                )
-            }
+            HybridAvatarPlaceholder(contact)
         }
+    }
+}
+
+@Composable
+private fun HybridAvatarPlaceholder(contact: Contact) {
+    val colorScheme = MaterialTheme.colorScheme
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().background(colorScheme.surfaceContainerHigh)) {
+        Text(
+            text = contact.displayName.firstOrNull()?.uppercase() ?: "?",
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Light,
+            color = colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -442,8 +453,9 @@ private fun HybridSection(title: String, content: @Composable ColumnScope.() -> 
             text = title,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+            modifier = Modifier.padding(start = 28.dp, bottom = 12.dp),
+            letterSpacing = 0.8.sp
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),

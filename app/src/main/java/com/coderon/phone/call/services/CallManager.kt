@@ -4,6 +4,10 @@ package com.coderon.phone.call.services
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -21,9 +25,11 @@ import com.coderon.phone.data.repository.SettingsRepository
 import com.coderon.phone.domain.repository.CallLogRepository
 import com.coderon.phone.domain.repository.ContactRepository
 import com.coderon.phone.utils.FlashlightManager
+import com.coderon.phone.utils.TTSManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,11 +59,33 @@ object CallManager : KoinComponent {
     private var proximityManager: CallProximityManager? = null
     private var flashlightManager: FlashlightManager? = null
     private var recorderManager: CallRecorderManager? = null
+    private var ttsManager: TTSManager? = null
     private val audioManager = CallAudioManager { inCallService }
     private val timerManager = CallTimerManager(scope)
     private val callLogHandler = CallLogHandler(callLogRepository, scope)
     private val contactResolver = CallContactResolver(contactRepository)
     private val actionHandler = CallActionHandler(sessionManager, audioManager, scope, _uiState)
+
+    private var sensorManager: SensorManager? = null
+    private var accelerometer: Sensor? = null
+    private var isSilencedByFlip = false
+
+    private val sensorListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent?) {
+            if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
+                val z = event.values[2]
+                // If Z is around -9.8, the phone is face down
+                if (z < -8.0 && !isSilencedByFlip) {
+                    scope.launch {
+                        if (settingsRepository.flipToSilence.first()) {
+                            silenceIncomingCall()
+                        }
+                    }
+                }
+            }
+        }
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
 
     /* ------------------------------------------------
        SERVICE
@@ -70,6 +98,10 @@ object CallManager : KoinComponent {
             proximityManager = CallProximityManager(service)
             flashlightManager = FlashlightManager(service)
             recorderManager = CallRecorderManager(service)
+            ttsManager = TTSManager(service)
+            
+            sensorManager = service.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+            accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
             
             _uiState.value = _uiState.value.copy(
                 isFrontCamera = cameraManager?.isFrontCamera() ?: true
@@ -84,8 +116,22 @@ object CallManager : KoinComponent {
             flashlightManager?.stopBlinking()
             flashlightManager = null
             recorderManager = null
+            ttsManager?.shutDown()
+            ttsManager = null
+            unregisterSensor()
             recompute()
         }
+    }
+
+    private fun registerSensor() {
+        if (accelerometer != null) {
+            sensorManager?.registerListener(sensorListener, accelerometer, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+    }
+
+    private fun unregisterSensor() {
+        sensorManager?.unregisterListener(sensorListener)
+        isSilencedByFlip = false
     }
 
     fun rebindCamera() {
@@ -105,8 +151,12 @@ object CallManager : KoinComponent {
         Log.d(TAG, "onCallAdded: $phoneNumber")
 
         if (isIncoming) {
+            isSilencedByFlip = false
+            registerSensor()
             maybeSilenceCall(call)
             maybeStartFlash()
+            maybeAnnounceCaller(phoneNumber)
+            maybeAutoAnswer(call)
         }
 
         if (VideoProfile.isVideo(call.details.videoState)) {
@@ -134,6 +184,9 @@ object CallManager : KoinComponent {
                 if (updatedSession != null) {
                     sessionManager.updateSession(id, updatedSession)
                     recompute()
+                    if (isIncoming) {
+                        maybeAnnounceCaller(contact.displayName)
+                    }
                 }
             }
         }
@@ -167,6 +220,8 @@ object CallManager : KoinComponent {
                 if (existing.call.state != Call.STATE_ACTIVE && newState == Call.STATE_ACTIVE) {
                     maybeVibrateOnAnswer()
                     flashlightManager?.stopBlinking()
+                    ttsManager?.stop()
+                    unregisterSensor()
                     maybeAutoRecord(existing.phoneNumber)
                 }
 
@@ -238,11 +293,15 @@ object CallManager : KoinComponent {
             sessionManager.setStartTime(id, System.currentTimeMillis())
             maybeVibrateOnAnswer()
             flashlightManager?.stopBlinking()
+            ttsManager?.stop()
+            unregisterSensor()
             maybeAutoRecord(existing.phoneNumber)
         }
 
         if (newState == Call.STATE_DISCONNECTED || newState == Call.STATE_DISCONNECTING) {
             flashlightManager?.stopBlinking()
+            ttsManager?.stop()
+            unregisterSensor()
             if (sessionManager.sessions.size <= 1) {
                 stopRecording()
             }
@@ -254,6 +313,22 @@ object CallManager : KoinComponent {
         recompute()
         updateTimerState()
         updateProximitySensor()
+    }
+
+    private fun silenceIncomingCall() {
+        if (isSilencedByFlip) return
+        isSilencedByFlip = true
+        Log.d(TAG, "silenceIncomingCall: Phone flipped face down")
+        
+        // Stop internal alerts
+        flashlightManager?.stopBlinking()
+        ttsManager?.stop()
+        
+        // Notify service to silence ringtone (if possible via system APIs or just local state)
+        inCallService?.let { service ->
+            val audioManager = service.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_RING, android.media.AudioManager.ADJUST_MUTE, 0)
+        }
     }
 
     private fun maybeSilenceCall(call: Call) {
@@ -272,13 +347,39 @@ object CallManager : KoinComponent {
         }
     }
 
+    private fun maybeAnnounceCaller(nameOrNumber: String) {
+        scope.launch {
+            if (settingsRepository.announceCallerName.first()) {
+                ttsManager?.speak("Incoming call from $nameOrNumber")
+            }
+        }
+    }
+
+    private fun maybeAutoAnswer(call: Call) {
+        scope.launch {
+            if (settingsRepository.autoAnswerEnabled.first()) {
+                val delaySeconds = settingsRepository.autoAnswerDelay.first()
+                delay(delaySeconds * 1000L)
+                if (call.state == Call.STATE_RINGING) {
+                    call.answer(VideoProfile.STATE_AUDIO_ONLY)
+                }
+            }
+        }
+    }
+
     private fun maybeVibrateOnAnswer() {
         scope.launch {
             if (settingsRepository.vibrateOnAnswer.first()) {
+                val pattern = settingsRepository.vibrationPattern.first()
                 val vibrator = inCallService?.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
                 vibrator?.let {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        it.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+                        val effect = when (pattern) {
+                            1 -> VibrationEffect.createWaveform(longArrayOf(0, 100, 100, 100), -1) // Heartbeat
+                            2 -> VibrationEffect.createWaveform(longArrayOf(0, 50, 50, 50), -1) // Tick-tock
+                            else -> VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
+                        }
+                        it.vibrate(effect)
                     } else {
                         @Suppress("DEPRECATION")
                         it.vibrate(100)
@@ -315,12 +416,29 @@ object CallManager : KoinComponent {
 
         if (session != null) {
             callLogHandler.saveCallLog(inCallService, session, sessionManager.getStartTime(id))
+            
+            // Check if we should show post-call details
+            scope.launch {
+                if (settingsRepository.showPostCallDetails.first()) {
+                    val duration = (System.currentTimeMillis() - (sessionManager.getStartTime(id) ?: System.currentTimeMillis())) / 1000
+                    _uiState.value = _uiState.value.copy(
+                        lastCallSummary = CallUiState.CallSummary(
+                            phoneNumber = session.phoneNumber,
+                            durationSeconds = duration,
+                            isIncoming = session.isIncoming,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
         }
 
         sessionManager.removeSession(id)
         
         if (sessionManager.sessions.isEmpty()) {
             flashlightManager?.stopBlinking()
+            ttsManager?.stop()
+            unregisterSensor()
             stopRecording()
         }
 
@@ -360,11 +478,17 @@ object CallManager : KoinComponent {
     --------------------------------------------------- */
 
     private fun updateProximitySensor() {
-        proximityManager?.updateProximitySensor(
-            hasActiveOrOutgoingCall = sessionManager.sessions.values.any { it.state.isActive || it.state.isOutgoing },
-            audioRoute = _uiState.value.audioRoute,
-            isVideo = _uiState.value.isVideo
-        )
+        scope.launch {
+            if (settingsRepository.proximitySensorEnabled.first()) {
+                proximityManager?.updateProximitySensor(
+                    hasActiveOrOutgoingCall = sessionManager.sessions.values.any { it.state.isActive || it.state.isOutgoing },
+                    audioRoute = _uiState.value.audioRoute,
+                    isVideo = _uiState.value.isVideo
+                )
+            } else {
+                proximityManager?.release()
+            }
+        }
     }
 
     /* ------------------------------------------------
@@ -444,5 +568,9 @@ object CallManager : KoinComponent {
     private fun stopRecording() {
         recorderManager?.stopRecording()
         _uiState.value = _uiState.value.copy(isRecording = false)
+    }
+
+    fun clearSummary() {
+        _uiState.value = _uiState.value.copy(lastCallSummary = null)
     }
 }

@@ -30,6 +30,9 @@ import com.coderon.phone.ui.navigation.AppNavHost
 import com.coderon.phone.ui.navigation.Navigator
 import com.coderon.phone.ui.navigation.Screen
 import com.coderon.phone.ui.navigation.rememberNavigationState
+import com.coderon.phone.ui.theme.PhoneTheme
+import com.coderon.phone.viewmodel.SettingsViewModel
+import org.koin.androidx.compose.koinViewModel
 
 /* ------------------------------------------------
    ROOT APP
@@ -39,7 +42,8 @@ import com.coderon.phone.ui.navigation.rememberNavigationState
 fun MyApp(
     intentState: State<Intent?>,
     onFinish: () -> Unit = {},
-    onManualInteraction: () -> Unit = {}
+    onManualInteraction: () -> Unit = {},
+    settingsViewModel: SettingsViewModel = koinViewModel()
 ) {
     // Navigation 3 State
     val navigationState = rememberNavigationState(
@@ -49,6 +53,10 @@ fun MyApp(
     val navigator = remember { Navigator(navigationState) }
 
     val callUiState by CallManager.uiState.collectAsStateWithLifecycle()
+    
+    // Collect settings for theme
+    val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+    val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
 
     // Use the actual top of the current stack for route comparisons
     val currentRoute = navigationState.backStacks[navigationState.topLevelRoute]?.lastOrNull()
@@ -82,7 +90,19 @@ fun MyApp(
             // No active calls, ensure we aren't stuck on the CallScreen
             if (currentRoute == Screen.CallScreen) {
                 navigator.goBack()
-                onFinish()
+                
+                // If we have a call summary to show, navigate to it
+                callUiState.lastCallSummary?.let { summary ->
+                    navigator.navigate(
+                        Screen.PostCallSummary(
+                            phoneNumber = summary.phoneNumber,
+                            duration = summary.durationSeconds,
+                            isIncoming = summary.isIncoming,
+                            timestamp = summary.timestamp
+                        )
+                    )
+                    CallManager.clearSummary()
+                } ?: onFinish()
             }
         }
     }
@@ -98,35 +118,40 @@ fun MyApp(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+    PhoneTheme(
+        themeMode = themeMode,
+        dynamicColor = dynamicColor
     ) {
-        /* -------------------- MAIN NAV HOST -------------------- */
-        AppNavHost(navigator = navigator)
-
-        /* -------------------- IN-APP HEADS-UP POPUP -------------------- */
-        // Show popup if there is an incoming call and we are NOT on the CallScreen
-        AnimatedVisibility(
-            visible = isIncoming && currentRoute != Screen.CallScreen,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
+        Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 12.dp, start = 8.dp, end = 8.dp)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            val call = callUiState.primaryCall
-            if (call != null) {
-                CallNotificationContent(
-                    name = call.displayName ?: "Unknown",
-                    phoneNumber = call.phoneNumber,
-                    profilePictureUrl = call.profilePictureUrl,
-                    status = "Incoming Call",
-                    onAccept = { CallManager.accept() },
-                    onDecline = { CallManager.reject() },
-                    onContentClick = { navigator.navigate(Screen.CallScreen) }
-                )
+            /* -------------------- MAIN NAV HOST -------------------- */
+            AppNavHost(navigator = navigator)
+
+            /* -------------------- IN-APP HEADS-UP POPUP -------------------- */
+            // Show popup if there is an incoming call and we are NOT on the CallScreen
+            AnimatedVisibility(
+                visible = isIncoming && currentRoute != Screen.CallScreen,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp, start = 8.dp, end = 8.dp)
+            ) {
+                val call = callUiState.primaryCall
+                if (call != null) {
+                    CallNotificationContent(
+                        name = call.displayName ?: "Unknown",
+                        phoneNumber = call.phoneNumber,
+                        profilePictureUrl = call.profilePictureUrl,
+                        status = "Incoming Call",
+                        onAccept = { CallManager.accept() },
+                        onDecline = { CallManager.reject() },
+                        onContentClick = { navigator.navigate(Screen.CallScreen) }
+                    )
+                }
             }
         }
     }
