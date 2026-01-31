@@ -23,17 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Bluetooth
-import androidx.compose.material.icons.rounded.Dialpad
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.MicOff
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.RadioButtonChecked
-import androidx.compose.material.icons.rounded.VideoCall
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -47,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -236,20 +224,20 @@ fun OngoingCallScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             ModernInCallAction(
-                                imageVector = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                                iconRes = if (isMuted) R.drawable.mute else R.drawable.mic,
                                 label = "Mute",
                                 active = isMuted,
                                 enabled = isActive,
                                 onClick = onToggleMute
                             )
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.Bluetooth,
+                                iconRes = R.drawable.bluetooth,
                                 label = "Bluetooth",
                                 active = currentAudioRoute == AudioRoute.BLUETOOTH,
                                 onClick = onToggleBluetooth
                             )
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.VideoCall,
+                                iconRes = R.drawable.ic_video_call,
                                 label = "Video call",
                                 active = false,
                                 enabled = isActive,
@@ -262,21 +250,21 @@ fun OngoingCallScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.Add,
+                                iconRes = R.drawable.ic_phone_plus,
                                 label = "Add call",
                                 active = false,
                                 enabled = isActive,
                                 onClick = onAddCall
                             )
                             ModernInCallAction(
-                                imageVector = if (isOnHold) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                                iconRes = R.drawable.ic_phone_pause,
                                 label = if (isOnHold) "Resume" else "Hold",
                                 active = isOnHold,
                                 enabled = isActive || isOnHold,
                                 onClick = onToggleHold
                             )
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.RadioButtonChecked,
+                                iconRes = R.drawable.record,
                                 label = if (isRecording) "Stop" else "Record",
                                 active = isRecording,
                                 enabled = isActive,
@@ -291,7 +279,7 @@ fun OngoingCallScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             ModernInCallAction(
-                                imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
+                                iconRes = R.drawable.ic_volume,
                                 label = "Speaker",
                                 active = currentAudioRoute == AudioRoute.SPEAKER,
                                 onClick = onToggleSpeaker
@@ -301,7 +289,7 @@ fun OngoingCallScreen(
                             EndCallWithLabel(onClick = onEndCall)
 
                             ModernInCallAction(
-                                imageVector = Icons.Rounded.Dialpad,
+                                iconRes = R.drawable.keypad,
                                 label = "Keypad",
                                 active = false,
                                 onClick = { showKeypad = true }
@@ -331,7 +319,7 @@ fun OngoingCallScreen(
 
                         Spacer(Modifier.height(24.dp))
 
-                        // End Call button visible when dialpad is shown - now identical to the one in grid
+                        // End Call button visible when dialpad is shown
                         EndCallWithLabel(onClick = onEndCall)
                     }
                 } else {
@@ -427,7 +415,7 @@ private fun OngoingCallAvatar(name: String, photoUrl: String?, isPulsing: Boolea
 
 @Composable
 private fun ModernInCallAction(
-    imageVector: ImageVector,
+    iconRes: Int,
     label: String,
     active: Boolean,
     enabled: Boolean = true,
@@ -447,7 +435,7 @@ private fun ModernInCallAction(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = imageVector,
+                    painter = painterResource(iconRes),
                     contentDescription = label,
                     tint = if (active) (if (activeColor == Color.White) Color.Black else Color.White) else Color.White,
                     modifier = Modifier.size(26.dp)
